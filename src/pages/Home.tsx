@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import ChannelCard from '../components/ChannelCard';
 import ChannelModal from '../components/ChannelModal';
 import { TrendingUp, Zap, Shield, Search, Check, ChevronDown, ChevronUp, Sliders, X } from 'lucide-react';
+import { useAuth } from '@/context';
+import { useToast } from "@/components/ui/use-toast";
 
 interface ChannelData {
   id: string;
@@ -23,11 +25,17 @@ interface ChannelData {
   };
 }
 
-const Home: React.FC = () => {
+interface HomeProps {
+  setCurrentPage?: (page: string) => void;
+}
+
+const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   const [channels, setChannels] = useState<ChannelData[]>([]);
   const [filteredChannels, setFilteredChannels] = useState<ChannelData[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<ChannelData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { isLoggedIn } = useAuth();
+  const { toast } = useToast();
   const [sortBy, setSortBy] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState<string>('YouTube');
@@ -241,6 +249,19 @@ const Home: React.FC = () => {
   };
 
   const handleShowMore = (channel: ChannelData) => {
+    if (!isLoggedIn) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to view channel details",
+        className: "bg-amber-500 text-white",
+      });
+      
+      if (setCurrentPage) {
+        setCurrentPage('login');
+      }
+      return;
+    }
+    
     setSelectedChannel(channel);
     setIsModalOpen(true);
   };

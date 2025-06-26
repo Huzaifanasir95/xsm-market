@@ -48,11 +48,9 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
             className="flex-shrink-0 cursor-pointer"
             onClick={() => setCurrentPage('home')}
           >
-            <img 
-              src="/images/logo.png" 
-              alt="XSM Market Logo" 
-              className="h-8 object-contain"
-            />
+            <h1 className="text-2xl font-bold text-xsm-yellow">
+              XSM <span className="text-white">Market</span>
+            </h1>
           </div>
 
           {/* Navigation spacer */}
