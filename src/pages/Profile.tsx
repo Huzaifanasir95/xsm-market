@@ -9,6 +9,14 @@ interface ProfileProps {
 
 const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const { user, isLoggedIn } = useAuth();
+  
+  // Debug logging
+  console.log('🔍 Profile component state:', { 
+    user, 
+    isLoggedIn, 
+    token: localStorage.getItem('token') ? 'exists' : 'missing',
+    userData: localStorage.getItem('userData')
+  });
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
@@ -51,13 +59,118 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     setCurrentPage('login');
   };
 
-  // Show loading if no user data yet
+  // Show loading if no user data yet but we are logged in
   if (isLoggedIn && !user) {
+    // If we have a token but no user data, create a default user
+    const token = localStorage.getItem('token');
+    if (token) {
+      console.log('🔧 Creating default user data since token exists but no user data found');
+      const defaultUser = {
+        id: 'temp-user-id',
+        username: 'User',
+        email: 'user@example.com',
+        profilePicture: ''
+      };
+      
+      // Store and use default user data
+      localStorage.setItem('userData', JSON.stringify(defaultUser));
+      
+      // Force re-render by setting a temporary loading state
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <h1 className="text-4xl font-bold text-xsm-yellow">My Profile</h1>
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+              <p className="text-xl text-white">
+                Profile loaded with default data (please refresh to see your actual data)
+              </p>
+            </div>
+
+            <div className="grid lg:grid-cols-3 gap-8">
+              {/* Profile Overview */}
+              <div className="lg:col-span-1">
+                <div className="xsm-card text-center mb-6">
+                  <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
+                    <div className="w-full h-full bg-xsm-yellow rounded-full flex items-center justify-center">
+                      <User className="w-12 h-12 text-xsm-black" />
+                    </div>
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">{defaultUser.username}</h2>
+                  <p className="text-xsm-light-gray mb-1">@{defaultUser.username}</p>
+                  <p className="text-xsm-light-gray mb-4">{defaultUser.email}</p>
+                  <div className="text-xs text-yellow-400 bg-yellow-500/10 rounded-full px-3 py-1 inline-block">
+                    ⚠️ Default profile data - please login again for actual data
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Content */}
+              <div className="lg:col-span-2 space-y-8">
+                <div className="xsm-card">
+                  <h3 className="text-xl font-bold text-xsm-yellow mb-6">Profile Status</h3>
+                  <div className="bg-blue-500/10 rounded-lg p-4">
+                    <p className="text-white mb-4">
+                      You are logged in, but we couldn't load your profile data. This might happen if:
+                    </p>
+                    <ul className="text-xsm-light-gray list-disc pl-6 space-y-2">
+                      <li>You refreshed the page after logging in</li>
+                      <li>Your session data was cleared</li>
+                      <li>There was a temporary connection issue</li>
+                    </ul>
+                    <div className="mt-4 space-x-4">
+                      <button
+                        onClick={() => setCurrentPage('login')}
+                        className="bg-xsm-yellow hover:bg-yellow-500 text-black px-4 py-2 rounded-lg font-semibold transition-colors"
+                      >
+                        Login Again
+                      </button>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                      >
+                        Refresh Page
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-xsm-yellow border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-white text-xl">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login message if not authenticated
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Please Log In</h2>
+          <p className="text-xsm-light-gray mb-6">You need to be logged in to view your profile.</p>
+          <button
+            onClick={() => setCurrentPage('login')}
+            className="bg-xsm-yellow hover:bg-yellow-500 text-black px-6 py-3 rounded-lg font-semibold transition-colors"
+          >
+            Go to Login
+          </button>
         </div>
       </div>
     );
@@ -69,10 +182,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     newPassword: '',
     confirmPassword: '',
   });
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [listedChannels] = useState([
     {
@@ -98,21 +207,17 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   ]);
 
   const handleSaveProfile = () => {
-    // In a real application, you would send this to a server
     setProfile({ ...editForm });
     setIsEditing(false);
-    setSuccessMessage('Profile updated successfully!');
-    setTimeout(() => setSuccessMessage(null), 3000);
+    alert('Profile updated successfully!');
   };
 
   const handlePasswordChange = () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setErrorMessage('New passwords do not match!');
-      setTimeout(() => setErrorMessage(null), 3000);
+      alert('New passwords do not match!');
       return;
     }
-    setSuccessMessage('Password changed successfully!');
-    setTimeout(() => setSuccessMessage(null), 3000);
+    alert('Password changed successfully!');
     setPasswordForm({
       currentPassword: '',
       newPassword: '',
@@ -121,104 +226,15 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   };
 
   const handleDeleteAccount = () => {
-    setSuccessMessage('Account deletion requested. You will receive a confirmation email within 24 hours.');
+    alert('Account deletion requested. You will receive a confirmation email within 24 hours.');
     setShowDeleteConfirm(false);
-    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  const validatePhotoFile = (file: File): boolean => {
-    // Reset previous error
-    setPhotoError(null);
-    
-    // Check file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      setPhotoError('Invalid file type. Please upload a JPEG, PNG, GIF, or WEBP image.');
-      return false;
-    }
-    
-    // Check file size (5MB limit)
-    if (file.size > 5 * 1024 * 1024) {
-      setPhotoError('File size too large. Please choose an image under 5MB.');
-      return false;
-    }
-    
-    return true;
-  };
-
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && validatePhotoFile(file)) {
-      setIsUploadingPhoto(true);
-      // In a real application, you would upload to a server
-      // For now, we'll just create a local URL
-      const imageUrl = URL.createObjectURL(file);
-      
-      setTimeout(() => {
-        setProfile(prev => ({ ...prev, profilePhoto: imageUrl }));
-        setEditForm(prev => ({ ...prev, profilePhoto: imageUrl }));
-        setIsUploadingPhoto(false);
-      }, 800); // Simulate upload delay
-    }
-    
-    // Clear the input value so the same file can be uploaded again if needed
-    if (e.target) {
-      e.target.value = '';
-    }
-  };
-  
-  const removeProfilePhoto = () => {
-    if (profile.profilePhoto) {
-      // In a real app, you would make an API call to delete the photo
-      URL.revokeObjectURL(profile.profilePhoto); // Clean up the object URL
-      setProfile(prev => ({ ...prev, profilePhoto: null }));
-      setEditForm(prev => ({ ...prev, profilePhoto: null }));
-    }
-  };
-  
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isUploadingPhoto) setIsDragging(true);
-  };
-  
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-  
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isUploadingPhoto) setIsDragging(true);
-  };
-  
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    
-    if (isUploadingPhoto) return;
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (validatePhotoFile(file)) {
-        setIsUploadingPhoto(true);
-        // In a real application, you would upload to a server
-        const imageUrl = URL.createObjectURL(file);
-        
-        setTimeout(() => {
-          setProfile(prev => ({ ...prev, profilePhoto: imageUrl }));
-          setEditForm(prev => ({ ...prev, profilePhoto: imageUrl }));
-          setIsUploadingPhoto(false);
-        }, 800); // Simulate upload delay
-      }
-    }
-  };
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
+  const handleVerificationSubmit = async (documentType: string, file: File) => {
+    // TODO: Implement actual verification submission logic
+    console.log('Submitting verification:', { documentType, file });
+    // Mock API call
+    setProfile(prev => ({ ...prev, verificationStatus: 'pending' }));
   };
 
   const formatPrice = (price: number) => {
@@ -374,82 +390,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     className={`xsm-input w-full ${!isEditing ? 'opacity-60' : ''}`}
                   />
                 </div>
-                {isEditing && (
-                  <div className="md:col-span-2">
-                    <label className="block text-white font-medium mb-2">Profile Photo</label>
-                    <div 
-                      className={`mt-2 flex justify-center rounded-lg border border-dashed border-xsm-yellow/60 px-6 py-10 transition-colors ${
-                        isDragging ? 'bg-xsm-yellow/10' : 'hover:bg-xsm-yellow/5'
-                      }`}
-                      onDragEnter={handleDragEnter}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                    >
-                      <div className="text-center">
-                        <div className="flex flex-col items-center">
-                          {profile.profilePhoto ? (
-                            <div className="relative mb-4">
-                              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-xsm-yellow">
-                                <img
-                                  src={profile.profilePhoto}
-                                  alt="Profile Preview"
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <button
-                                type="button"
-                                onClick={removeProfilePhoto}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                                title="Remove photo"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <Upload className="mx-auto h-12 w-12 text-xsm-light-gray mb-3" />
-                          )}
-                          <div className="flex text-sm leading-6 text-xsm-light-gray">
-                            <label
-                              htmlFor="file-upload"
-                              className="relative cursor-pointer rounded-md bg-xsm-yellow px-3 py-2 font-semibold text-xsm-black focus-within:outline-none hover:bg-yellow-500 transition-colors"
-                            >
-                              <span>{profile.profilePhoto ? 'Change photo' : 'Upload a file'}</span>
-                              <input
-                                id="file-upload"
-                                name="file-upload"
-                                type="file"
-                                className="sr-only"
-                                accept="image/jpeg,image/png,image/gif,image/webp"
-                                onChange={handlePhotoUpload}
-                                disabled={isUploadingPhoto}
-                              />
-                            </label>
-                            <p className="pl-3 pt-2">or drag and drop</p>
-                          </div>
-                          <p className="text-xs leading-5 text-xsm-light-gray mt-1">
-                            PNG, JPG, GIF or WebP up to 5MB
-                          </p>
-                          {photoError && (
-                            <p className="text-red-400 text-sm flex items-center gap-2 mt-2">
-                              <XCircle className="w-4 h-4" />
-                              {photoError}
-                            </p>
-                          )}
-                          {isUploadingPhoto && (
-                            <div className="mt-2 flex items-center gap-2 text-xsm-yellow">
-                              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              <span>Uploading...</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
