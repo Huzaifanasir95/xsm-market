@@ -45,7 +45,15 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
     <div className="xsm-card group cursor-pointer transform transition-all duration-300 hover:-translate-y-2">
       <div className="relative mb-4">
         <div className="w-full h-48 bg-xsm-medium-gray rounded-lg flex items-center justify-center overflow-hidden">
-          <Play className="w-16 h-16 text-xsm-yellow opacity-70" />
+          {channel.thumbnail ? (
+            <img 
+              src={channel.thumbnail} 
+              alt={channel.name} 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Play className="w-16 h-16 text-xsm-yellow opacity-70" />
+          )}
         </div>
         
         {/* Badges */}
