@@ -69,6 +69,10 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     newPassword: '',
     confirmPassword: '',
   });
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [listedChannels] = useState([
     {
@@ -94,17 +98,21 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   ]);
 
   const handleSaveProfile = () => {
+    // In a real application, you would send this to a server
     setProfile({ ...editForm });
     setIsEditing(false);
-    alert('Profile updated successfully!');
+    setSuccessMessage('Profile updated successfully!');
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   const handlePasswordChange = () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('New passwords do not match!');
+      setErrorMessage('New passwords do not match!');
+      setTimeout(() => setErrorMessage(null), 3000);
       return;
     }
-    alert('Password changed successfully!');
+    setSuccessMessage('Password changed successfully!');
+    setTimeout(() => setSuccessMessage(null), 3000);
     setPasswordForm({
       currentPassword: '',
       newPassword: '',
@@ -113,15 +121,104 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   };
 
   const handleDeleteAccount = () => {
-    alert('Account deletion requested. You will receive a confirmation email within 24 hours.');
+    setSuccessMessage('Account deletion requested. You will receive a confirmation email within 24 hours.');
     setShowDeleteConfirm(false);
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  const handleVerificationSubmit = async (documentType: string, file: File) => {
-    // TODO: Implement actual verification submission logic
-    console.log('Submitting verification:', { documentType, file });
-    // Mock API call
-    setProfile(prev => ({ ...prev, verificationStatus: 'pending' }));
+  const validatePhotoFile = (file: File): boolean => {
+    // Reset previous error
+    setPhotoError(null);
+    
+    // Check file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setPhotoError('Invalid file type. Please upload a JPEG, PNG, GIF, or WEBP image.');
+      return false;
+    }
+    
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError('File size too large. Please choose an image under 5MB.');
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && validatePhotoFile(file)) {
+      setIsUploadingPhoto(true);
+      // In a real application, you would upload to a server
+      // For now, we'll just create a local URL
+      const imageUrl = URL.createObjectURL(file);
+      
+      setTimeout(() => {
+        setProfile(prev => ({ ...prev, profilePhoto: imageUrl }));
+        setEditForm(prev => ({ ...prev, profilePhoto: imageUrl }));
+        setIsUploadingPhoto(false);
+      }, 800); // Simulate upload delay
+    }
+    
+    // Clear the input value so the same file can be uploaded again if needed
+    if (e.target) {
+      e.target.value = '';
+    }
+  };
+  
+  const removeProfilePhoto = () => {
+    if (profile.profilePhoto) {
+      // In a real app, you would make an API call to delete the photo
+      URL.revokeObjectURL(profile.profilePhoto); // Clean up the object URL
+      setProfile(prev => ({ ...prev, profilePhoto: null }));
+      setEditForm(prev => ({ ...prev, profilePhoto: null }));
+    }
+  };
+  
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isUploadingPhoto) setIsDragging(true);
+  };
+  
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+  
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isUploadingPhoto) setIsDragging(true);
+  };
+  
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    if (isUploadingPhoto) return;
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (validatePhotoFile(file)) {
+        setIsUploadingPhoto(true);
+        // In a real application, you would upload to a server
+        const imageUrl = URL.createObjectURL(file);
+        
+        setTimeout(() => {
+          setProfile(prev => ({ ...prev, profilePhoto: imageUrl }));
+          setEditForm(prev => ({ ...prev, profilePhoto: imageUrl }));
+          setIsUploadingPhoto(false);
+        }, 800); // Simulate upload delay
+      }
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   const formatPrice = (price: number) => {
@@ -277,6 +374,82 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     className={`xsm-input w-full ${!isEditing ? 'opacity-60' : ''}`}
                   />
                 </div>
+                {isEditing && (
+                  <div className="md:col-span-2">
+                    <label className="block text-white font-medium mb-2">Profile Photo</label>
+                    <div 
+                      className={`mt-2 flex justify-center rounded-lg border border-dashed border-xsm-yellow/60 px-6 py-10 transition-colors ${
+                        isDragging ? 'bg-xsm-yellow/10' : 'hover:bg-xsm-yellow/5'
+                      }`}
+                      onDragEnter={handleDragEnter}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                    >
+                      <div className="text-center">
+                        <div className="flex flex-col items-center">
+                          {profile.profilePhoto ? (
+                            <div className="relative mb-4">
+                              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-xsm-yellow">
+                                <img
+                                  src={profile.profilePhoto}
+                                  alt="Profile Preview"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={removeProfilePhoto}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                                title="Remove photo"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <Upload className="mx-auto h-12 w-12 text-xsm-light-gray mb-3" />
+                          )}
+                          <div className="flex text-sm leading-6 text-xsm-light-gray">
+                            <label
+                              htmlFor="file-upload"
+                              className="relative cursor-pointer rounded-md bg-xsm-yellow px-3 py-2 font-semibold text-xsm-black focus-within:outline-none hover:bg-yellow-500 transition-colors"
+                            >
+                              <span>{profile.profilePhoto ? 'Change photo' : 'Upload a file'}</span>
+                              <input
+                                id="file-upload"
+                                name="file-upload"
+                                type="file"
+                                className="sr-only"
+                                accept="image/jpeg,image/png,image/gif,image/webp"
+                                onChange={handlePhotoUpload}
+                                disabled={isUploadingPhoto}
+                              />
+                            </label>
+                            <p className="pl-3 pt-2">or drag and drop</p>
+                          </div>
+                          <p className="text-xs leading-5 text-xsm-light-gray mt-1">
+                            PNG, JPG, GIF or WebP up to 5MB
+                          </p>
+                          {photoError && (
+                            <p className="text-red-400 text-sm flex items-center gap-2 mt-2">
+                              <XCircle className="w-4 h-4" />
+                              {photoError}
+                            </p>
+                          )}
+                          {isUploadingPhoto && (
+                            <div className="mt-2 flex items-center gap-2 text-xsm-yellow">
+                              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              <span>Uploading...</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

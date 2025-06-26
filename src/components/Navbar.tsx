@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Menu, X, User, ShoppingCart, LogOut, PlusCircle } from 'lucide-react';
+import { Menu, X, User, ShoppingCart, LogOut, PlusCircle } from 'lucide-react';
 import { useAuth } from '@/context';
 import { logout } from '@/services/auth';
 import {
@@ -16,7 +16,6 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const { isLoggedIn, setIsLoggedIn } = useAuth();
 
   const handleLogout = () => {
@@ -54,19 +53,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
             </h1>
           </div>
 
-          {/* Search Bar - Desktop */}
-          <div className="hidden md:flex flex-1 max-w-lg mx-8">
-            <div className="relative w-full">
-              <input
-                type="text"
-                placeholder="Search YouTube channels..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="xsm-input w-full pl-10"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xsm-light-gray w-4 h-4" />
-            </div>
-          </div>
+          {/* Navigation spacer */}
+          <div className="hidden md:block flex-1 max-w-lg mx-8"></div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
@@ -128,19 +116,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
           </div>
         </div>
 
-        {/* Mobile Search */}
-        <div className="md:hidden pb-4">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search YouTube channels..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="xsm-input w-full pl-10"
-            />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xsm-light-gray w-4 h-4" />
-          </div>
-        </div>
+        {/* Mobile menu spacing */}
+        <div className="md:hidden pb-4"></div>
       </div>
 
       {/* Mobile Navigation Menu */}
