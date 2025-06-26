@@ -1,17 +1,18 @@
-
 import React, { useState } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { MessageCircle } from 'lucide-react';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import SellChannel from './pages/SellChannel';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
 import About from './pages/About';
-import Contact from './pages/Contact';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
@@ -28,12 +29,14 @@ const App: React.FC = () => {
         return <Profile />;
       case 'about':
         return <About />;
-      case 'contact':
-        return <Contact />;
       case 'terms':
         return <Terms />;
       case 'privacy':
         return <Privacy />;
+      case 'login':
+        return <Login setCurrentPage={setCurrentPage} />;
+      case 'signup':
+        return <Signup setCurrentPage={setCurrentPage} />;
       default:
         return <Home />;
     }
@@ -49,6 +52,15 @@ const App: React.FC = () => {
           {renderPage()}
         </main>
         
+        {/* Floating Chat Button */}
+        <button
+          onClick={() => setCurrentPage('chat')}
+          className="fixed bottom-6 right-6 bg-xsm-yellow hover:bg-yellow-500 text-black p-4 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-50 flex items-center justify-center"
+          aria-label="Open Chat"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </button>
+
         {/* Footer */}
         <footer className="bg-xsm-black border-t border-xsm-medium-gray py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

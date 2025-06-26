@@ -1,6 +1,6 @@
-
 import React, { useState } from 'react';
 import { User, Star, Edit, Trash2, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
+import VerificationSection from '@/components/VerificationSection';
 
 const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -13,7 +13,7 @@ const Profile: React.FC = () => {
     rating: 4.8,
     totalSales: 12,
     totalPurchases: 5,
-    verificationStatus: 'Verified',
+    verificationStatus: 'unverified' as 'unverified' | 'pending' | 'verified',
   });
 
   const [editForm, setEditForm] = useState({ ...profile });
@@ -68,6 +68,13 @@ const Profile: React.FC = () => {
   const handleDeleteAccount = () => {
     alert('Account deletion requested. You will receive a confirmation email within 24 hours.');
     setShowDeleteConfirm(false);
+  };
+
+  const handleVerificationSubmit = async (documentType: string, file: File) => {
+    // TODO: Implement actual verification submission logic
+    console.log('Submitting verification:', { documentType, file });
+    // Mock API call
+    setProfile(prev => ({ ...prev, verificationStatus: 'pending' }));
   };
 
   const formatPrice = (price: number) => {
