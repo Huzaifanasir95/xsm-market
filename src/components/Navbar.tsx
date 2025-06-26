@@ -31,7 +31,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
     if (isLoggedIn) {
       items.push(
         { id: 'sell', label: 'Begin Selling', icon: PlusCircle },
-        { id: 'profile', label: 'Profile', icon: User }
+        
       );
     }
 
