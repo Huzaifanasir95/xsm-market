@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Menu, X, User, ShoppingCart, LogOut, PlusCircle } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context';
 import { logout } from '@/services/auth';
 import {
   DropdownMenu,
@@ -30,7 +30,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
     
     if (isLoggedIn) {
       items.push(
-        { id: 'sell', label: 'Begin Selling', icon: PlusCircle }
+        { id: 'sell', label: 'Begin Selling', icon: PlusCircle },
+        { id: 'profile', label: 'Profile', icon: User }
       );
     }
 

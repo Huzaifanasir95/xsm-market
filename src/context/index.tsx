@@ -16,9 +16,10 @@ export interface AuthContextType {
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
+// Create the auth context
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Export the useAuth hook
+// Create the useAuth hook
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -27,6 +28,7 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
+// AuthProvider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(isAuthenticated());
   const [user, setUser] = useState<User | null>(null);

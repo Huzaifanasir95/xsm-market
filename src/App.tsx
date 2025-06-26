@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from '@/context';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageCircle } from 'lucide-react';
@@ -13,6 +14,7 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import Verify from './pages/Verify';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
@@ -26,7 +28,7 @@ const App: React.FC = () => {
       case 'chat':
         return <Chat />;
       case 'profile':
-        return <Profile />;
+        return <Profile setCurrentPage={setCurrentPage} />;
       case 'about':
         return <About />;
       case 'terms':
@@ -37,14 +39,16 @@ const App: React.FC = () => {
         return <Login setCurrentPage={setCurrentPage} />;
       case 'signup':
         return <Signup setCurrentPage={setCurrentPage} />;
+      case 'verify':
+        return <Verify setCurrentPage={setCurrentPage} />;
       default:
         return <Home />;
     }
   };
 
   return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-xsm-black">
+      <TooltipProvider>
+        <div className="min-h-screen bg-xsm-black">
         <Toaster />
         <Sonner />
         <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />

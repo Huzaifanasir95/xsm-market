@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { useAuth } from '@/context';
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { login } from '@/services/auth';
+import { useToast } from "@/components/ui/use-toast";
 
 interface LoginProps {
   setCurrentPage: (page: string) => void;
@@ -10,11 +14,34 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const { setIsLoggedIn } = useAuth();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement actual login logic
-    console.log('Login attempt with:', { email, password });
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await login(email, password);
+      setIsLoggedIn(true);
+      toast({
+        title: "Success!",
+        description: "You have successfully logged in.",
+      });
+      setCurrentPage('home');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to login');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err instanceof Error ? err.message : 'Failed to login',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -26,6 +53,11 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
           </h2>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-white">
@@ -41,6 +73,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1"
                 placeholder="Enter your email"
+                disabled={isLoading}
               />
             </div>
 
@@ -58,12 +91,17 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1"
                 placeholder="Enter your password"
+                disabled={isLoading}
               />
             </div>
 
             <div>
-              <Button type="submit" className="w-full bg-xsm-yellow hover:bg-yellow-500 text-black">
-                Sign in
+              <Button 
+                type="submit" 
+                className="w-full bg-xsm-yellow hover:bg-yellow-500 text-black"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>
             </div>
           </form>
@@ -74,6 +112,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
             <button
               onClick={() => setCurrentPage('signup')}
               className="font-medium text-xsm-yellow hover:text-yellow-500"
+              disabled={isLoading}
             >
               Sign up
             </button>
