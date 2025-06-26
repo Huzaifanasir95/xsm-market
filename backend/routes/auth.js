@@ -14,6 +14,9 @@ router.post('/verify-otp', authController.verifyOTP);
 // Resend OTP route
 router.post('/resend-otp', authController.resendOTP);
 
+// Refresh token route
+router.post('/refresh-token', authController.refreshToken);
+
 // Check verification status
 router.get('/verification-status/:email', authController.checkVerificationStatus);
 

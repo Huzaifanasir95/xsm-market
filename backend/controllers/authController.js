@@ -2,13 +2,34 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { sendOTPEmail, sendWelcomeEmail } = require('../utils/emailService');
 
-// Generate JWT token
-const generateToken = (userId) => {
+// Generate JWT access token
+const generateAccessToken = (userId) => {
   return jwt.sign(
-    { userId },
+    { userId, type: 'access' },
     process.env.JWT_SECRET,
-    { expiresIn: '24h' }
+    { expiresIn: '1h' } // Shorter expiry for access tokens
   );
+};
+
+// Generate JWT refresh token
+const generateRefreshToken = (userId) => {
+  return jwt.sign(
+    { userId, type: 'refresh' },
+    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+    { expiresIn: '7d' } // Longer expiry for refresh tokens
+  );
+};
+
+// Generate both tokens
+const generateTokens = (userId) => {
+  const accessToken = generateAccessToken(userId);
+  const refreshToken = generateRefreshToken(userId);
+  return { accessToken, refreshToken };
+};
+
+// Legacy function for backward compatibility
+const generateToken = (userId) => {
+  return generateAccessToken(userId);
 };
 
 // Register new user (send OTP for verification)
@@ -126,11 +147,13 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens(user._id);
 
     res.status(200).json({
-      token,
+      token: accessToken,
+      refreshToken: refreshToken,
+      expiresIn: 3600, // 1 hour in seconds
       user: {
         id: user._id,
         username: user.username,
@@ -183,12 +206,14 @@ exports.verifyOTP = async (req, res) => {
     // Send welcome email
     await sendWelcomeEmail(user.email, user.username);
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens(user._id);
 
     res.status(200).json({
       message: 'Email verified successfully! Welcome to XSM Market',
-      token,
+      token: accessToken,
+      refreshToken: refreshToken,
+      expiresIn: 3600, // 1 hour in seconds
       user: {
         id: user._id,
         username: user.username,
@@ -350,3 +375,54 @@ exports.googleAuth = async (req, res) => {
 
 // Alias for backward compatibility
 exports.googleSignIn = exports.googleAuth;
+
+// Refresh token endpoint
+exports.refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'Refresh token is required' });
+    }
+
+    // Verify the refresh token
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
+    } catch (error) {
+      return res.status(401).json({ message: 'Invalid or expired refresh token' });
+    }
+
+    // Check if it's a refresh token
+    if (decoded.type !== 'refresh') {
+      return res.status(401).json({ message: 'Invalid token type' });
+    }
+
+    // Find the user
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    // Generate new tokens
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
+
+    res.status(200).json({
+      token: accessToken,
+      refreshToken: newRefreshToken,
+      expiresIn: 3600, // 1 hour in seconds
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        profilePicture: user.profilePicture,
+        isEmailVerified: user.isEmailVerified,
+        authProvider: user.authProvider
+      }
+    });
+
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(500).json({ message: 'Failed to refresh token', error: error.message });
+  }
+};

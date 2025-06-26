@@ -1,6 +1,12 @@
 // Make sure this matches your backend server address and port
 const API_URL = 'http://localhost:5000/api';
 
+// Token management constants
+const TOKEN_KEY = 'token';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+const TOKEN_EXPIRY_KEY = 'tokenExpiry';
+const USER_KEY = 'userData';
+
 // Import User interface
 interface User {
   id: string;
@@ -9,6 +15,104 @@ interface User {
   profilePicture?: string;
   authProvider?: string;
 }
+
+// Token management interface
+interface TokenData {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn: number; // seconds from now
+  tokenType?: string;
+}
+
+// Auth response interface
+export interface AuthResponse {
+  token?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+    profilePicture?: string;
+    authProvider?: string;
+  };
+  message?: string;
+  requiresVerification?: boolean;
+  email?: string;
+}
+
+// Token expiry check
+const isTokenExpired = (): boolean => {
+  const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+  if (!expiry) return true;
+  
+  const expiryTime = parseInt(expiry);
+  const currentTime = Date.now();
+  
+  // Consider token expired if it expires in less than 5 minutes
+  const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+  return currentTime >= (expiryTime - bufferTime);
+};
+
+// Set token with expiry
+const setTokenData = (tokenData: TokenData) => {
+  localStorage.setItem(TOKEN_KEY, tokenData.accessToken);
+  
+  if (tokenData.refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, tokenData.refreshToken);
+  }
+  
+  // Calculate expiry time (default to 24 hours if not provided)
+  const expiresInMs = (tokenData.expiresIn || 24 * 60 * 60) * 1000;
+  const expiryTime = Date.now() + expiresInMs;
+  localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
+};
+
+// Clear all token data
+const clearTokenData = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(TOKEN_EXPIRY_KEY);
+  localStorage.removeItem(USER_KEY);
+};
+
+// Refresh token function
+const refreshAccessToken = async (): Promise<boolean> => {
+  try {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) {
+      console.log('No refresh token available');
+      return false;
+    }
+
+    const response = await fetch(`${API_URL}/auth/refresh-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      console.log('Failed to refresh token');
+      return false;
+    }
+
+    const data = await response.json();
+    
+    setTokenData({
+      accessToken: data.token || data.accessToken,
+      refreshToken: data.refreshToken,
+      expiresIn: data.expiresIn || 24 * 60 * 60,
+    });
+
+    console.log('Token refreshed successfully');
+    return true;
+  } catch (error) {
+    console.error('Error refreshing token:', error);
+    return false;
+  }
+};
 
 // Helper function to handle fetch errors
 const handleFetchError = async (response: Response) => {
@@ -28,19 +132,72 @@ const handleFetchError = async (response: Response) => {
   return data;
 };
 
-export interface AuthResponse {
-  token?: string;
-  user?: {
-    id: string;
-    username: string;
-    email: string;
-    profilePicture?: string;
-    authProvider?: string;
+// Enhanced fetch with automatic token refresh
+const authenticatedFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  // Check if token is expired and try to refresh
+  if (isTokenExpired()) {
+    console.log('Token expired, attempting refresh...');
+    const refreshed = await refreshAccessToken();
+    
+    if (!refreshed) {
+      console.log('Could not refresh token, user needs to login again');
+      // Clear all auth data and redirect to login
+      clearTokenData();
+      // Dispatch custom event to notify components
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+      throw new Error('Session expired. Please login again.');
+    }
+  }
+
+  // Get current token
+  const token = localStorage.getItem(TOKEN_KEY);
+  
+  // Add authorization header
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  message?: string;
-  requiresVerification?: boolean;
-  email?: string;
-}
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  // If we get 401, try to refresh token once
+  if (response.status === 401 && token) {
+    console.log('Received 401, attempting token refresh...');
+    const refreshed = await refreshAccessToken();
+    
+    if (refreshed) {
+      // Retry the original request with new token
+      const newToken = localStorage.getItem(TOKEN_KEY);
+      const retryResponse = await fetch(url, {
+        ...options,
+        headers: {
+          ...headers,
+          Authorization: `Bearer ${newToken}`,
+        },
+      });
+      
+      if (retryResponse.status === 401) {
+        // Still unauthorized after refresh, logout
+        clearTokenData();
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+        throw new Error('Session expired. Please login again.');
+      }
+      
+      return retryResponse;
+    } else {
+      // Could not refresh, logout
+      clearTokenData();
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+      throw new Error('Session expired. Please login again.');
+    }
+  }
+
+  return response;
+};
 
 export const login = async (email: string, password: string): Promise<AuthResponse> => {
   try {
@@ -59,9 +216,13 @@ export const login = async (email: string, password: string): Promise<AuthRespon
       throw new Error(data.message || 'Failed to login');
     }
 
-    // Store the token in localStorage
+    // Store tokens with proper expiry management
     if (data.token) {
-      localStorage.setItem('token', data.token);
+      setTokenData({
+        accessToken: data.token,
+        refreshToken: data.refreshToken,
+        expiresIn: data.expiresIn || 24 * 60 * 60, // Default 24 hours
+      });
     }
     
     // Store user data
@@ -165,27 +326,36 @@ export const register = async (username: string, email: string, password: string
 };
 
 export const logout = (): void => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('userData');
+  clearTokenData();
   console.log('User logged out successfully');
 };
 
 export const isAuthenticated = (): boolean => {
-  return !!localStorage.getItem('token');
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return false;
+  
+  // Check if token is expired
+  if (isTokenExpired()) {
+    console.log('Token is expired');
+    return false;
+  }
+  
+  return true;
 };
 
 export const getToken = (): string | null => {
-  return localStorage.getItem('token');
+  if (!isAuthenticated()) return null;
+  return localStorage.getItem(TOKEN_KEY);
 };
 
 export const getCurrentUser = (): User | null => {
-  const userDataString = localStorage.getItem('userData');
+  const userDataString = localStorage.getItem(USER_KEY);
   if (userDataString) {
     try {
       return JSON.parse(userDataString);
     } catch (error) {
       console.error('Error parsing user data:', error);
-      localStorage.removeItem('userData');
+      localStorage.removeItem(USER_KEY);
       return null;
     }
   }
@@ -193,7 +363,7 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const setCurrentUser = (user: User): void => {
-  localStorage.setItem('userData', JSON.stringify(user));
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
 };
 
 export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
@@ -213,8 +383,14 @@ export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
       throw new Error(data.message || 'Failed to sign in with Google');
     }
 
-    // Store the token in localStorage
-    localStorage.setItem('token', data.token);
+    // Store tokens with proper expiry management
+    if (data.token) {
+      setTokenData({
+        accessToken: data.token,
+        refreshToken: data.refreshToken,
+        expiresIn: data.expiresIn || 24 * 60 * 60,
+      });
+    }
     
     // Store user data
     if (data.user) {
@@ -245,9 +421,13 @@ export const verifyOTP = async (email: string, otp: string): Promise<AuthRespons
 
     const data = await handleFetchError(response);
 
-    // Store the token in localStorage
+    // Store tokens with proper expiry management
     if (data.token) {
-      localStorage.setItem('token', data.token);
+      setTokenData({
+        accessToken: data.token,
+        refreshToken: data.refreshToken,
+        expiresIn: data.expiresIn || 24 * 60 * 60,
+      });
     }
     
     // Store user data
@@ -284,6 +464,57 @@ export const resendOTP = async (email: string): Promise<{ message: string }> => 
       throw error;
     } else {
       throw new Error('An unexpected error occurred while resending OTP');
+    }
+  }
+};
+
+// Example of using authenticatedFetch for protected API calls
+export const getProfile = async (): Promise<User> => {
+  try {
+    const response = await authenticatedFetch(`${API_URL}/user/profile`);
+    const data = await handleFetchError(response);
+    return data.user;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to fetch user profile');
+    }
+  }
+};
+
+// Example of updating user profile
+export const updateProfile = async (userData: Partial<User>): Promise<User> => {
+  try {
+    const response = await authenticatedFetch(`${API_URL}/user/profile`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+    const data = await handleFetchError(response);
+    return data.user;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to update user profile');
+    }
+  }
+};
+
+// Example of creating a channel listing (protected endpoint)
+export const createChannelListing = async (channelData: any): Promise<any> => {
+  try {
+    const response = await authenticatedFetch(`${API_URL}/channels`, {
+      method: 'POST',
+      body: JSON.stringify(channelData),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to create channel listing');
     }
   }
 };
