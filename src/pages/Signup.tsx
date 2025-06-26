@@ -5,8 +5,9 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { register, googleSignIn } from '@/services/auth';
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from '@/context';
+import { useAuth } from '@/context/useAuth';
 import { GoogleLogin } from '@react-oauth/google';
+import OTPVerification from '@/components/OTPVerification';
 
 // Email validation helper function
 const isValidEmail = (email: string): boolean => {
@@ -25,6 +26,8 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [registrationEmail, setRegistrationEmail] = useState('');
   const { toast } = useToast();
   const { setIsLoggedIn, setUser } = useAuth();
 
@@ -97,24 +100,30 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
     try {
       console.log("Sending registration request to backend...");
       const response = await register(username, email, password);
-      console.log("Registration successful:", response);
+      console.log("Registration response:", response);
       
-      // Update auth context if we have user data
-      if (response && response.user) {
+      // Check if response indicates verification is required
+      if (response && response.requiresVerification) {
+        setRegistrationEmail(email);
+        setShowOTPVerification(true);
+        toast({
+          title: "Registration Successful!",
+          description: "Please check your email for verification code.",
+        });
+      } else if (response && response.user) {
+        // Direct login (for backwards compatibility)
         setUser(response.user);
         setIsLoggedIn(true);
         
         toast({
           title: "Account Created!",
-          description: `Welcome to XSM Market, ${response.user.username}! Your account has been successfully created and saved to the database.`,
+          description: `Welcome to XSM Market, ${response.user.username}!`,
         });
         
-        // Navigate to home page after successful registration
         setTimeout(() => {
           setCurrentPage('home');
-        }, 2000); // Small delay to let the user see the success message
+        }, 2000);
       } else {
-        // This should not happen if backend is working correctly
         toast({
           title: "Success with Warning",
           description: "Account created but user data incomplete. Please try logging in.",
@@ -128,13 +137,13 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
       console.error("Registration failed:", err);
       let errorMessage = err instanceof Error ? err.message : 'Failed to register';
       
-      // Check for common registration errors and provide more specific messages
+      // Check for common registration errors
       if (errorMessage.includes('Email already registered')) {
         errorMessage = 'This email is already registered. Please use a different email or try logging in.';
       } else if (errorMessage.includes('Username already taken')) {
         errorMessage = 'This username is already taken. Please choose a different username.';
       } else if (errorMessage.includes('Network error')) {
-        errorMessage = 'Cannot connect to the database server. Please ensure the backend server is running.';
+        errorMessage = 'Cannot connect to the server. Please ensure the backend server is running.';
       }
       
       setError(errorMessage);
@@ -149,6 +158,36 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
     }
   };
 
+  const handleOTPVerificationSuccess = (token: string, user: any) => {
+    setUser(user);
+    setIsLoggedIn(true);
+    
+    toast({
+      title: "Welcome to XSM Market!",
+      description: `Your email has been verified successfully. Welcome, ${user.username}!`,
+    });
+    
+    setTimeout(() => {
+      setCurrentPage('home');
+    }, 2000);
+  };
+
+  const handleBackToSignup = () => {
+    setShowOTPVerification(false);
+    setRegistrationEmail('');
+  };
+
+  // Show OTP verification screen if needed
+  if (showOTPVerification) {
+    return (
+      <OTPVerification
+        email={registrationEmail}
+        onVerificationSuccess={handleOTPVerificationSuccess}
+        onBack={handleBackToSignup}
+      />
+    );
+  }
+
   const handleGoogleSuccess = async (credentialResponse: any) => {
     setIsLoading(true);
     setError('');
@@ -159,13 +198,18 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
       }
       
       const response = await googleSignIn(credentialResponse.credential);
-      setUser(response.user);
-      setIsLoggedIn(true);
-      toast({
-        title: "Welcome!",
-        description: `Welcome ${response.user.username}! Your account has been created with Google.`,
-      });
-      setCurrentPage('home');
+      
+      if (response.user) {
+        setUser(response.user);
+        setIsLoggedIn(true);
+        toast({
+          title: "Welcome!",
+          description: `Welcome ${response.user.username}! Your account has been created with Google.`,
+        });
+        setCurrentPage('home');
+      } else {
+        throw new Error('Google sign-up succeeded but user data is missing');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign up with Google');
       toast({

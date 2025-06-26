@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ChannelCard from '../components/ChannelCard';
 import ChannelModal from '../components/ChannelModal';
 import { TrendingUp, Zap, Shield, Search, Check, ChevronDown, ChevronUp, Sliders, X } from 'lucide-react';
-import { useAuth } from '@/context';
+import { useAuth } from '@/context/useAuth';
 import { useToast } from "@/components/ui/use-toast";
 
 interface ChannelData {

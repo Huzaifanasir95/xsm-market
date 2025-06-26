@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Star, Edit, Trash2, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
-import { useAuth } from '@/context';
+import { useAuth } from '@/context/useAuth';
 
 interface ProfileProps {
   setCurrentPage: (page: string) => void;

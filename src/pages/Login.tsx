@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { useAuth } from '@/context';
+import { useAuth } from '@/context/useAuth';
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -27,20 +27,42 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
 
     try {
       const response = await login(email, password);
-      setIsLoggedIn(true);
-      setUser(response.user);
-      toast({
-        title: "Success!",
-        description: "You have successfully logged in.",
-      });
-      setCurrentPage('home');
+      
+      if (response.user) {
+        setIsLoggedIn(true);
+        setUser(response.user);
+        toast({
+          title: "Success!",
+          description: "You have successfully logged in.",
+        });
+        setCurrentPage('home');
+      } else {
+        throw new Error('Login succeeded but user data is missing');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to login');
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err instanceof Error ? err.message : 'Failed to login',
-      });
+      const errorMessage = err instanceof Error ? err.message : 'Failed to login';
+      
+      // Check if it's an email verification error
+      if (errorMessage.includes('verify your email')) {
+        setError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: "Email Verification Required",
+          description: errorMessage + " Click the button below to verify your email.",
+        });
+        
+        // Add a verification button to the error display
+        setTimeout(() => {
+          setError(errorMessage + " Click 'Verify Email' below to verify now.");
+        }, 100);
+      } else {
+        setError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: errorMessage,
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -57,13 +79,18 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
       }
       
       const response = await googleSignIn(credentialResponse.credential);
-      setIsLoggedIn(true);
-      setUser(response.user);
-      toast({
-        title: "Success!",
-        description: `Welcome ${response.user.username}! You have successfully signed in with Google.`,
-      });
-      setCurrentPage('home');
+      
+      if (response.user) {
+        setIsLoggedIn(true);
+        setUser(response.user);
+        toast({
+          title: "Success!",
+          description: `Welcome ${response.user.username}! You have successfully signed in with Google.`,
+        });
+        setCurrentPage('home');
+      } else {
+        throw new Error('Google sign-in succeeded but user data is missing');
+      }
     } catch (err) {
       console.error('Google Sign-In Error:', err);
       setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
@@ -147,6 +174,21 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>
             </div>
+
+            {/* Show verify email button if there's a verification error */}
+            {error && error.includes('verify your email') && (
+              <div>
+                <Button 
+                  type="button"
+                  variant="outline"
+                  className="w-full border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black"
+                  onClick={() => setCurrentPage('email-verify')}
+                  disabled={isLoading}
+                >
+                  Verify Email Now
+                </Button>
+              </div>
+            )}
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

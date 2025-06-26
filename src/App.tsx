@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from '@/context';
+import { AuthProvider } from '@/context/AuthProvider';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageCircle } from 'lucide-react';
@@ -16,6 +16,8 @@ import Privacy from './pages/Privacy';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Verify from './pages/Verify';
+import EmailVerify from './pages/EmailVerify';
+import Test from './pages/Test';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
@@ -47,6 +49,8 @@ const App: React.FC = () => {
         return <Signup setCurrentPage={setCurrentPage} />;
       case 'verify':
         return <Verify setCurrentPage={setCurrentPage} />;
+      case 'email-verify':
+        return <EmailVerify setCurrentPage={setCurrentPage} />;
       default:
         return <Home />;
     }

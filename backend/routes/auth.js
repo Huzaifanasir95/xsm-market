@@ -8,6 +8,15 @@ router.post('/register', authController.register);
 // Login route
 router.post('/login', authController.login);
 
+// Verify OTP route
+router.post('/verify-otp', authController.verifyOTP);
+
+// Resend OTP route
+router.post('/resend-otp', authController.resendOTP);
+
+// Check verification status
+router.get('/verification-status/:email', authController.checkVerificationStatus);
+
 // Google Sign-In route
 router.post('/google-signin', authController.googleSignIn);
 

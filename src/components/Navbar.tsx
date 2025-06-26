@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, User, ShoppingCart, LogOut, PlusCircle } from 'lucide-react';
-import { useAuth } from '@/context';
+import { useAuth } from '@/context/useAuth';
 import { logout } from '@/services/auth';
 import {
   DropdownMenu,

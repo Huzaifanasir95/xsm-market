@@ -29,14 +29,17 @@ const handleFetchError = async (response: Response) => {
 };
 
 export interface AuthResponse {
-  token: string;
-  user: {
+  token?: string;
+  user?: {
     id: string;
     username: string;
     email: string;
     profilePicture?: string;
     authProvider?: string;
   };
+  message?: string;
+  requiresVerification?: boolean;
+  email?: string;
 }
 
 export const login = async (email: string, password: string): Promise<AuthResponse> => {
@@ -57,7 +60,9 @@ export const login = async (email: string, password: string): Promise<AuthRespon
     }
 
     // Store the token in localStorage
-    localStorage.setItem('token', data.token);
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+    }
     
     // Store user data
     if (data.user) {
@@ -126,14 +131,24 @@ export const register = async (username: string, email: string, password: string
     console.log('Registration response status:', response.status); // Debug log
     
     const data = await handleFetchError(response);
-    console.log('%c Registration response data:', 'background: #4CAF50; color: white; padding: 4px; border-radius: 2px;', data); // Better debug log
+    console.log('%c Registration response data:', 'background: #4CAF50; color: white; padding: 4px; border-radius: 2px;', data);
 
-    // Store the token in localStorage
+    // Handle different response types
+    if (data.requiresVerification) {
+      // Registration successful, but email verification required
+      return {
+        requiresVerification: true,
+        email: data.email,
+        message: data.message
+      };
+    }
+
+    // Store the token in localStorage (for direct login)
     if (data.token) {
       localStorage.setItem('token', data.token);
     }
     
-    // Store user data
+    // Store user data (for direct login)
     if (data.user) {
       setCurrentUser(data.user);
     }
@@ -212,6 +227,63 @@ export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
       throw error;
     } else {
       throw new Error('An unexpected error occurred during Google sign-in');
+    }
+  }
+};
+
+// Verify OTP for email verification
+export const verifyOTP = async (email: string, otp: string): Promise<AuthResponse> => {
+  try {
+    const response = await fetch(`${API_URL}/auth/verify-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, otp }),
+      credentials: 'include'
+    });
+
+    const data = await handleFetchError(response);
+
+    // Store the token in localStorage
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+    }
+    
+    // Store user data
+    if (data.user) {
+      setCurrentUser(data.user);
+    }
+    
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('An unexpected error occurred during OTP verification');
+    }
+  }
+};
+
+// Resend OTP for email verification
+export const resendOTP = async (email: string): Promise<{ message: string }> => {
+  try {
+    const response = await fetch(`${API_URL}/auth/resend-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+      credentials: 'include'
+    });
+
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('An unexpected error occurred while resending OTP');
     }
   }
 };

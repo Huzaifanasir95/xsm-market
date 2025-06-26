@@ -35,8 +35,20 @@ const userSchema = new mongoose.Schema({
   },
   authProvider: {
     type: String,
-    enum: ['local', 'google'],
-    default: 'local'
+    enum: ['email', 'google'],
+    default: 'email'
+  },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailOTP: {
+    type: String,
+    default: null
+  },
+  otpExpires: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true
@@ -58,6 +70,34 @@ userSchema.pre('save', async function(next) {
 // Method to check password
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Generate OTP
+userSchema.methods.generateOTP = function() {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+  this.emailOTP = otp;
+  this.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+  return otp;
+};
+
+// Verify OTP
+userSchema.methods.verifyOTP = function(otp) {
+  if (!this.emailOTP || !this.otpExpires) {
+    return false;
+  }
+  
+  const now = new Date();
+  if (now > this.otpExpires) {
+    return false; // OTP expired
+  }
+  
+  return this.emailOTP === otp;
+};
+
+// Clear OTP
+userSchema.methods.clearOTP = function() {
+  this.emailOTP = null;
+  this.otpExpires = null;
 };
 
 const User = mongoose.model('User', userSchema);
