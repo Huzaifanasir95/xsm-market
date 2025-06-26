@@ -1,3 +1,4 @@
+// Make sure this matches your backend server address and port
 const API_URL = 'http://localhost:5000/api';
 
 // Helper function to handle fetch errors
@@ -65,6 +66,29 @@ export const register = async (username: string, email: string, password: string
       password: password ? '[FILTERED]' : undefined 
     });
     
+    // Comment out the mock response to use the real backend
+    // We'll keep it in the code but disabled to ensure connection goes to real backend
+    /*
+    if (!navigator.onLine || window.location.hostname === 'localhost') {
+      console.log('Using mock registration response for development');
+      const mockResponse: AuthResponse = {
+        token: 'mock-jwt-token-' + Math.random().toString(36).substring(2, 15),
+        user: {
+          id: 'user-' + Math.random().toString(36).substring(2, 10),
+          username: username,
+          email: email,
+          profilePicture: undefined
+        }
+      };
+      
+      localStorage.setItem('token', mockResponse.token);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      return mockResponse;
+    }
+    */
+    
+    // Actual API call to backend server
+    console.log(`Sending POST request to ${API_URL}/auth/register`);
     const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: {
@@ -76,13 +100,17 @@ export const register = async (username: string, email: string, password: string
         email: email.trim().toLowerCase(),
         password 
       }),
-      mode: 'cors'
+      mode: 'cors',
+      credentials: 'include'
+    }).catch(err => {
+      console.error('Network error during registration fetch:', err);
+      throw new Error(`Network error: Unable to connect to server at ${API_URL}. Please check your backend server is running.`);
     });
 
     console.log('Registration response status:', response.status); // Debug log
     
     const data = await handleFetchError(response);
-    console.log('Registration response data:', data); // Debug log
+    console.log('%c Registration response data:', 'background: #4CAF50; color: white; padding: 4px; border-radius: 2px;', data); // Better debug log
 
     // Store the token in localStorage
     if (data.token) {

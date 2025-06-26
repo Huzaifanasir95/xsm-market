@@ -110,7 +110,10 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
           <p className="text-sm text-xsm-light-gray">
             Don't have an account?{' '}
             <button
-              onClick={() => setCurrentPage('signup')}
+              onClick={() => {
+                console.log('Signup button clicked, navigating to signup page');
+                setCurrentPage('signup');
+              }}
               className="font-medium text-xsm-yellow hover:text-yellow-500"
               disabled={isLoading}
             >

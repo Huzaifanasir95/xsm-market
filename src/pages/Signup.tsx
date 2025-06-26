@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { register } from '@/services/auth';
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from '@/context';
+
+// Email validation helper function
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
 interface SignupProps {
   setCurrentPage: (page: string) => void;
@@ -12,11 +22,130 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const { setIsLoggedIn, setUser } = useAuth();
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement actual signup logic
-    console.log('Signup attempt with:', { email, password, username });
+    console.log("Signup form submitted");
+    setError('');
+
+    // Form validation
+    if (!username || !email || !password || !confirmPassword) {
+      const errorMsg = "All fields are required";
+      setError(errorMsg);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMsg,
+      });
+      return;
+    }
+    
+    // Validate email format
+    if (!isValidEmail(email)) {
+      const errorMsg = "Please enter a valid email address";
+      setError(errorMsg);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMsg,
+      });
+      return;
+    }
+    
+    // Username validation
+    if (username.length < 3) {
+      const errorMsg = "Username must be at least 3 characters long";
+      setError(errorMsg);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMsg,
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords don't match");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Passwords don't match",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+      });
+      return;
+    }
+    
+    // Email validation is already done above, no need for duplicate check
+
+    setIsLoading(true);
+    console.log("Attempting to register user:", { username, email });
+
+    try {
+      console.log("Sending registration request to backend...");
+      const response = await register(username, email, password);
+      console.log("Registration successful:", response);
+      
+      // Update auth context if we have user data
+      if (response && response.user) {
+        setUser(response.user);
+        setIsLoggedIn(true);
+        
+        toast({
+          title: "Account Created!",
+          description: `Welcome to XSM Market, ${response.user.username}! Your account has been successfully created and saved to the database.`,
+        });
+        
+        // Navigate to home page after successful registration
+        setTimeout(() => {
+          setCurrentPage('home');
+        }, 2000); // Small delay to let the user see the success message
+      } else {
+        // This should not happen if backend is working correctly
+        toast({
+          title: "Success with Warning",
+          description: "Account created but user data incomplete. Please try logging in.",
+        });
+        
+        setTimeout(() => {
+          setCurrentPage('login');
+        }, 1500);
+      }
+    } catch (err) {
+      console.error("Registration failed:", err);
+      let errorMessage = err instanceof Error ? err.message : 'Failed to register';
+      
+      // Check for common registration errors and provide more specific messages
+      if (errorMessage.includes('Email already registered')) {
+        errorMessage = 'This email is already registered. Please use a different email or try logging in.';
+      } else if (errorMessage.includes('Username already taken')) {
+        errorMessage = 'This username is already taken. Please choose a different username.';
+      } else if (errorMessage.includes('Network error')) {
+        errorMessage = 'Cannot connect to the database server. Please ensure the backend server is running.';
+      }
+      
+      setError(errorMessage);
+      
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: errorMessage,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -28,7 +157,12 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
           </h2>
         </CardHeader>
         <CardContent>
-          <form className="space-y-6" onSubmit={handleSignup}>
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <form className="space-y-6" onSubmit={handleSignup} noValidate>
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-white">
                 Username
@@ -42,6 +176,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
                 onChange={(e) => setUsername(e.target.value)}
                 className="mt-1"
                 placeholder="Choose a username"
+                disabled={isLoading}
               />
             </div>
 
@@ -59,6 +194,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1"
                 placeholder="Enter your email"
+                disabled={isLoading}
               />
             </div>
 
@@ -76,6 +212,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1"
                 placeholder="Create a password"
+                disabled={isLoading}
               />
             </div>
 
@@ -92,12 +229,23 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="mt-1"
                 placeholder="Confirm your password"
+                disabled={isLoading}
               />
             </div>
 
             <div>
-              <Button type="submit" className="w-full bg-xsm-yellow hover:bg-yellow-500 text-black">
-                Sign up
+              <Button 
+                type="submit" 
+                className="w-full bg-xsm-yellow hover:bg-yellow-500 text-black"
+                disabled={isLoading}
+                onClick={(e) => {
+                  if (!isLoading) {
+                    console.log("Sign up button clicked");
+                    // Don't call handleSignup here, as the form's onSubmit will handle it
+                  }
+                }}
+              >
+                {isLoading ? 'Creating account...' : 'Sign up'}
               </Button>
             </div>
           </form>
@@ -108,6 +256,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
             <button
               onClick={() => setCurrentPage('login')}
               className="font-medium text-xsm-yellow hover:text-yellow-500"
+              disabled={isLoading}
             >
               Sign in
             </button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/context';
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -18,6 +18,11 @@ import Verify from './pages/Verify';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
+  
+  // Add effect to log page changes
+  React.useEffect(() => {
+    console.log('Current page changed to:', currentPage);
+  }, [currentPage]);
 
   const renderPage = () => {
     switch (currentPage) {
