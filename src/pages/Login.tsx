@@ -4,8 +4,9 @@ import { useAuth } from '@/context';
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { login } from '@/services/auth';
+import { login, googleSignIn } from '@/services/auth';
 import { useToast } from "@/components/ui/use-toast";
+import { GoogleLogin } from '@react-oauth/google';
 
 interface LoginProps {
   setCurrentPage: (page: string) => void;
@@ -17,7 +18,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { setIsLoggedIn } = useAuth();
+  const { setIsLoggedIn, setUser } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +28,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
     try {
       const response = await login(email, password);
       setIsLoggedIn(true);
+      setUser(response.user);
       toast({
         title: "Success!",
         description: "You have successfully logged in.",
@@ -42,6 +44,47 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    console.log('Google Sign-In Success:', credentialResponse);
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      if (!credentialResponse.credential) {
+        throw new Error('No credential received from Google');
+      }
+      
+      const response = await googleSignIn(credentialResponse.credential);
+      setIsLoggedIn(true);
+      setUser(response.user);
+      toast({
+        title: "Success!",
+        description: `Welcome ${response.user.username}! You have successfully signed in with Google.`,
+      });
+      setCurrentPage('home');
+    } catch (err) {
+      console.error('Google Sign-In Error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err instanceof Error ? err.message : 'Failed to sign in with Google',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    console.error('Google Sign-In Error: Authentication failed or was cancelled');
+    setError('Google sign-in was cancelled or failed');
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: 'Google sign-in was cancelled or failed',
+    });
   };
 
   return (
@@ -103,6 +146,28 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
               >
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-xsm-medium-gray" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-xsm-dark-gray px-2 text-xsm-light-gray">Or continue with</span>
+              </div>
+            </div>
+
+            <div className="w-full">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap={false}
+                theme="filled_black"
+                size="large"
+                text="signin_with"
+                shape="rectangular"
+                width="100%"
+              />
             </div>
           </form>
         </CardContent>

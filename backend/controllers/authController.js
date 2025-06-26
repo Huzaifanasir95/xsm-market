@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -106,5 +107,78 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error during login', error: error.message });
+  }
+};
+
+// Google Sign-In
+exports.googleSignIn = async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    // Initialize Google OAuth client with environment variable
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    
+    // Debug: Log Google client ID status
+    console.log('Google sign-in attempt with Client ID:', process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not set');
+    
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      console.error('GOOGLE_CLIENT_ID environment variable is not set');
+      return res.status(500).json({ message: 'Server configuration error: Google Client ID not configured' });
+    }
+
+    if (!token) {
+      return res.status(400).json({ message: 'Google token is required' });
+    }
+
+    // Verify the Google token
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+
+    // Check if user already exists
+    let user = await User.findOne({ 
+      $or: [{ email }, { googleId }] 
+    });
+
+    if (user) {
+      // Update existing user with Google info if they signed up with email/password first
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.authProvider = 'google';
+        if (picture) user.profilePicture = picture;
+        await user.save();
+      }
+    } else {
+      // Create new user
+      user = await User.create({
+        username: name || email.split('@')[0], // Use name or email prefix as username
+        email,
+        googleId,
+        authProvider: 'google',
+        profilePicture: picture || ''
+      });
+    }
+
+    // Generate JWT token
+    const jwtToken = generateToken(user._id);
+
+    res.status(200).json({
+      token: jwtToken,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        profilePicture: user.profilePicture,
+        authProvider: user.authProvider
+      }
+    });
+
+  } catch (error) {
+    console.error('Google sign-in error:', error);
+    res.status(500).json({ message: 'Server error during Google sign-in', error: error.message });
   }
 };

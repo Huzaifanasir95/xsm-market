@@ -1,6 +1,15 @@
 // Make sure this matches your backend server address and port
 const API_URL = 'http://localhost:5000/api';
 
+// Import User interface
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  profilePicture?: string;
+  authProvider?: string;
+}
+
 // Helper function to handle fetch errors
 const handleFetchError = async (response: Response) => {
   let data;
@@ -26,6 +35,7 @@ export interface AuthResponse {
     username: string;
     email: string;
     profilePicture?: string;
+    authProvider?: string;
   };
 }
 
@@ -48,6 +58,12 @@ export const login = async (email: string, password: string): Promise<AuthRespon
 
     // Store the token in localStorage
     localStorage.setItem('token', data.token);
+    
+    // Store user data
+    if (data.user) {
+      setCurrentUser(data.user);
+    }
+    
     return data;
   } catch (error) {
     if (error instanceof Error) {
@@ -117,6 +133,11 @@ export const register = async (username: string, email: string, password: string
       localStorage.setItem('token', data.token);
     }
     
+    // Store user data
+    if (data.user) {
+      setCurrentUser(data.user);
+    }
+    
     return data;
   } catch (error) {
     console.error('Registration error:', error); // Debug log
@@ -130,6 +151,7 @@ export const register = async (username: string, email: string, password: string
 
 export const logout = (): void => {
   localStorage.removeItem('token');
+  localStorage.removeItem('userData');
   console.log('User logged out successfully');
 };
 
@@ -139,4 +161,57 @@ export const isAuthenticated = (): boolean => {
 
 export const getToken = (): string | null => {
   return localStorage.getItem('token');
+};
+
+export const getCurrentUser = (): User | null => {
+  const userDataString = localStorage.getItem('userData');
+  if (userDataString) {
+    try {
+      return JSON.parse(userDataString);
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      localStorage.removeItem('userData');
+      return null;
+    }
+  }
+  return null;
+};
+
+export const setCurrentUser = (user: User): void => {
+  localStorage.setItem('userData', JSON.stringify(user));
+};
+
+export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
+  try {
+    const response = await fetch(`${API_URL}/auth/google-signin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token: tokenId }),
+      credentials: 'include'
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to sign in with Google');
+    }
+
+    // Store the token in localStorage
+    localStorage.setItem('token', data.token);
+    
+    // Store user data
+    if (data.user) {
+      setCurrentUser(data.user);
+    }
+    
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('An unexpected error occurred during Google sign-in');
+    }
+  }
 };

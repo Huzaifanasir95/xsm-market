@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { isAuthenticated } from '../services/auth';
+import { isAuthenticated, getCurrentUser } from '../services/auth';
 
 // Define user type based on your backend User model
 export interface User {
@@ -7,6 +7,7 @@ export interface User {
   username: string;
   email: string;
   profilePicture?: string;
+  authProvider?: string;
 }
 
 export interface AuthContextType {
@@ -29,12 +30,23 @@ export const useAuth = (): AuthContextType => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(isAuthenticated());
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(getCurrentUser());
 
   // Check for authentication on mount and when localStorage changes
   useEffect(() => {
     const checkAuth = () => {
-      setIsLoggedIn(isAuthenticated());
+      const authStatus = isAuthenticated();
+      const userData = getCurrentUser();
+      
+      console.log('🔍 Auth check results:', { 
+        authStatus, 
+        userData,
+        token: localStorage.getItem('token') ? 'exists' : 'missing',
+        userDataString: localStorage.getItem('userData')
+      });
+      
+      setIsLoggedIn(authStatus);
+      setUser(userData);
     };
 
     window.addEventListener('storage', checkAuth);

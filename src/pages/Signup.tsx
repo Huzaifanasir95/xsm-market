@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { register } from '@/services/auth';
+import { register, googleSignIn } from '@/services/auth';
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from '@/context';
+import { GoogleLogin } from '@react-oauth/google';
 
 // Email validation helper function
 const isValidEmail = (email: string): boolean => {
@@ -148,6 +149,44 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      if (!credentialResponse.credential) {
+        throw new Error('No credential received from Google');
+      }
+      
+      const response = await googleSignIn(credentialResponse.credential);
+      setUser(response.user);
+      setIsLoggedIn(true);
+      toast({
+        title: "Welcome!",
+        description: `Welcome ${response.user.username}! Your account has been created with Google.`,
+      });
+      setCurrentPage('home');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign up with Google');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err instanceof Error ? err.message : 'Failed to sign up with Google',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google sign-up was cancelled or failed');
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: 'Google sign-up was cancelled or failed',
+    });
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-xsm-black py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md space-y-8 bg-xsm-dark-gray border-xsm-medium-gray">
@@ -247,6 +286,28 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
               >
                 {isLoading ? 'Creating account...' : 'Sign up'}
               </Button>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-xsm-medium-gray" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-xsm-dark-gray px-2 text-xsm-light-gray">Or continue with</span>
+              </div>
+            </div>
+
+            <div className="w-full">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap={false}
+                theme="filled_black"
+                size="large"
+                text="signup_with"
+                shape="rectangular"
+                width="100%"
+              />
             </div>
           </form>
         </CardContent>

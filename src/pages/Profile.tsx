@@ -1,20 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Star, Edit, Trash2, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
+import { useAuth } from '@/context';
 
-const Profile: React.FC = () => {
+interface ProfileProps {
+  setCurrentPage: (page: string) => void;
+}
+
+const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
+  const { user, isLoggedIn } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Initialize profile with user data or defaults
   const [profile, setProfile] = useState({
-    username: 'ChannelTrader2024',
-    email: 'user@example.com',
-    fullName: 'John Doe',
+    username: user?.username || 'ChannelTrader2024',
+    email: user?.email || 'user@example.com',
+    fullName: user?.username || 'John Doe',
     joinDate: '2024-01-15',
     rating: 4.8,
     totalSales: 12,
     totalPurchases: 5,
     verificationStatus: 'unverified' as 'unverified' | 'pending' | 'verified',
+    profilePicture: user?.profilePicture || ''
   });
+
+  // Update profile when user data changes
+  useEffect(() => {
+    if (user) {
+      setProfile(prev => ({
+        ...prev,
+        username: user.username,
+        email: user.email,
+        fullName: user.username, // Using username as fullName for now
+        profilePicture: user.profilePicture || ''
+      }));
+    }
+  }, [user]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setCurrentPage('login');
+    }
+  }, [isLoggedIn, setCurrentPage]);
+
+  const handleLogout = () => {
+    const { logout } = require('@/services/auth');
+    logout();
+    setCurrentPage('login');
+  };
+
+  // Show loading if no user data yet
+  if (isLoggedIn && !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-xsm-yellow border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-xl">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   const [editForm, setEditForm] = useState({ ...profile });
   const [passwordForm, setPasswordForm] = useState({
@@ -94,7 +141,15 @@ const Profile: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-xsm-yellow mb-4">My Profile</h1>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-4xl font-bold text-xsm-yellow">My Profile</h1>
+            <button
+              onClick={handleLogout}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              Logout
+            </button>
+          </div>
           <p className="text-xl text-white">
             Manage your account settings and view your marketplace activity
           </p>
@@ -104,11 +159,22 @@ const Profile: React.FC = () => {
           {/* Profile Overview */}
           <div className="lg:col-span-1">
             <div className="xsm-card text-center mb-6">
-              <div className="w-24 h-24 bg-xsm-yellow rounded-full mx-auto mb-4 flex items-center justify-center">
-                <User className="w-12 h-12 text-xsm-black" />
+              <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
+                {profile.profilePicture ? (
+                  <img 
+                    src={profile.profilePicture} 
+                    alt={profile.fullName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-xsm-yellow rounded-full flex items-center justify-center">
+                    <User className="w-12 h-12 text-xsm-black" />
+                  </div>
+                )}
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">{profile.fullName}</h2>
               <p className="text-xsm-light-gray mb-1">@{profile.username}</p>
+              <p className="text-xsm-light-gray mb-4">{profile.email}</p>
               <div className="flex items-center justify-center space-x-2 mb-4">
                 <Shield className="w-4 h-4 text-green-400" />
                 <span className="text-green-400 text-sm font-medium">{profile.verificationStatus}</span>
@@ -118,9 +184,14 @@ const Profile: React.FC = () => {
                 <span className="text-white font-semibold">{profile.rating}</span>
                 <span className="text-xsm-light-gray">({profile.totalSales + profile.totalPurchases} transactions)</span>
               </div>
-              <div className="text-sm text-xsm-light-gray">
+              <div className="text-sm text-xsm-light-gray mb-4">
                 Member since {new Date(profile.joinDate).toLocaleDateString()}
               </div>
+              {user && (
+                <div className="text-xs text-green-400 bg-green-500/10 rounded-full px-3 py-1 inline-block">
+                  ✓ Showing your real account data
+                </div>
+              )}
             </div>
 
             {/* Stats */}

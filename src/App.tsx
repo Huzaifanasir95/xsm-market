@@ -4,6 +4,7 @@ import { AuthProvider } from '@/context';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageCircle } from 'lucide-react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import SellChannel from './pages/SellChannel';
@@ -51,15 +52,20 @@ const App: React.FC = () => {
     }
   };
 
+  // Debug: Log the Google Client ID to console
+  console.log('Google Client ID:', import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  
   return (
-      <TooltipProvider>
-        <div className="min-h-screen bg-xsm-black">
-        <Toaster />
-        <Sonner />
-        <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
-        <main className="animate-fade-in">
-          {renderPage()}
-        </main>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+      <AuthProvider>
+        <TooltipProvider>
+          <div className="min-h-screen bg-xsm-black">
+          <Toaster />
+          <Sonner />
+          <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+          <main className="animate-fade-in">
+            {renderPage()}
+          </main>
         
         {/* Floating Chat Button */}
         <button
@@ -164,6 +170,8 @@ const App: React.FC = () => {
         </footer>
       </div>
     </TooltipProvider>
+    </AuthProvider>
+    </GoogleOAuthProvider>
   );
 };
 
