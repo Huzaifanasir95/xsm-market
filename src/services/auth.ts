@@ -389,6 +389,8 @@ export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
       throw new Error(data.message || 'Failed to sign in with Google');
     }
 
+    console.log('🔍 Google sign-in response:', data);
+
     // Store tokens with proper expiry management
     if (data.token) {
       setTokenData({
@@ -400,6 +402,7 @@ export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
     
     // Store user data
     if (data.user) {
+      console.log('🔍 Storing Google user data:', data.user);
       setCurrentUser(data.user);
     }
     

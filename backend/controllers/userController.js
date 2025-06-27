@@ -257,8 +257,8 @@ exports.changePassword = async (req, res) => {
     const userId = req.user.id;
 
     // Validation
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: 'Current password and new password are required' });
+    if (!newPassword) {
+      return res.status(400).json({ message: 'New password is required' });
     }
 
     if (newPassword.length < 6) {
@@ -270,15 +270,37 @@ exports.changePassword = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if user has a password (not Google user)
-    if (!user.password) {
-      return res.status(400).json({ message: 'Cannot change password for social login accounts' });
+    // Handle Google users (they can set password without providing current password)
+    if (user.authProvider === 'google') {
+      // For Google users, they don't need to provide current password
+      if (currentPassword) {
+        return res.status(400).json({ 
+          message: 'Google account users don\'t have a current password. Leave current password empty to set a new password.' 
+        });
+      }
+      
+      // Set password for Google user
+      user.password = newPassword;
+      await user.save();
+      
+      console.log(`Password set for Google user ${userId}`);
+      
+      return res.status(200).json({ 
+        message: 'Password set successfully! You can now login with email/password in addition to Google.' 
+      });
     }
 
-    // Verify current password
-    const isValidPassword = await user.comparePassword(currentPassword);
-    if (!isValidPassword) {
-      return res.status(400).json({ message: 'Current password is incorrect' });
+    // Handle email users (existing password required)
+    if (user.authProvider === 'email') {
+      if (!currentPassword) {
+        return res.status(400).json({ message: 'Current password is required' });
+      }
+
+      // Verify current password
+      const isValidPassword = await user.comparePassword(currentPassword);
+      if (!isValidPassword) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
     }
 
     // Update password

@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { User, Star, Edit, Trash2, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
+import { User as UserIcon, Star, Edit, LogOut, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import { useAuth } from '@/context/useAuth';
-import { updateProfile, changePassword } from '@/services/auth';
+import { User } from '@/context/AuthContext';
+import { updateProfile, changePassword, logout } from '@/services/auth';
 
 interface ProfileProps {
   setCurrentPage: (page: string) => void;
 }
 
 const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
-  const { user, isLoggedIn, setUser } = useAuth();
+  const { user, isLoggedIn, setUser, setIsLoggedIn } = useAuth();
   
   // Debug logging
   console.log('🔍 Profile component state:', { 
@@ -19,7 +20,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     userData: localStorage.getItem('userData')
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   
@@ -39,6 +39,12 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   // Update profile when user data changes
   useEffect(() => {
     if (user) {
+      console.log('🔍 User data in Profile component:', {
+        user,
+        authProvider: (user as any)?.authProvider,
+        keys: Object.keys(user)
+      });
+      
       setProfile(prev => ({
         ...prev,
         username: user.username,
@@ -57,9 +63,10 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   }, [isLoggedIn, setCurrentPage]);
 
   const handleLogout = () => {
-    const { logout } = require('@/services/auth');
     logout();
-    setCurrentPage('login');
+    setUser(null);
+    setIsLoggedIn(false);
+    setCurrentPage('home');
   };
 
   // Show loading if no user data yet but we are logged in
@@ -103,7 +110,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                 <div className="xsm-card text-center mb-6">
                   <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
                     <div className="w-full h-full bg-xsm-yellow rounded-full flex items-center justify-center">
-                      <User className="w-12 h-12 text-xsm-black" />
+                      <UserIcon className="w-12 h-12 text-xsm-black" />
                     </div>
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2">{defaultUser.username}</h2>
@@ -319,13 +326,22 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   };
 
   const handlePasswordChange = async () => {
+    // Debug logging for Google user detection
+    console.log('🔍 Password change attempt:', {
+      user,
+      authProvider: (user as any)?.authProvider,
+      isGoogleUser: (user as any)?.authProvider === 'google',
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword ? '***' : ''
+    });
+
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       alert('New passwords do not match!');
       return;
     }
     
-    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
-      alert('Please fill in all password fields!');
+    if (!passwordForm.newPassword) {
+      alert('Please enter a new password!');
       return;
     }
     
@@ -333,16 +349,55 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       alert('New password must be at least 6 characters long!');
       return;
     }
-    
+
     setIsChangingPassword(true);
+    
     try {
-      await changePassword(passwordForm.currentPassword, passwordForm.newPassword);
-      alert('Password changed successfully!');
-      setPasswordForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
+      // First, fetch the latest user profile from backend to get authProvider
+      const token = localStorage.getItem('token');
+      const profileResponse = await fetch('http://localhost:5000/api/user/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
+      
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        const backendUser = profileData.user;
+        console.log('🔍 Backend user data:', backendUser);
+        
+        const isGoogleUser = backendUser?.authProvider === 'google';
+        console.log('🔍 Is Google user from backend:', isGoogleUser);
+        
+        // For Google users, they don't need to enter current password
+        if (!isGoogleUser && !passwordForm.currentPassword) {
+          alert('Please enter your current password!');
+          setIsChangingPassword(false);
+          return;
+        }
+        
+        // For Google users, send empty current password; for email users, send the current password
+        await changePassword(
+          isGoogleUser ? '' : passwordForm.currentPassword, 
+          passwordForm.newPassword
+        );
+        
+        if (isGoogleUser) {
+          alert('Password set successfully! You can now login with email/password in addition to Google.');
+        } else {
+          alert('Password changed successfully!');
+        }
+        
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+      } else {
+        throw new Error('Failed to fetch user profile');
+      }
+      
     } catch (error) {
       console.error('❌ Failed to change password:', error);
       
@@ -352,8 +407,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           errorMessage = 'Current password is incorrect.';
         } else if (error.message.includes('must be at least 6 characters')) {
           errorMessage = 'New password must be at least 6 characters long.';
-        } else if (error.message.includes('Cannot change password for social login')) {
-          errorMessage = 'Cannot change password for social login accounts.';
+        } else if (error.message.includes('Google account users don\'t have a current password')) {
+          errorMessage = 'For Google accounts, leave current password empty to set a new password.';
         } else {
           errorMessage = error.message;
         }
@@ -363,11 +418,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     } finally {
       setIsChangingPassword(false);
     }
-  };
-
-  const handleDeleteAccount = () => {
-    alert('Account deletion requested. You will receive a confirmation email within 24 hours.');
-    setShowDeleteConfirm(false);
   };
 
   const handleVerificationSubmit = async (documentType: string, file: File) => {
@@ -421,7 +471,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   />
                 ) : (
                   <div className="w-full h-full bg-xsm-yellow rounded-full flex items-center justify-center">
-                    <User className="w-12 h-12 text-xsm-black" />
+                    <UserIcon className="w-12 h-12 text-xsm-black" />
                   </div>
                 )}
                 {isEditing && (
@@ -576,37 +626,96 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
 
             {/* Password Change */}
             <div className="xsm-card">
-              <h3 className="text-xl font-bold text-xsm-yellow mb-6">Change Password</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-white font-medium mb-2">Current Password</label>
-                  <input
-                    type="password"
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                    className="xsm-input w-full"
-                    placeholder="Enter current password"
-                  />
+              {/* Debug Info */}
+              <div className="bg-blue-500/10 rounded-lg p-4 mb-6">
+                <h4 className="text-blue-400 font-semibold mb-2">Debug Info</h4>
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => {
+                      const localStorageUser = localStorage.getItem('userData');
+                      const parsedUser = localStorageUser ? JSON.parse(localStorageUser) : null;
+                      console.log('🔍 Current user data:', {
+                        user,
+                        authProvider: (user as any)?.authProvider,
+                        localStorageUser,
+                        parsedUser,
+                        isGoogleUser: (user as any)?.authProvider === 'google'
+                      });
+                      alert(`AuthProvider: ${(user as any)?.authProvider || 'undefined'}\nParsed User AuthProvider: ${parsedUser?.authProvider || 'undefined'}`);
+                    }}
+                    className="bg-blue-500 text-white px-3 py-1 rounded text-sm mr-2"
+                  >
+                    Check User Data
+                  </button>
+                  <button 
+                    onClick={() => {
+                      // Force reload user from localStorage
+                      const localStorageUser = localStorage.getItem('userData');
+                      if (localStorageUser) {
+                        const parsedUser = JSON.parse(localStorageUser);
+                        setUser(parsedUser);
+                        console.log('🔄 Force reloaded user:', parsedUser);
+                        alert('User data reloaded from localStorage');
+                      }
+                    }}
+                    className="bg-green-500 text-white px-3 py-1 rounded text-sm"
+                  >
+                    Reload User
+                  </button>
                 </div>
+              </div>
+              
+              <h3 className="text-xl font-bold text-xsm-yellow mb-6">
+                {(user as any)?.authProvider === 'google' ? 'Set Password' : 'Change Password'}
+              </h3>
+              
+              {(user as any)?.authProvider === 'google' && (
+                <div className="bg-blue-500/10 rounded-lg p-4 mb-6">
+                  <h4 className="text-blue-400 font-semibold mb-2">Google Account</h4>
+                  <p className="text-white text-sm mb-2">
+                    You signed in with Google. You can set a password to enable email/password login as an alternative to Google sign-in.
+                  </p>
+                  <p className="text-xsm-light-gray text-xs">
+                    Setting a password won't affect your Google sign-in - you'll be able to use both methods.
+                  </p>
+                </div>
+              )}
+              
+              <div className="space-y-4">
+                {(user as any)?.authProvider !== 'google' && (
+                  <div>
+                    <label className="block text-white font-medium mb-2">Current Password</label>
+                    <input
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                      className="xsm-input w-full"
+                      placeholder="Enter current password"
+                    />
+                  </div>
+                )}
+                
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-white font-medium mb-2">New Password</label>
+                    <label className="block text-white font-medium mb-2">
+                      {(user as any)?.authProvider === 'google' ? 'New Password' : 'New Password'}
+                    </label>
                     <input
                       type="password"
                       value={passwordForm.newPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                       className="xsm-input w-full"
-                      placeholder="Enter new password"
+                      placeholder={(user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password'}
                     />
                   </div>
                   <div>
-                    <label className="block text-white font-medium mb-2">Confirm New Password</label>
+                    <label className="block text-white font-medium mb-2">Confirm Password</label>
                     <input
                       type="password"
                       value={passwordForm.confirmPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                       className="xsm-input w-full"
-                      placeholder="Confirm new password"
+                      placeholder="Confirm password"
                     />
                   </div>
                 </div>
@@ -618,10 +727,10 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   {isChangingPassword ? (
                     <>
                       <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Updating Password...
+                      {(user as any)?.authProvider === 'google' ? 'Setting Password...' : 'Updating Password...'}
                     </>
                   ) : (
-                    'Update Password'
+                    (user as any)?.authProvider === 'google' ? 'Set Password' : 'Update Password'
                   )}
                 </button>
               </div>
@@ -665,52 +774,26 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               </div>
             </div>
 
-            {/* Danger Zone */}
-            <div className="xsm-card border-red-500/20">
-              <h3 className="text-xl font-bold text-red-400 mb-6">Danger Zone</h3>
-              <div className="bg-red-500/10 rounded-lg p-4">
-                <h4 className="text-white font-semibold mb-2">Delete Account</h4>
+            {/* Account Actions */}
+            <div className="xsm-card">
+              <h3 className="text-xl font-bold text-xsm-yellow mb-6">Account Actions</h3>
+              <div className="bg-blue-500/10 rounded-lg p-4">
+                <h4 className="text-white font-semibold mb-2">Logout</h4>
                 <p className="text-xsm-light-gray mb-4">
-                  Once you delete your account, there is no going back. Please be certain.
+                  Sign out of your account to switch users or end your session.
                 </p>
                 <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors flex items-center space-x-2"
+                  onClick={handleLogout}
+                  className="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors flex items-center space-x-2"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Account</span>
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-xsm-dark-gray rounded-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-red-400 mb-4">Confirm Account Deletion</h3>
-            <p className="text-white mb-6">
-              Are you absolutely sure you want to delete your account? This action cannot be undone and you will lose all your data.
-            </p>
-            <div className="flex space-x-4">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 xsm-button-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors"
-              >
-                Delete Account
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
