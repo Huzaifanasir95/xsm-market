@@ -16,7 +16,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isLoggedIn, setIsLoggedIn } = useAuth();
+  const { isLoggedIn, setIsLoggedIn, user } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -40,9 +40,11 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   const navItems = getNavItems();
 
   return (
-    <nav className="bg-gradient-to-r from-xsm-black via-xsm-dark-gray to-xsm-black border-b border-xsm-medium-gray sticky top-0 z-50">
+    <nav className="bg-gradient-to-r from-xsm-black via-xsm-dark-gray to-xsm-black border-b border-xsm-medium-gray sticky top-0 z-50 relative">
+      {/* Middle fade effect */}
+      <div className="absolute inset-0 bg-gradient-radial from-xsm-yellow/10 via-transparent to-transparent opacity-80" style={{left: '50%', transform: 'translateX(-50%)', width: '50%'}}></div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-[60px] md:h-[72px]">
           {/* Left Side - Begin Selling Button */}
           <div className="flex items-center">
             {isLoggedIn && navItems.map((item) => (
@@ -61,17 +63,20 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
             ))}
           </div>
           
-          {/* Center Logo with highlight effect */}
+          {/* Center Logo with enhanced highlight effect */}
           <div 
-            className="flex-shrink-0 cursor-pointer absolute left-1/2 transform -translate-x-1/2 z-10"
+            className="flex-shrink-0 cursor-pointer absolute left-1/2 transform -translate-x-1/2 z-10 group"
             onClick={() => setCurrentPage('home')}
           >
-            {/* Logo highlight background */}
-            <div className="absolute -inset-2 bg-gradient-radial from-xsm-medium-gray/30 to-transparent rounded-full blur-md"></div>
+            {/* Logo highlight background with yellow fade in middle */}
+            <div className="absolute -inset-4 bg-gradient-radial from-xsm-yellow/30 via-xsm-medium-gray/30 to-transparent rounded-full blur-lg opacity-80 group-hover:opacity-100 transition-all duration-300 group-hover:from-xsm-yellow/50"></div>
+            {/* Extra glow effect on hover */}
+            <div className="absolute -inset-2 bg-gradient-radial from-xsm-yellow/15 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 animate-pulse"></div>
+            <div className="absolute -inset-6 bg-gradient-radial from-xsm-yellow/5 via-transparent to-transparent rounded-full animate-pulse opacity-70"></div>
             <img 
               src="/images/logo.png" 
               alt="XSM Market Logo" 
-              className="h-8 object-contain relative z-10"
+              className="h-10 md:h-[48px] object-contain relative z-10 group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_4px_rgba(255,208,0,0.5)]"
             />
           </div>
 
@@ -82,8 +87,11 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
             {isLoggedIn ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center justify-center w-9 h-9 rounded-full bg-xsm-medium-gray text-white hover:bg-xsm-yellow hover:text-xsm-black transition-colors">
-                    <User className="w-5 h-5" />
+                  <button className="flex items-center space-x-2">
+                    <span className="text-xsm-light-gray mr-1">Hi, <span className="text-xsm-yellow">{user?.username || 'User'}</span></span>
+                    <div className="w-9 h-9 rounded-full bg-xsm-medium-gray text-white hover:bg-xsm-yellow hover:text-xsm-black transition-colors flex items-center justify-center">
+                      <User className="w-5 h-5" />
+                    </div>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
@@ -119,8 +127,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
           </div>
         </div>
 
-        {/* Mobile menu spacing */}
-        <div className="md:hidden pb-4"></div>
+        {/* Mobile menu spacing - ensure we have enough room for the larger logo */}
+        <div className="md:hidden pb-4 pt-2"></div>
       </div>
 
       {/* Mobile Navigation Menu */}
@@ -129,6 +137,10 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
           <div className="px-2 pt-2 pb-3 space-y-1">
             {isLoggedIn ? (
               <>
+                {/* User greeting for mobile view */}
+                <div className="flex items-center px-3 py-2">
+                  <span className="text-white">Hi, <span className="text-xsm-yellow font-medium">{user?.username || 'User'}</span></span>
+                </div>
                 {/* In mobile view, we'll still show the selling button in the dropdown menu */}
                 {navItems.map((item) => (
                   <button

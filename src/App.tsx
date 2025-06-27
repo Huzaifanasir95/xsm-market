@@ -78,96 +78,42 @@ const AppContent: React.FC = () => {
         <MessageCircle className="w-6 h-6" />
       </button>
 
-      {/* Footer */}
-      <footer className="bg-xsm-black border-t border-xsm-medium-gray py-12">
+      {/* Footer - Simplified design */}
+      <footer className="bg-xsm-black border-t border-xsm-medium-gray/30 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
+          {/* Logo and Button Row */}
+          <div className="flex justify-between items-center mb-4">
+            {/* Logo (left) */}
             <div>
-              <h3 className="text-xl font-bold text-xsm-yellow mb-4">XSM Market</h3>
-              <p className="text-xsm-light-gray text-sm">
-                The premier marketplace for buying and selling YouTube channels. 
-                Secure, trusted, and efficient.
-              </p>
+              <img 
+                src="/images/logo.png" 
+                alt="XSM Market Logo" 
+                className="h-8 object-contain drop-shadow-[0_0_8px_rgba(255,208,0,0.4)]"
+              />
             </div>
             
-            <div>
-              <h4 className="text-white font-semibold mb-4">Quick Links</h4>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setCurrentPage('home')}
-                  className="block text-xsm-light-gray hover:text-xsm-yellow transition-colors text-sm"
-                >
-                  Browse Channels
-                </button>
-                <button
-                  onClick={() => setCurrentPage('sell')}
-                  className="block text-xsm-light-gray hover:text-xsm-yellow transition-colors text-sm"
-                >
-                  Sell Your Channel
-                </button>
-                <button
-                  onClick={() => setCurrentPage('about')}
-                  className="block text-xsm-light-gray hover:text-xsm-yellow transition-colors text-sm"
-                >
-                  How It Works
-                </button>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-white font-semibold mb-4">Support</h4>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setCurrentPage('contact')}
-                  className="block text-xsm-light-gray hover:text-xsm-yellow transition-colors text-sm"
-                >
-                  Contact Us
-                </button>
-                <button
-                  onClick={() => setCurrentPage('chat')}
-                  className="block text-xsm-light-gray hover:text-xsm-yellow transition-colors text-sm"
-                >
-                  Live Chat
-                </button>
-                <a
-                  href="#"
-                  className="block text-xsm-light-gray hover:text-xsm-yellow transition-colors text-sm"
-                >
-                  Help Center
-                </a>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-white font-semibold mb-4">Legal</h4>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setCurrentPage('terms')}
-                  className="block text-xsm-light-gray hover:text-xsm-yellow transition-colors text-sm"
-                >
-                  Terms & Conditions
-                </button>
-                <button
-                  onClick={() => setCurrentPage('privacy')}
-                  className="block text-xsm-light-gray hover:text-xsm-yellow transition-colors text-sm"
-                >
-                  Privacy Policy
-                </button>
-                <a
-                  href="#"
-                  className="block text-xsm-light-gray hover:text-xsm-yellow transition-colors text-sm"
-                >
-                  Cookie Policy
-                </a>
-              </div>
-            </div>
+            {/* Begin Selling Button (right) */}
+            <button
+              onClick={() => setCurrentPage('sell')}
+              className="bg-xsm-yellow text-black px-4 py-2 text-sm font-medium rounded hover:bg-yellow-500 transition-colors"
+            >
+              Begin Selling
+            </button>
           </div>
           
-          <div className="border-t border-xsm-medium-gray mt-8 pt-8 text-center">
-            <p className="text-xsm-light-gray text-sm">
-              © 2025 XSM Market. All rights reserved. | Secure YouTube Channel Trading Platform
-            </p>
+          {/* Simple Navigation */}
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-xsm-light-gray">
+            <button onClick={() => setCurrentPage('about')} className="hover:text-xsm-yellow transition-colors">About Us</button>
+            <button onClick={() => setCurrentPage('contact')} className="hover:text-xsm-yellow transition-colors">Contact</button>
+            <button onClick={() => setCurrentPage('terms')} className="hover:text-xsm-yellow transition-colors">Terms of Service</button>
+            <button onClick={() => setCurrentPage('privacy')} className="hover:text-xsm-yellow transition-colors">Privacy Policy</button>
+            <button onClick={() => setCurrentPage('about')} className="hover:text-xsm-yellow transition-colors">FAQ</button>
           </div>
+          
+          {/* Copyright */}
+          <p className="mt-4 text-center text-xs text-xsm-medium-gray">
+            © 2025 XSM Market. All rights reserved.
+          </p>
         </div>
       </footer>
     </div>
