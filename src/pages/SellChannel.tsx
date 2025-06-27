@@ -1,31 +1,49 @@
-
-import React, { useState } from 'react';
-import { Upload, Check, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Upload, ChevronDown } from 'lucide-react';
 
 const SellChannel: React.FC = () => {
+  const contentTypes = ["Unique content", "Rewritten", "Not unique content", "Mixed"];
+  const contentCategories = [
+    "Cars & Bikes", 
+    "Luxury & Motivation", 
+    "Pets & Animals", 
+    "Games",
+    "Movies & Music", 
+    "Fashion & Style", 
+    "Education & Q&A",
+    "Food",
+    "Nature & Travel", 
+    "Fitness & Sports", 
+    "Models & Celebs",
+    "Reviews & How-To", 
+    "YT Shorts & FB Reels",
+    "Crypto & NFT"
+  ];
+  
   const [formData, setFormData] = useState({
     channelUrl: '',
     price: '',
     category: '',
+    contentType: '',
     description: '',
-    income: '',
-    expense: '',
     incomeDetails: '',
-    expenseDetails: '',
     promotionDetails: '',
-    supportDetails: '',
+    isMonetized: false,
+    contentCategory: '',
   });
 
-  const [showLinkDisplay, setShowLinkDisplay] = useState(false);
-  const [allowComments, setAllowComments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showContentTypeDropdown, setShowContentTypeDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const contentTypeDropdownRef = useRef<HTMLDivElement>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
   };
 
@@ -34,6 +52,13 @@ const SellChannel: React.FC = () => {
     if (selectedFiles) {
       setFiles(Array.from(selectedFiles));
     }
+  };
+
+  const toggleMonetization = () => {
+    setFormData(prev => ({
+      ...prev,
+      isMonetized: !prev.isMonetized
+    }));
   };
 
   const handleSubmit = async () => {
@@ -49,19 +74,33 @@ const SellChannel: React.FC = () => {
       channelUrl: '',
       price: '',
       category: '',
+      contentType: '',
       description: '',
-      income: '',
-      expense: '',
       incomeDetails: '',
-      expenseDetails: '',
       promotionDetails: '',
-      supportDetails: '',
+      isMonetized: false,
+      contentCategory: '',
     });
     setFiles([]);
-    setAllowComments(false);
-    setShowLinkDisplay(false);
     setIsSubmitting(false);
   };
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contentTypeDropdownRef.current && !contentTypeDropdownRef.current.contains(event.target as Node)) {
+        setShowContentTypeDropdown(false);
+      }
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setShowCategoryDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8">
@@ -70,54 +109,103 @@ const SellChannel: React.FC = () => {
           <h1 className="text-3xl font-bold mb-8">CREATE NEW LISTING</h1>
 
           <div className="space-y-6">
-            {/* URL Input with Display Link Button */}
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-grow">
-                <input
-                  type="text"
-                  name="channelUrl"
-                  value={formData.channelUrl}
-                  onChange={handleInputChange}
-                  className="xsm-input w-full"
-                  placeholder="Paste link to the account/channel/group/page for sale"
-                />
-              </div>
-              <button 
-                onClick={() => setShowLinkDisplay(!showLinkDisplay)}
-                className={`px-5 py-2 rounded flex items-center justify-center ${showLinkDisplay ? 'bg-xsm-yellow text-black' : 'bg-xsm-dark-gray text-white border border-xsm-medium-gray'}`}
-              >
-                {showLinkDisplay && <Check className="w-4 h-4 mr-2" />}
-                Display link
-              </button>
+            {/* URL Input */}
+            <div>
+              <input
+                type="text"
+                name="channelUrl"
+                value={formData.channelUrl}
+                onChange={handleInputChange}
+                className="xsm-input w-full"
+                placeholder="Paste link to the account/channel/group/page for sale"
+              />
             </div>
 
             {/* Category Dropdown */}
-            <div>
-              <div className="xsm-input w-full flex items-center justify-between">
-                <span className="text-xsm-medium-gray">-- Select topic --</span>
+            <div className="relative" ref={categoryDropdownRef}>
+              <div 
+                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                className="xsm-input w-full flex items-center justify-between cursor-pointer"
+              >
+                <span className={`${formData.category ? 'text-white' : 'text-xsm-medium-gray'}`}>
+                  {formData.category || "-- Select topic --"}
+                </span>
                 <ChevronDown className="w-5 h-5 text-xsm-medium-gray" />
               </div>
+              
+              {/* Dropdown menu */}
+              {showCategoryDropdown && (
+                <div className="absolute z-10 mt-1 w-full bg-xsm-black rounded-md shadow-lg border border-xsm-medium-gray overflow-hidden">
+                  <div className="max-h-60 overflow-y-auto">
+                    {contentCategories.map((cat) => (
+                      <div
+                        key={cat}
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, category: cat }));
+                          setShowCategoryDropdown(false);
+                        }}
+                        className={`px-4 py-3 cursor-pointer hover:bg-xsm-medium-gray/30 ${
+                          formData.category === cat ? 'bg-blue-500 text-white' : 'text-white'
+                        }`}
+                      >
+                        {cat}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Price Input with Allow Comments Button */}
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-grow">
-                <input
-                  type="text"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  className="xsm-input w-full"
-                  placeholder="Enter price ($)"
-                />
+            {/* Price Input */}
+            <div>
+              <input
+                type="text"
+                name="price"
+                value={formData.price}
+                onChange={handleInputChange}
+                className="xsm-input w-full"
+                placeholder="Enter price ($)"
+              />
+            </div>
+
+            {/* Monetization Toggle */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="mr-3 text-white">Channel Status:</span>
+                <div className="flex items-center space-x-6">
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="monetizationStatus"
+                      className="sr-only"
+                      checked={!formData.isMonetized}
+                      onChange={() => setFormData(prev => ({ ...prev, isMonetized: false }))}
+                    />
+                    <div className={`flex items-center ${!formData.isMonetized ? 'text-xsm-yellow' : 'text-white'}`}>
+                      <div className={`w-4 h-4 mr-2 rounded-full border ${!formData.isMonetized ? 'bg-xsm-yellow border-xsm-yellow' : 'border-white'} flex items-center justify-center`}>
+                        {!formData.isMonetized && <div className="w-2 h-2 bg-xsm-black rounded-full"></div>}
+                      </div>
+                      Non Monetized
+                    </div>
+                  </label>
+                  
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="monetizationStatus"
+                      className="sr-only"
+                      checked={formData.isMonetized}
+                      onChange={() => setFormData(prev => ({ ...prev, isMonetized: true }))}
+                    />
+                    <div className={`flex items-center ${formData.isMonetized ? 'text-xsm-yellow' : 'text-white'}`}>
+                      <div className={`w-4 h-4 mr-2 rounded-full border ${formData.isMonetized ? 'bg-xsm-yellow border-xsm-yellow' : 'border-white'} flex items-center justify-center`}>
+                        {formData.isMonetized && <div className="w-2 h-2 bg-xsm-black rounded-full"></div>}
+                      </div>
+                      Monetized
+                    </div>
+                  </label>
+                </div>
               </div>
-              <button
-                onClick={() => setAllowComments(!allowComments)}
-                className={`px-5 py-2 rounded flex items-center justify-center ${allowComments ? 'bg-xsm-yellow text-black' : 'bg-xsm-dark-gray text-white border border-xsm-medium-gray'}`}
-              >
-                {allowComments && <Check className="w-4 h-4 mr-2" />}
-                Allow comments
-              </button>
             </div>
 
             {/* Optional Fields Section */}
@@ -137,34 +225,53 @@ const SellChannel: React.FC = () => {
               </div>
 
               {/* Content Type Dropdown */}
-              <div className="mb-6">
-                <div className="xsm-input w-full flex items-center justify-between">
-                  <span className="text-xsm-medium-gray">-- Specify the primary content published --</span>
+              <div className="mb-6 relative" ref={contentTypeDropdownRef}>
+                <div 
+                  onClick={() => setShowContentTypeDropdown(!showContentTypeDropdown)}
+                  className="xsm-input w-full flex items-center justify-between cursor-pointer"
+                >
+                  <span className={`${formData.contentType ? 'text-white' : 'text-xsm-medium-gray'}`}>
+                    {formData.contentType || "-- Specify the primary content published --"}
+                  </span>
                   <ChevronDown className="w-5 h-5 text-xsm-medium-gray" />
                 </div>
+                
+                {/* Dropdown menu */}
+                {showContentTypeDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-xsm-black rounded-md shadow-lg border border-xsm-medium-gray overflow-hidden">
+                    <div className="max-h-60 overflow-y-auto">
+                      {contentTypes.map((type) => (
+                        <div
+                          key={type}
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, contentType: type }));
+                            setShowContentTypeDropdown(false);
+                          }}
+                          className={`px-4 py-3 cursor-pointer hover:bg-xsm-medium-gray/30 ${
+                            formData.contentType === type ? 'bg-blue-500 text-white' : 'text-white'
+                          }`}
+                        >
+                          {type}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Income & Expense */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              
+              {/* Content Category Input */}
+              <div className="mb-6">
                 <input
                   type="text"
-                  name="income"
-                  value={formData.income}
+                  name="contentCategory"
+                  value={formData.contentCategory}
                   onChange={handleInputChange}
-                  className="xsm-input"
-                  placeholder="Income ($/month)"
-                />
-                <input
-                  type="text"
-                  name="expense"
-                  value={formData.expense}
-                  onChange={handleInputChange}
-                  className="xsm-input"
-                  placeholder="Expense ($/month)"
+                  className="xsm-input w-full"
+                  placeholder="Content category (e.g., Tech Tutorials, Gaming Reviews)"
                 />
               </div>
 
-              {/* Income & Expense Details */}
+              {/* Ways of Earning & Promotion */}
               <div className="mb-6">
                 <textarea
                   name="incomeDetails"
@@ -172,39 +279,20 @@ const SellChannel: React.FC = () => {
                   onChange={handleInputChange}
                   className="xsm-input w-full resize-none mb-4"
                   rows={4}
-                  placeholder="Provide details about income sources"
+                  placeholder="Ways of Earning"
                 />
                 
-                <textarea
-                  name="expenseDetails"
-                  value={formData.expenseDetails}
-                  onChange={handleInputChange}
-                  className="xsm-input w-full resize-none"
-                  rows={4}
-                  placeholder="Provide details about expenses"
-                />
-              </div>
-
-              {/* Additional Information */}
-              <div className="space-y-4">
                 <textarea
                   name="promotionDetails"
                   value={formData.promotionDetails}
                   onChange={handleInputChange}
                   className="xsm-input w-full resize-none"
                   rows={4}
-                  placeholder="Tell us how you promoted your account"
-                />
-                
-                <textarea
-                  name="supportDetails"
-                  value={formData.supportDetails}
-                  onChange={handleInputChange}
-                  className="xsm-input w-full resize-none"
-                  rows={4}
-                  placeholder="What is needed to support your account?"
+                  placeholder="Ways of Promotion"
                 />
               </div>
+
+              {/* No additional fields needed here */}
 
               {/* Screenshot Upload */}
               <div className="mt-6">
@@ -235,11 +323,11 @@ const SellChannel: React.FC = () => {
             </div>
 
             {/* Submit Button */}
-            <div className="mt-8">
+            <div className="mt-8 text-center">
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className={`bg-xsm-yellow text-black px-6 py-3 rounded-md font-medium hover:bg-yellow-400 transition-colors ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`bg-xsm-yellow text-black py-3 rounded-md font-medium hover:bg-yellow-400 transition-colors w-full ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {isSubmitting ? 'Creating Listing...' : 'Create Listing'}
               </button>
