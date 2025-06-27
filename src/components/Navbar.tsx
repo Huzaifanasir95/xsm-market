@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Menu, X, User, ShoppingCart, LogOut, PlusCircle } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { logout } from '@/services/auth';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,9 +90,14 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center space-x-2">
                     <span className="text-xsm-light-gray mr-1">Hi, <span className="text-xsm-yellow">{user?.username || 'User'}</span></span>
-                    <div className="w-9 h-9 rounded-full bg-xsm-medium-gray text-white hover:bg-xsm-yellow hover:text-xsm-black transition-colors flex items-center justify-center">
-                      <User className="w-5 h-5" />
-                    </div>
+                    <Avatar className="w-9 h-9 border-2 border-xsm-medium-gray hover:border-xsm-yellow transition-colors">
+                      {user?.profilePicture ? (
+                        <AvatarImage src={user.profilePicture} alt={user?.username || 'User'} />
+                      ) : null}
+                      <AvatarFallback className="bg-xsm-medium-gray text-white hover:bg-xsm-yellow hover:text-xsm-black transition-colors">
+                        <User className="w-5 h-5" />
+                      </AvatarFallback>
+                    </Avatar>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
@@ -138,7 +144,15 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
             {isLoggedIn ? (
               <>
                 {/* User greeting for mobile view */}
-                <div className="flex items-center px-3 py-2">
+                <div className="flex items-center px-3 py-2 space-x-2">
+                  <Avatar className="w-8 h-8 border-2 border-xsm-medium-gray">
+                    {user?.profilePicture ? (
+                      <AvatarImage src={user.profilePicture} alt={user?.username || 'User'} />
+                    ) : null}
+                    <AvatarFallback className="bg-xsm-medium-gray text-white">
+                      <User className="w-4 h-4" />
+                    </AvatarFallback>
+                  </Avatar>
                   <span className="text-white">Hi, <span className="text-xsm-yellow font-medium">{user?.username || 'User'}</span></span>
                 </div>
                 {/* In mobile view, we'll still show the selling button in the dropdown menu */}
