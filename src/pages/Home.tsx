@@ -48,6 +48,21 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   const [showSearchBar, setShowSearchBar] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  
+  // Add scroll event listener to show/hide back to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowBackToTop(true);
+      } else {
+        setShowBackToTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   
   // Category and type options
   const categories = [
@@ -359,258 +374,232 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-xsm-black via-xsm-dark-gray to-xsm-black py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="flex justify-center mb-6">
-            <img 
-              src="/images/logo.png" 
-              alt="XSM Market Logo" 
-              className="h-16 md:h-24 object-contain"
-            />
-          </div>
-          <p className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto">
-            The premier marketplace for buying and selling YouTube channels. 
-            Secure transactions, verified sellers, and premium opportunities.
-          </p>
-          <div className="flex flex-wrap justify-center gap-8 text-sm">
-            <div className="flex items-center space-x-2 text-white">
-              <Shield className="w-5 h-5 text-xsm-yellow" />
-              <span>Secure Escrow</span>
-            </div>
-            <div className="flex items-center space-x-2 text-white">
-              <TrendingUp className="w-5 h-5 text-xsm-yellow" />
-              <span>Verified Growth</span>
-            </div>
-            <div className="flex items-center space-x-2 text-white">
-              <Zap className="w-5 h-5 text-xsm-yellow" />
-              <span>Instant Transfers</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Search & Filter Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-10">
-        <div className="bg-xsm-dark-gray rounded-lg p-6 mb-8 shadow-lg border border-xsm-medium-gray/30">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <button 
-                className={`xsm-button-secondary h-10 px-3 flex items-center ${showSearchBar ? 'bg-xsm-yellow/10' : ''}`}
-                onClick={() => setShowSearchBar(!showSearchBar)}
-                title="Toggle Search"
-              >
-                <Search className="w-5 h-5 mr-2" />
-                <span>Search</span>
-                {showSearchBar ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
-              </button>
-              
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-10">
+        <div className="bg-xsm-dark-gray rounded-lg p-6 mb-8 shadow-lg border border-xsm-medium-gray/30 relative overflow-hidden">
+          {/* Fade gradient effect for search section */}
+          <div className="absolute inset-0 bg-gradient-radial from-xsm-yellow/10 via-xsm-dark-gray/80 to-xsm-dark-gray pointer-events-none"></div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <button 
+                  className={`xsm-button-secondary h-10 px-3 flex items-center ${showSearchBar ? 'bg-xsm-yellow/10' : ''}`}
+                  onClick={() => setShowSearchBar(!showSearchBar)}
+                  title="Toggle Search"
+                >
+                  <Search className="w-5 h-5 mr-2" />
+                  <span>Search</span>
+                  {showSearchBar ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+                </button>
+                
+                {showSearchBar && (
+                  <button 
+                    className={`xsm-button-secondary h-10 px-3 flex items-center ${showAdvancedFilters ? 'bg-xsm-yellow/10' : ''}`}
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    title="Advanced Filters"
+                  >
+                    <Sliders className="w-5 h-5 mr-2" />
+                    <span>Filters</span>
+                    {showAdvancedFilters ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+                  </button>
+                )}
+              </div>
               {showSearchBar && (
                 <button 
-                  className={`xsm-button-secondary h-10 px-3 flex items-center ${showAdvancedFilters ? 'bg-xsm-yellow/10' : ''}`}
-                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  title="Advanced Filters"
+                  onClick={clearAllFilters}
+                  className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
                 >
-                  <Sliders className="w-5 h-5 mr-2" />
-                  <span>Filters</span>
-                  {showAdvancedFilters ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+                  Clear All Filters
                 </button>
               )}
             </div>
+            
             {showSearchBar && (
-              <button 
-                onClick={clearAllFilters}
-                className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
-              >
-                Clear All Filters
-              </button>
-            )}
-          </div>
-          
-          {showSearchBar && (
-            <div className="grid md:grid-cols-4 gap-4 items-end">
-              {/* Main search */}
-              <div className="md:col-span-2">
-                <label className="block text-white font-medium mb-2">Search by name, category or description</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search channels..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="xsm-input w-full"
-                  />
-                </div>
-              </div>
-              
-              {/* Platform dropdown */}
-              <div>
-                <label className="block text-white font-medium mb-2">Platform</label>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowPlatformDropdown(!showPlatformDropdown)}
-                    className="xsm-input w-full flex items-center justify-between"
-                  >
-                    <span>{selectedPlatform}</span>
-                    <ChevronDown className="w-4 h-4 text-xsm-light-gray" />
-                  </button>
-                  
-                  {showPlatformDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-xsm-black rounded-md shadow-lg border border-xsm-medium-gray">
-                      <div className="py-1">
-                        {['All Platforms', 'YouTube', 'TikTok', 'Twitter', 'Instagram', 'Facebook', 'Telegram'].map(platform => (
-                          <button
-                            key={platform}
-                            onClick={() => {
-                              setSelectedPlatform(platform);
-                              setShowPlatformDropdown(false);
-                            }}
-                            className="w-full px-4 py-2 text-left hover:bg-xsm-medium-gray/20 flex items-center justify-between"
-                          >
-                            <span className={platform === selectedPlatform ? "text-xsm-yellow" : "text-white"}>
-                              {platform}
-                            </span>
-                            {platform === selectedPlatform && (
-                              <Check className="w-4 h-4 text-xsm-yellow" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Space for layout balance */}
-              <div></div>
-            </div>
-          )}
-          
-          {/* Basic Range Filters - shown when either search bar or advanced filters are visible */}
-          {(showSearchBar || showAdvancedFilters) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="block text-xsm-light-gray text-sm mb-1">Subscribers</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <input 
-                    type="number" 
-                    placeholder="Min" 
-                    className="xsm-input" 
-                    value={subscriberRange.min}
-                    onChange={(e) => setSubscriberRange(prev => ({ ...prev, min: e.target.value }))}
-                  />
-                  <input 
-                    type="number" 
-                    placeholder="Max" 
-                    className="xsm-input" 
-                    value={subscriberRange.max}
-                    onChange={(e) => setSubscriberRange(prev => ({ ...prev, max: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xsm-light-gray text-sm mb-1">Price ($)</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <input 
-                    type="number" 
-                    placeholder="Min" 
-                    className="xsm-input" 
-                    value={priceRange.min}
-                    onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                  />
-                  <input 
-                    type="number" 
-                    placeholder="Max" 
-                    className="xsm-input" 
-                    value={priceRange.max}
-                    onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Advanced filters */}
-          {showAdvancedFilters && (
-            <div className="mt-6 pt-6 border-t border-xsm-medium-gray/30">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Categories */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-white font-medium">Categories</h3>
-                    {selectedCategories.length > 0 && (
-                      <button 
-                        onClick={() => setSelectedCategories([])}
-                        className="text-xs text-xsm-light-gray hover:text-xsm-yellow transition-colors"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {categories.map((category) => (
-                      <label key={category} className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedCategories.includes(category)}
-                          onChange={() => toggleCategory(category)}
-                          className="hidden"
-                        />
-                        <div className={`w-4 h-4 border rounded flex items-center justify-center ${
-                          selectedCategories.includes(category)
-                            ? 'bg-xsm-yellow border-xsm-yellow'
-                            : 'border-xsm-light-gray'
-                        }`}>
-                          {selectedCategories.includes(category) && (
-                            <Check className="w-3 h-3 text-xsm-black" />
-                          )}
-                        </div>
-                        <span className="text-white text-sm">{category}</span>
-                      </label>
-                    ))}
+              <div className="grid md:grid-cols-4 gap-4 items-end">
+                {/* Main search */}
+                <div className="md:col-span-2">
+                  <label className="block text-white font-medium mb-2">Search by name, category or description</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search channels..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="xsm-input w-full"
+                    />
                   </div>
                 </div>
                 
-                {/* Channel Types */}
+                {/* Platform dropdown */}
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-white font-medium">Channel Type</h3>
-                    {selectedTypes.length > 0 && (
-                      <button 
-                        onClick={() => setSelectedTypes([])}
-                        className="text-xs text-xsm-light-gray hover:text-xsm-yellow transition-colors"
-                      >
-                        Clear
-                      </button>
+                  <label className="block text-white font-medium mb-2">Platform</label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowPlatformDropdown(!showPlatformDropdown)}
+                      className="xsm-input w-full flex items-center justify-between"
+                    >
+                      <span>{selectedPlatform}</span>
+                      <ChevronDown className="w-4 h-4 text-xsm-light-gray" />
+                    </button>
+                    
+                    {showPlatformDropdown && (
+                      <div className="absolute z-10 mt-1 w-full bg-xsm-black rounded-md shadow-lg border border-xsm-medium-gray">
+                        <div className="py-1">
+                          {['All Platforms', 'YouTube', 'TikTok', 'Twitter', 'Instagram', 'Facebook', 'Telegram'].map(platform => (
+                            <button
+                              key={platform}
+                              onClick={() => {
+                                setSelectedPlatform(platform);
+                                setShowPlatformDropdown(false);
+                              }}
+                              className="w-full px-4 py-2 text-left hover:bg-xsm-medium-gray/20 flex items-center justify-between"
+                            >
+                              <span className={platform === selectedPlatform ? "text-xsm-yellow" : "text-white"}>
+                                {platform}
+                              </span>
+                              {platform === selectedPlatform && (
+                                <Check className="w-4 h-4 text-xsm-yellow" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {channelTypes.map((type) => (
-                      <label key={type} className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedTypes.includes(type)}
-                          onChange={() => toggleType(type)}
-                          className="hidden"
-                        />
-                        <div className={`w-4 h-4 border rounded flex items-center justify-center ${
-                          selectedTypes.includes(type)
-                            ? 'bg-xsm-yellow border-xsm-yellow'
-                            : 'border-xsm-light-gray'
-                        }`}>
-                          {selectedTypes.includes(type) && (
-                            <Check className="w-3 h-3 text-xsm-black" />
-                          )}
-                        </div>
-                        <span className="text-white text-sm">{type}</span>
-                      </label>
-                    ))}
+                </div>
+                
+                {/* Space for layout balance */}
+                <div></div>
+              </div>
+            )}
+            
+            {/* Basic Range Filters - shown when either search bar or advanced filters are visible */}
+            {(showSearchBar || showAdvancedFilters) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-xsm-light-gray text-sm mb-1">Subscribers</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <input 
+                      type="number" 
+                      placeholder="Min" 
+                      className="xsm-input" 
+                      value={subscriberRange.min}
+                      onChange={(e) => setSubscriberRange(prev => ({ ...prev, min: e.target.value }))}
+                    />
+                    <input 
+                      type="number" 
+                      placeholder="Max" 
+                      className="xsm-input" 
+                      value={subscriberRange.max}
+                      onChange={(e) => setSubscriberRange(prev => ({ ...prev, max: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xsm-light-gray text-sm mb-1">Price ($)</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <input 
+                      type="number" 
+                      placeholder="Min" 
+                      className="xsm-input" 
+                      value={priceRange.min}
+                      onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                    />
+                    <input 
+                      type="number" 
+                      placeholder="Max" 
+                      className="xsm-input" 
+                      value={priceRange.max}
+                      onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                    />
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+            
+            {/* Advanced filters */}
+            {showAdvancedFilters && (
+              <div className="mt-6 pt-6 border-t border-xsm-medium-gray/30">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Categories */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-white font-medium">Categories</h3>
+                      {selectedCategories.length > 0 && (
+                        <button 
+                          onClick={() => setSelectedCategories([])}
+                          className="text-xs text-xsm-light-gray hover:text-xsm-yellow transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {categories.map((category) => (
+                        <label key={category} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedCategories.includes(category)}
+                            onChange={() => toggleCategory(category)}
+                            className="hidden"
+                          />
+                          <div className={`w-4 h-4 border rounded flex items-center justify-center ${
+                            selectedCategories.includes(category)
+                              ? 'bg-xsm-yellow border-xsm-yellow'
+                              : 'border-xsm-light-gray'
+                          }`}>
+                            {selectedCategories.includes(category) && (
+                              <Check className="w-3 h-3 text-xsm-black" />
+                            )}
+                          </div>
+                          <span className="text-white text-sm">{category}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Channel Types */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-white font-medium">Channel Type</h3>
+                      {selectedTypes.length > 0 && (
+                        <button 
+                          onClick={() => setSelectedTypes([])}
+                          className="text-xs text-xsm-light-gray hover:text-xsm-yellow transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {channelTypes.map((type) => (
+                        <label key={type} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedTypes.includes(type)}
+                            onChange={() => toggleType(type)}
+                            className="hidden"
+                          />
+                          <div className={`w-4 h-4 border rounded flex items-center justify-center ${
+                            selectedTypes.includes(type)
+                              ? 'bg-xsm-yellow border-xsm-yellow'
+                              : 'border-xsm-light-gray'
+                          }`}>
+                            {selectedTypes.includes(type) && (
+                              <Check className="w-3 h-3 text-xsm-black" />
+                            )}
+                          </div>
+                          <span className="text-white text-sm">{type}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         
         {/* Main Content */}
@@ -669,6 +658,71 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+      
+      {/* Fixed back to top button */}
+      {showBackToTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-8 left-8 bg-xsm-yellow text-black rounded-full p-3 shadow-lg hover:bg-yellow-500 transition-colors z-50 animate-fade-in"
+          aria-label="Back to top"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+          </svg>
+        </button>
+      )}
+
+      {/* Footer */}
+      <div className="bg-gradient-to-r from-xsm-black via-xsm-dark-gray to-xsm-black py-16 mt-20 border-t border-xsm-medium-gray/30 relative">
+        {/* Back to top button */}
+        <button 
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-xsm-yellow text-black rounded-full p-3 shadow-lg hover:bg-yellow-500 transition-colors"
+          aria-label="Back to top"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+          </svg>
+        </button>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/images/logo.png" 
+              alt="XSM Market Logo" 
+              className="h-16 md:h-24 object-contain"
+            />
+          </div>
+          <p className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto">
+            The premier marketplace for buying and selling YouTube channels. 
+            Secure transactions, verified sellers, and premium opportunities.
+          </p>
+          <div className="flex flex-wrap justify-center gap-8 text-sm">
+            <div className="flex items-center space-x-2 text-white">
+              <Shield className="w-5 h-5 text-xsm-yellow" />
+              <span>Secure Escrow</span>
+            </div>
+            <div className="flex items-center space-x-2 text-white">
+              <TrendingUp className="w-5 h-5 text-xsm-yellow" />
+              <span>Verified Growth</span>
+            </div>
+            <div className="flex items-center space-x-2 text-white">
+              <Zap className="w-5 h-5 text-xsm-yellow" />
+              <span>Instant Transfers</span>
+            </div>
+          </div>
+          <div className="mt-12 flex flex-wrap justify-center gap-6 text-sm text-xsm-light-gray">
+            <a href="#" className="hover:text-xsm-yellow transition-colors">About Us</a>
+            <a href="#" className="hover:text-xsm-yellow transition-colors">Contact</a>
+            <a href="#" className="hover:text-xsm-yellow transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-xsm-yellow transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-xsm-yellow transition-colors">FAQ</a>
+          </div>
+          <p className="mt-8 text-sm text-xsm-medium-gray">
+            © {new Date().getFullYear()} XSM Market. All rights reserved.
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

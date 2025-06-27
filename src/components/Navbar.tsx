@@ -40,25 +40,11 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   const navItems = getNavItems();
 
   return (
-    <nav className="bg-xsm-black border-b border-xsm-medium-gray sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="bg-gradient-to-r from-xsm-black via-xsm-dark-gray to-xsm-black border-b border-xsm-medium-gray sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div 
-            className="flex-shrink-0 cursor-pointer"
-            onClick={() => setCurrentPage('home')}
-          >
-            <h1 className="text-2xl font-bold text-xsm-yellow">
-              XSM <span className="text-white">Market</span>
-            </h1>
-          </div>
-
-          {/* Navigation spacer */}
-          <div className="hidden md:block flex-1 max-w-lg mx-8"></div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            {/* Show Sell Channel button only if authenticated */}
+          {/* Left Side - Begin Selling Button */}
+          <div className="flex items-center">
             {isLoggedIn && navItems.map((item) => (
               <button
                 key={item.id}
@@ -73,14 +59,31 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                 <span>{item.label}</span>
               </button>
             ))}
+          </div>
+          
+          {/* Center Logo with highlight effect */}
+          <div 
+            className="flex-shrink-0 cursor-pointer absolute left-1/2 transform -translate-x-1/2 z-10"
+            onClick={() => setCurrentPage('home')}
+          >
+            {/* Logo highlight background */}
+            <div className="absolute -inset-2 bg-gradient-radial from-xsm-medium-gray/30 to-transparent rounded-full blur-md"></div>
+            <img 
+              src="/images/logo.png" 
+              alt="XSM Market Logo" 
+              className="h-8 object-contain relative z-10"
+            />
+          </div>
+
+          {/* Desktop Navigation on right */}
+          <div className="hidden md:flex items-center space-x-8">
 
             {/* Profile Dropdown or Login Button */}
             {isLoggedIn ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:text-xsm-yellow">
-                    <User className="w-4 h-4" />
-                    <span>My Account</span>
+                  <button className="flex items-center justify-center w-9 h-9 rounded-full bg-xsm-medium-gray text-white hover:bg-xsm-yellow hover:text-xsm-black transition-colors">
+                    <User className="w-5 h-5" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
@@ -126,6 +129,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
           <div className="px-2 pt-2 pb-3 space-y-1">
             {isLoggedIn ? (
               <>
+                {/* In mobile view, we'll still show the selling button in the dropdown menu */}
                 {navItems.map((item) => (
                   <button
                     key={item.id}
@@ -143,6 +147,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                     <span>{item.label}</span>
                   </button>
                 ))}
+                
                 <button
                   onClick={() => {
                     handleLogout();
