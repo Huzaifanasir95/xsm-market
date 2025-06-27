@@ -13,6 +13,7 @@ const USER_KEY = 'userData';
 interface User {
   id: string;
   username: string;
+  fullName?: string;
   email: string;
   profilePicture?: string;
   authProvider?: string;
@@ -34,6 +35,7 @@ export interface AuthResponse {
   user?: {
     id: string;
     username: string;
+    fullName?: string;
     email: string;
     profilePicture?: string;
     authProvider?: string;
@@ -242,11 +244,12 @@ export const login = async (email: string, password: string): Promise<AuthRespon
   }
 };
 
-export const register = async (username: string, email: string, password: string): Promise<AuthResponse> => {
+export const register = async (username: string, email: string, password: string, fullName?: string): Promise<AuthResponse> => {
   try {
     console.log('Attempting to register with:', { 
       username, 
       email,
+      fullName,
       password: password ? '[FILTERED]' : undefined 
     });
     
@@ -282,7 +285,8 @@ export const register = async (username: string, email: string, password: string
       body: JSON.stringify({ 
         username: username.trim(),
         email: email.trim().toLowerCase(),
-        password 
+        password,
+        fullName: fullName?.trim() || ''
       }),
       mode: 'cors',
       credentials: 'include'
@@ -493,12 +497,38 @@ export const updateProfile = async (userData: Partial<User>): Promise<User> => {
       body: JSON.stringify(userData),
     });
     const data = await handleFetchError(response);
+    
+    // Update the user data in localStorage
+    if (data.user) {
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    }
+    
     return data.user;
   } catch (error) {
     if (error instanceof Error) {
       throw error;
     } else {
       throw new Error('Failed to update user profile');
+    }
+  }
+};
+
+// Change user password
+export const changePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
+  try {
+    const response = await authenticatedFetch(`${API_URL}/user/password`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        currentPassword,
+        newPassword
+      }),
+    });
+    await handleFetchError(response);
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to change password');
     }
   }
 };

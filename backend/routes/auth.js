@@ -23,4 +23,7 @@ router.get('/verification-status/:email', authController.checkVerificationStatus
 // Google Sign-In route
 router.post('/google-signin', authController.googleSignIn);
 
+// Public username availability check (for registration)
+router.get('/check-username', authController.checkUsernameAvailabilityPublic);
+
 module.exports = router;

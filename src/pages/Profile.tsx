@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { User, Star, Edit, Trash2, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import { useAuth } from '@/context/useAuth';
+import { updateProfile, changePassword } from '@/services/auth';
 
 interface ProfileProps {
   setCurrentPage: (page: string) => void;
 }
 
 const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, setUser } = useAuth();
   
   // Debug logging
   console.log('🔍 Profile component state:', { 
@@ -19,12 +20,14 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   
   // Initialize profile with user data or defaults
   const [profile, setProfile] = useState({
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
-    fullName: user?.username || 'John Doe',
+    fullName: (user as any)?.fullName || '',
     joinDate: '2024-01-15',
     rating: 4.8,
     totalSales: 12,
@@ -40,7 +43,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         ...prev,
         username: user.username,
         email: user.email,
-        fullName: user.username, // Using username as fullName for now
+        fullName: (user as any).fullName || '',
         profilePicture: user.profilePicture || ''
       }));
     }
@@ -183,6 +186,35 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     confirmPassword: '',
   });
 
+  // Handle profile picture upload
+  const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Check file size (limit to 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+      
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      // Convert to base64 for preview and storage
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64String = e.target?.result as string;
+        setEditForm(prev => ({
+          ...prev,
+          profilePicture: base64String
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const [listedChannels] = useState([
     {
       id: '1',
@@ -206,23 +238,131 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     },
   ]);
 
-  const handleSaveProfile = () => {
-    setProfile({ ...editForm });
-    setIsEditing(false);
-    alert('Profile updated successfully!');
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    
+    setIsUpdating(true);
+    try {
+      // Prepare the data to send to the API
+      const updateData: any = {};
+      
+      // Only include fields that have changed
+      if (editForm.username !== user.username) {
+        updateData.username = editForm.username;
+      }
+      
+      if (editForm.fullName !== (user as any).fullName) {
+        updateData.fullName = editForm.fullName;
+      }
+      
+      if (editForm.profilePicture !== user.profilePicture) {
+        updateData.profilePicture = editForm.profilePicture;
+      }
+      
+      // Only make API call if there are changes
+      if (Object.keys(updateData).length > 0) {
+        console.log('🔄 Updating profile with data:', updateData);
+        
+        // Call the API to update the profile
+        const updatedUser = await updateProfile(updateData);
+        
+        console.log('✅ Profile updated successfully:', updatedUser);
+        
+        // Update the user context with the new data
+        setUser(updatedUser);
+        
+        // Update local profile state
+        setProfile(prev => ({
+          ...prev,
+          username: updatedUser.username,
+          fullName: updatedUser.fullName || '',
+          profilePicture: updatedUser.profilePicture || ''
+        }));
+        
+        // Update the edit form to match the saved data
+        setEditForm(prev => ({
+          ...prev,
+          username: updatedUser.username,
+          fullName: updatedUser.fullName || '',
+          profilePicture: updatedUser.profilePicture || ''
+        }));
+        
+        alert('Profile updated successfully!');
+      } else {
+        alert('No changes to save!');
+      }
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('❌ Failed to update profile:', error);
+      
+      // Handle specific error messages
+      let errorMessage = 'Failed to update profile. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('Username is already taken')) {
+          errorMessage = 'Username is already taken. Please choose a different one.';
+        } else if (error.message.includes('Username must be between')) {
+          errorMessage = 'Username must be between 3 and 50 characters.';
+        } else if (error.message.includes('Username can only contain')) {
+          errorMessage = 'Username can only contain letters, numbers, and underscores.';
+        } else if (error.message.includes('Full name must be less than')) {
+          errorMessage = 'Full name must be less than 100 characters.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       alert('New passwords do not match!');
       return;
     }
-    alert('Password changed successfully!');
-    setPasswordForm({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
+    
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      alert('Please fill in all password fields!');
+      return;
+    }
+    
+    if (passwordForm.newPassword.length < 6) {
+      alert('New password must be at least 6 characters long!');
+      return;
+    }
+    
+    setIsChangingPassword(true);
+    try {
+      await changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      alert('Password changed successfully!');
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } catch (error) {
+      console.error('❌ Failed to change password:', error);
+      
+      let errorMessage = 'Failed to change password. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('Current password is incorrect')) {
+          errorMessage = 'Current password is incorrect.';
+        } else if (error.message.includes('must be at least 6 characters')) {
+          errorMessage = 'New password must be at least 6 characters long.';
+        } else if (error.message.includes('Cannot change password for social login')) {
+          errorMessage = 'Cannot change password for social login accounts.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -272,10 +412,10 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           {/* Profile Overview */}
           <div className="lg:col-span-1">
             <div className="xsm-card text-center mb-6">
-              <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
-                {profile.profilePicture ? (
+              <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden relative">
+                {(isEditing ? editForm.profilePicture : profile.profilePicture) ? (
                   <img 
-                    src={profile.profilePicture} 
+                    src={isEditing ? editForm.profilePicture : profile.profilePicture} 
                     alt={profile.fullName}
                     className="w-full h-full object-cover"
                   />
@@ -284,8 +424,21 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     <User className="w-12 h-12 text-xsm-black" />
                   </div>
                 )}
+                {isEditing && (
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                    <Edit className="w-6 h-6 text-white" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePictureChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                  </div>
+                )}
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">{profile.fullName}</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                {profile.fullName || profile.username}
+              </h2>
               <p className="text-xsm-light-gray mb-1">@{profile.username}</p>
               <p className="text-xsm-light-gray mb-4">{profile.email}</p>
               <div className="flex items-center justify-center space-x-2 mb-4">
@@ -340,16 +493,27 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   <div className="flex space-x-2">
                     <button
                       onClick={handleSaveProfile}
-                      className="xsm-button flex items-center space-x-2"
+                      disabled={isUpdating}
+                      className={`xsm-button flex items-center space-x-2 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <Save className="w-4 h-4" />
-                      <span>Save</span>
+                      {isUpdating ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Save</span>
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={() => {
                         setIsEditing(false);
                         setEditForm({ ...profile });
                       }}
+                      disabled={isUpdating}
                       className="xsm-button-secondary flex items-center space-x-2"
                     >
                       <X className="w-4 h-4" />
@@ -378,6 +542,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
                     disabled={!isEditing}
                     className={`xsm-input w-full ${!isEditing ? 'opacity-60' : ''}`}
+                    placeholder="Enter username (3-50 chars, letters, numbers, underscores only)"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -386,10 +551,26 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     type="email"
                     value={isEditing ? editForm.email : profile.email}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    disabled={!isEditing}
-                    className={`xsm-input w-full ${!isEditing ? 'opacity-60' : ''}`}
+                    disabled={true}
+                    className={`xsm-input w-full opacity-60`}
+                    title="Email cannot be changed here. Contact support if you need to update your email."
                   />
                 </div>
+                {isEditing && (
+                  <div className="md:col-span-2">
+                    <label className="block text-white font-medium mb-2">Profile Picture URL (Optional)</label>
+                    <input
+                      type="url"
+                      value={editForm.profilePicture}
+                      onChange={(e) => setEditForm({ ...editForm, profilePicture: e.target.value })}
+                      className="xsm-input w-full"
+                      placeholder="Enter image URL or upload an image above"
+                    />
+                    <p className="text-xs text-xsm-light-gray mt-1">
+                      You can either upload an image above or enter an image URL here.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -431,9 +612,17 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                 </div>
                 <button
                   onClick={handlePasswordChange}
-                  className="xsm-button"
+                  disabled={isChangingPassword}
+                  className={`xsm-button ${isChangingPassword ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  Update Password
+                  {isChangingPassword ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Updating Password...
+                    </>
+                  ) : (
+                    'Update Password'
+                  )}
                 </button>
               </div>
             </div>

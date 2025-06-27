@@ -17,6 +17,13 @@ const User = sequelize.define('User', {
       notEmpty: true
     }
   },
+  fullName: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    validate: {
+      len: [0, 100]
+    }
+  },
   email: {
     type: DataTypes.STRING(255),
     allowNull: false,

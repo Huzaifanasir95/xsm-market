@@ -3,6 +3,60 @@ const jwt = require('jsonwebtoken');
 const { sendOTPEmail, sendWelcomeEmail } = require('../utils/emailService');
 const { Op } = require('sequelize');
 
+// Helper function to generate unique username
+const generateUniqueUsername = async (baseName) => {
+  if (!baseName) {
+    baseName = 'user';
+  }
+  
+  // Clean the base name - remove special characters and spaces
+  let cleanBaseName = baseName
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .substring(0, 20); // Limit length
+  
+  if (!cleanBaseName) {
+    cleanBaseName = 'user';
+  }
+  
+  // First try the clean base name
+  let username = cleanBaseName;
+  let user = await User.findOne({ where: { username } });
+  
+  if (!user) {
+    return username;
+  }
+  
+  // If exists, try with random numbers
+  let attempts = 0;
+  const maxAttempts = 10;
+  
+  while (user && attempts < maxAttempts) {
+    const randomNum = Math.floor(Math.random() * 9999) + 1;
+    username = `${cleanBaseName}${randomNum}`;
+    user = await User.findOne({ where: { username } });
+    attempts++;
+  }
+  
+  // If still not unique after attempts, use timestamp
+  if (user) {
+    username = `${cleanBaseName}${Date.now()}`;
+  }
+  
+  return username;
+};
+
+// Helper function to check if username is available
+const isUsernameAvailable = async (username, currentUserId = null) => {
+  const whereClause = { username };
+  if (currentUserId) {
+    whereClause.id = { [Op.ne]: currentUserId };
+  }
+  
+  const user = await User.findOne({ where: whereClause });
+  return !user;
+};
+
 // Generate JWT access token
 const generateAccessToken = (userId) => {
   return jwt.sign(
@@ -36,10 +90,10 @@ const generateToken = (userId) => {
 // Register new user (send OTP for verification)
 exports.register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, fullName } = req.body;
     
     // Log registration attempt (filter out password)
-    console.log('Registration attempt:', { username, email });
+    console.log('Registration attempt:', { username, email, fullName });
 
     // Validation
     if (!username || !email || !password) {
@@ -48,6 +102,10 @@ exports.register = async (req, res) => {
 
     if (password.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+
+    if (fullName && fullName.length > 100) {
+      return res.status(400).json({ message: 'Full name must be less than 100 characters' });
     }
 
     // Check if user already exists and is verified
@@ -68,6 +126,7 @@ exports.register = async (req, res) => {
       // If user exists but not verified, update their details and resend OTP
       if (existingUser.email === email && !existingUser.isEmailVerified) {
         existingUser.username = username;
+        existingUser.fullName = fullName || '';
         existingUser.password = password; // Will be hashed by pre-save middleware
         const otp = existingUser.generateOTP();
         await existingUser.save();
@@ -89,6 +148,7 @@ exports.register = async (req, res) => {
     // Create new unverified user
     const user = await User.create({
       username,
+      fullName: fullName || '',
       email,
       password,
       isEmailVerified: false
@@ -160,6 +220,7 @@ exports.login = async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
+        fullName: user.fullName,
         email: user.email,
         profilePicture: user.profilePicture,
         isEmailVerified: user.isEmailVerified,
@@ -220,6 +281,7 @@ exports.verifyOTP = async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
+        fullName: user.fullName,
         email: user.email,
         profilePicture: user.profilePicture,
         isEmailVerified: user.isEmailVerified,
@@ -281,23 +343,56 @@ exports.checkVerificationStatus = async (req, res) => {
   try {
     const { email } = req.params;
     
-    console.log('Verification status check:', { email });
-
-    // Find user
     const user = await User.findOne({ where: { email } });
+    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
+    
     res.status(200).json({
+      isVerified: user.isEmailVerified,
       email: user.email,
-      isEmailVerified: user.isEmailVerified,
-      authProvider: user.authProvider
+      username: user.username
     });
-
   } catch (error) {
     console.error('Verification status check error:', error);
     res.status(500).json({ message: 'Server error during status check', error: error.message });
+  }
+};
+
+// Public username availability check for registration
+exports.checkUsernameAvailabilityPublic = async (req, res) => {
+  try {
+    const { username } = req.query;
+
+    if (!username) {
+      return res.status(400).json({ message: 'Username is required' });
+    }
+
+    if (username.length < 3 || username.length > 50) {
+      return res.status(400).json({ 
+        available: false, 
+        message: 'Username must be between 3 and 50 characters' 
+      });
+    }
+
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({ 
+        available: false, 
+        message: 'Username can only contain letters, numbers, and underscores' 
+      });
+    }
+
+    const isAvailable = await isUsernameAvailable(username);
+
+    res.status(200).json({
+      available: isAvailable,
+      message: isAvailable ? 'Username is available' : 'Username is already taken'
+    });
+  } catch (error) {
+    console.error('Check username availability error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -342,12 +437,24 @@ exports.googleSignIn = async (req, res) => {
         if (picture && !user.profilePicture) {
           user.profilePicture = picture;
         }
+        if (name && !user.fullName) {
+          user.fullName = name;
+        }
+        await user.save();
+      } else if (name && !user.fullName) {
+        // Update fullName if missing from existing Google user
+        user.fullName = name;
         await user.save();
       }
     } else {
+      // Generate unique username for new Google user
+      const baseName = name || email.split('@')[0];
+      const uniqueUsername = await generateUniqueUsername(baseName);
+      
       // Create new user
       user = await User.create({
-        username: name || email.split('@')[0],
+        username: uniqueUsername,
+        fullName: name || '',
         email,
         password: Math.random().toString(36).slice(-8), // Random password for Google users
         googleId,
@@ -356,7 +463,7 @@ exports.googleSignIn = async (req, res) => {
         isEmailVerified: true // Google emails are pre-verified
       });
       
-      console.log('New Google user created:', user.id);
+      console.log('New Google user created:', { id: user.id, username: uniqueUsername });
     }
 
     // Generate token
@@ -367,6 +474,7 @@ exports.googleSignIn = async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
+        fullName: user.fullName,
         email: user.email,
         profilePicture: user.profilePicture,
         isEmailVerified: user.isEmailVerified,
@@ -418,6 +526,7 @@ exports.refreshToken = async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
+        fullName: user.fullName,
         email: user.email,
         profilePicture: user.profilePicture,
         isEmailVerified: user.isEmailVerified,
