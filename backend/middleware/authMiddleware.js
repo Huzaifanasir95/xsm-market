@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const User = require('../models/UserSequelize');
 
 exports.protect = async (req, res, next) => {
   try {
@@ -17,7 +17,7 @@ exports.protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // 3) Check if user still exists
-    const currentUser = await User.findById(decoded.userId);
+    const currentUser = await User.findByPk(decoded.userId);
     if (!currentUser) {
       return res.status(401).json({ message: 'The user belonging to this token no longer exists.' });
     }

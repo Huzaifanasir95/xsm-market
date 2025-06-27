@@ -1,5 +1,7 @@
-// Make sure this matches your backend server address and port
-const API_URL = 'http://localhost:5000/api';
+// API URL - automatically switches between development and production
+const API_URL = typeof __API_URL__ !== 'undefined' 
+  ? __API_URL__ 
+  : 'http://localhost:5000/api';
 
 // Token management constants
 const TOKEN_KEY = 'token';

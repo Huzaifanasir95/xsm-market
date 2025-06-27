@@ -1,6 +1,7 @@
-const User = require('../models/User');
+const User = require('../models/UserSequelize');
 const jwt = require('jsonwebtoken');
 const { sendOTPEmail, sendWelcomeEmail } = require('../utils/emailService');
+const { Op } = require('sequelize');
 
 // Generate JWT access token
 const generateAccessToken = (userId) => {
@@ -51,7 +52,9 @@ exports.register = async (req, res) => {
 
     // Check if user already exists and is verified
     const existingUser = await User.findOne({ 
-      $or: [{ email }, { username }] 
+      where: {
+        [Op.or]: [{ email }, { username }]
+      }
     });
 
     if (existingUser) {
@@ -84,7 +87,7 @@ exports.register = async (req, res) => {
     }
 
     // Create new unverified user
-    const user = new User({
+    const user = await User.create({
       username,
       email,
       password,
@@ -127,7 +130,7 @@ exports.login = async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -148,14 +151,14 @@ exports.login = async (req, res) => {
     }
 
     // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(user._id);
+    const { accessToken, refreshToken } = generateTokens(user.id);
 
     res.status(200).json({
       token: accessToken,
       refreshToken: refreshToken,
       expiresIn: 3600, // 1 hour in seconds
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         profilePicture: user.profilePicture,
@@ -183,7 +186,7 @@ exports.verifyOTP = async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -207,7 +210,7 @@ exports.verifyOTP = async (req, res) => {
     await sendWelcomeEmail(user.email, user.username);
 
     // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(user._id);
+    const { accessToken, refreshToken } = generateTokens(user.id);
 
     res.status(200).json({
       message: 'Email verified successfully! Welcome to XSM Market',
@@ -215,7 +218,7 @@ exports.verifyOTP = async (req, res) => {
       refreshToken: refreshToken,
       expiresIn: 3600, // 1 hour in seconds
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         profilePicture: user.profilePicture,
@@ -243,7 +246,7 @@ exports.resendOTP = async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -281,7 +284,7 @@ exports.checkVerificationStatus = async (req, res) => {
     console.log('Verification status check:', { email });
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -299,7 +302,7 @@ exports.checkVerificationStatus = async (req, res) => {
 };
 
 // Google OAuth
-exports.googleAuth = async (req, res) => {
+exports.googleSignIn = async (req, res) => {
   try {
     const { token } = req.body;
     
@@ -324,7 +327,11 @@ exports.googleAuth = async (req, res) => {
     console.log('Google user verified:', { email, name });
 
     // Check if user exists
-    let user = await User.findOne({ $or: [{ email }, { googleId }] });
+    let user = await User.findOne({ 
+      where: {
+        [Op.or]: [{ email }, { googleId }]
+      }
+    });
 
     if (user) {
       // Update Google ID if not set
@@ -349,16 +356,16 @@ exports.googleAuth = async (req, res) => {
         isEmailVerified: true // Google emails are pre-verified
       });
       
-      console.log('New Google user created:', user._id);
+      console.log('New Google user created:', user.id);
     }
 
     // Generate token
-    const jwtToken = generateToken(user._id);
+    const jwtToken = generateToken(user.id);
 
     res.status(200).json({
       token: jwtToken,
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         profilePicture: user.profilePicture,
@@ -372,9 +379,6 @@ exports.googleAuth = async (req, res) => {
     res.status(500).json({ message: 'Google authentication failed', error: error.message });
   }
 };
-
-// Alias for backward compatibility
-exports.googleSignIn = exports.googleAuth;
 
 // Refresh token endpoint
 exports.refreshToken = async (req, res) => {
@@ -405,14 +409,14 @@ exports.refreshToken = async (req, res) => {
     }
 
     // Generate new tokens
-    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user.id);
 
     res.status(200).json({
       token: accessToken,
       refreshToken: newRefreshToken,
       expiresIn: 3600, // 1 hour in seconds
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         profilePicture: user.profilePicture,
