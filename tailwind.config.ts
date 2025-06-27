@@ -26,7 +26,7 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: '#FFFF00',
+					DEFAULT: '#ffd000',
 					foreground: '#000000'
 				},
 				secondary: {
@@ -42,12 +42,11 @@ export default {
 					foreground: '#CCCCCC'
 				},
 				accent: {
-					DEFAULT: '#FFFF00',
+					DEFAULT: '#ffd000',
 					foreground: '#000000'
-				},
-				popover: {
+				},					popover: {
 					DEFAULT: '#1A1A1A',
-					foreground: '#FFFF00'
+					foreground: '#ffd000'
 				},
 				card: {
 					DEFAULT: '#1A1A1A',
@@ -65,7 +64,7 @@ export default {
 				},
 				xsm: {
 					black: '#000000',
-					yellow: '#FFFF00',
+					yellow: '#ffd000',
 					'dark-gray': '#1A1A1A',
 					'medium-gray': '#333333',
 					'light-gray': '#666666'

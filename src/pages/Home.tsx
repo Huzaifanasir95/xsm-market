@@ -45,6 +45,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [incomeRange, setIncomeRange] = useState({ min: '', max: '' });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showSearchBar, setShowSearchBar] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   
@@ -54,7 +55,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
     'Sports', 'News', 'Comedy', 'Cooking', 'Travel', 'Fashion', 'Fitness'
   ];
   
-  const channelTypes = ['Verified', 'Premium', 'Monetized', 'New'];
+  const channelTypes = ['Non Monitied', 'Premium', 'Monetized', 'New'];
 
   // Mock data - in real app, this would come from an API
   useEffect(() => {
@@ -221,6 +222,10 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
     setIncomeRange({ min: '', max: '' });
     setSelectedCategories([]);
     setSelectedTypes([]);
+    
+    // Make sure search is visible and advanced filters are hidden after clearing
+    setShowSearchBar(true);
+    setShowAdvancedFilters(false);
   };
 
   const handleSortChange = (newSortBy: string) => {
@@ -297,7 +302,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
     if (selectedTypes.length > 0) {
       filtered = filtered.filter(channel => {
         return selectedTypes.some(type => {
-          if (type === 'Verified') return channel.verified;
+          if (type === 'Non Monitied') return channel.verified;
           if (type === 'Premium') return channel.premium;
           if (type === 'Monetized') return channel.monthlyIncome && channel.monthlyIncome > 0;
           if (type === 'New') return true; // Would filter for new channels in a real app
@@ -389,154 +394,142 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-10">
         <div className="bg-xsm-dark-gray rounded-lg p-6 mb-8 shadow-lg border border-xsm-medium-gray/30">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-xsm-yellow flex items-center">
-              <Search className="w-5 h-5 mr-2" />
-              Search Channels
-            </h3>
-            <button 
-              onClick={clearAllFilters}
-              className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
-            >
-              Clear All Filters
-            </button>
-          </div>
-          
-          <div className="grid md:grid-cols-4 gap-4 items-end">
-            {/* Main search */}
-            <div className="md:col-span-2">
-              <label className="block text-white font-medium mb-2">Search by name, category or description</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search channels..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="xsm-input w-full pl-10"
-                />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xsm-light-gray w-4 h-4" />
-              </div>
-            </div>
-            
-            {/* Platform dropdown */}
-            <div>
-              <label className="block text-white font-medium mb-2">Platform</label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowPlatformDropdown(!showPlatformDropdown)}
-                  className="xsm-input w-full flex items-center justify-between"
-                >
-                  <span>{selectedPlatform}</span>
-                  <ChevronDown className="w-4 h-4 text-xsm-light-gray" />
-                </button>
-                
-                {showPlatformDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-xsm-black rounded-md shadow-lg border border-xsm-medium-gray">
-                    <div className="py-1">
-                      {['All Platforms', 'YouTube', 'TikTok', 'Twitter', 'Instagram', 'Facebook', 'Telegram'].map(platform => (
-                        <button
-                          key={platform}
-                          onClick={() => {
-                            setSelectedPlatform(platform);
-                            setShowPlatformDropdown(false);
-                          }}
-                          className="w-full px-4 py-2 text-left hover:bg-xsm-medium-gray/20 flex items-center justify-between"
-                        >
-                          <span className={platform === selectedPlatform ? "text-xsm-yellow" : "text-white"}>
-                            {platform}
-                          </span>
-                          {platform === selectedPlatform && (
-                            <Check className="w-4 h-4 text-xsm-yellow" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Monetization toggle & Advanced filters */}
-            <div className="flex items-end space-x-3">
-              <label className="flex items-center space-x-3 cursor-pointer flex-grow" onClick={() => setMonetizationEnabled(!monetizationEnabled)}>
-                <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 ${monetizationEnabled ? 'bg-xsm-yellow' : 'bg-xsm-medium-gray/50'}`}>
-                  <div className={`bg-white w-4 h-4 rounded-full shadow transform transition-transform duration-200 ${monetizationEnabled ? 'translate-x-6' : ''}`}></div>
-                </div>
-                <span className="text-white font-medium">Monetized only</span>
-              </label>
-              
+            <div className="flex items-center space-x-3">
               <button 
-                className={`xsm-button-secondary h-10 px-3 flex items-center ${showAdvancedFilters ? 'bg-xsm-yellow/10' : ''}`}
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                title="Advanced Filters"
+                className={`xsm-button-secondary h-10 px-3 flex items-center ${showSearchBar ? 'bg-xsm-yellow/10' : ''}`}
+                onClick={() => setShowSearchBar(!showSearchBar)}
+                title="Toggle Search"
               >
-                <Sliders className="w-5 h-5 mr-2" />
-                <span>Filters</span>
-                {showAdvancedFilters ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+                <Search className="w-5 h-5 mr-2" />
+                <span>Search</span>
+                {showSearchBar ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
               </button>
+              
+              {showSearchBar && (
+                <button 
+                  className={`xsm-button-secondary h-10 px-3 flex items-center ${showAdvancedFilters ? 'bg-xsm-yellow/10' : ''}`}
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  title="Advanced Filters"
+                >
+                  <Sliders className="w-5 h-5 mr-2" />
+                  <span>Filters</span>
+                  {showAdvancedFilters ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+                </button>
+              )}
             </div>
+            {showSearchBar && (
+              <button 
+                onClick={clearAllFilters}
+                className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
+              >
+                Clear All Filters
+              </button>
+            )}
           </div>
           
-          {/* Basic Range Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <div>
-              <label className="block text-xsm-light-gray text-sm mb-1">Subscribers</label>
-              <div className="grid grid-cols-2 gap-4">
-                <input 
-                  type="number" 
-                  placeholder="Min" 
-                  className="xsm-input" 
-                  value={subscriberRange.min}
-                  onChange={(e) => setSubscriberRange(prev => ({ ...prev, min: e.target.value }))}
-                />
-                <input 
-                  type="number" 
-                  placeholder="Max" 
-                  className="xsm-input" 
-                  value={subscriberRange.max}
-                  onChange={(e) => setSubscriberRange(prev => ({ ...prev, max: e.target.value }))}
-                />
+          {showSearchBar && (
+            <div className="grid md:grid-cols-4 gap-4 items-end">
+              {/* Main search */}
+              <div className="md:col-span-2">
+                <label className="block text-white font-medium mb-2">Search by name, category or description</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search channels..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="xsm-input w-full"
+                  />
+                </div>
+              </div>
+              
+              {/* Platform dropdown */}
+              <div>
+                <label className="block text-white font-medium mb-2">Platform</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowPlatformDropdown(!showPlatformDropdown)}
+                    className="xsm-input w-full flex items-center justify-between"
+                  >
+                    <span>{selectedPlatform}</span>
+                    <ChevronDown className="w-4 h-4 text-xsm-light-gray" />
+                  </button>
+                  
+                  {showPlatformDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-xsm-black rounded-md shadow-lg border border-xsm-medium-gray">
+                      <div className="py-1">
+                        {['All Platforms', 'YouTube', 'TikTok', 'Twitter', 'Instagram', 'Facebook', 'Telegram'].map(platform => (
+                          <button
+                            key={platform}
+                            onClick={() => {
+                              setSelectedPlatform(platform);
+                              setShowPlatformDropdown(false);
+                            }}
+                            className="w-full px-4 py-2 text-left hover:bg-xsm-medium-gray/20 flex items-center justify-between"
+                          >
+                            <span className={platform === selectedPlatform ? "text-xsm-yellow" : "text-white"}>
+                              {platform}
+                            </span>
+                            {platform === selectedPlatform && (
+                              <Check className="w-4 h-4 text-xsm-yellow" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Space for layout balance */}
+              <div></div>
+            </div>
+          )}
+          
+          {/* Basic Range Filters - shown when either search bar or advanced filters are visible */}
+          {(showSearchBar || showAdvancedFilters) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-xsm-light-gray text-sm mb-1">Subscribers</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <input 
+                    type="number" 
+                    placeholder="Min" 
+                    className="xsm-input" 
+                    value={subscriberRange.min}
+                    onChange={(e) => setSubscriberRange(prev => ({ ...prev, min: e.target.value }))}
+                  />
+                  <input 
+                    type="number" 
+                    placeholder="Max" 
+                    className="xsm-input" 
+                    value={subscriberRange.max}
+                    onChange={(e) => setSubscriberRange(prev => ({ ...prev, max: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xsm-light-gray text-sm mb-1">Price ($)</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <input 
+                    type="number" 
+                    placeholder="Min" 
+                    className="xsm-input" 
+                    value={priceRange.min}
+                    onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                  />
+                  <input 
+                    type="number" 
+                    placeholder="Max" 
+                    className="xsm-input" 
+                    value={priceRange.max}
+                    onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                  />
+                </div>
               </div>
             </div>
-            <div>
-              <label className="block text-xsm-light-gray text-sm mb-1">Price ($)</label>
-              <div className="grid grid-cols-2 gap-4">
-                <input 
-                  type="number" 
-                  placeholder="Min" 
-                  className="xsm-input" 
-                  value={priceRange.min}
-                  onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                />
-                <input 
-                  type="number" 
-                  placeholder="Max" 
-                  className="xsm-input" 
-                  value={priceRange.max}
-                  onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xsm-light-gray text-sm mb-1">Monthly Income ($)</label>
-              <div className="grid grid-cols-2 gap-4">
-                <input 
-                  type="number" 
-                  placeholder="Min" 
-                  className="xsm-input" 
-                  value={incomeRange.min}
-                  onChange={(e) => setIncomeRange(prev => ({ ...prev, min: e.target.value }))}
-                />
-                <input 
-                  type="number" 
-                  placeholder="Max" 
-                  className="xsm-input" 
-                  value={incomeRange.max}
-                  onChange={(e) => setIncomeRange(prev => ({ ...prev, max: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
+          )}
           
           {/* Advanced filters */}
           {showAdvancedFilters && (

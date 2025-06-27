@@ -1,15 +1,87 @@
 @echo off
 setlocal enabledelayedexpansion
 
-echo 🗄️ Setting up local MariaDB/MySQL database for XSM Market...
+echo Setting up local MariaDB/MySQL database for XSM Market...
 echo.
 
+REM Check if MariaDB/MySQL is installed in common locations and add to PATH if found
+set FOUND_MYSQL=0
+
+if exist "C:\Program Files\MariaDB 11.0\bin\mysql.exe" (
+    echo Found MySQL/MariaDB at: C:\Program Files\MariaDB 11.0\bin
+    set PATH=C:\Program Files\MariaDB 11.0\bin;!PATH!
+    set FOUND_MYSQL=1
+    goto check_mysql
+)
+
+if exist "C:\Program Files\MariaDB 10.11\bin\mysql.exe" (
+    echo Found MySQL/MariaDB at: C:\Program Files\MariaDB 10.11\bin
+    set PATH=C:\Program Files\MariaDB 10.11\bin;!PATH!
+    set FOUND_MYSQL=1
+    goto check_mysql
+)
+
+if exist "C:\Program Files\MariaDB 10.10\bin\mysql.exe" (
+    echo Found MySQL/MariaDB at: C:\Program Files\MariaDB 10.10\bin
+    set PATH=C:\Program Files\MariaDB 10.10\bin;!PATH!
+    set FOUND_MYSQL=1
+    goto check_mysql
+)
+
+if exist "C:\Program Files\MariaDB 10.5\bin\mysql.exe" (
+    echo Found MySQL/MariaDB at: C:\Program Files\MariaDB 10.5\bin
+    set PATH=C:\Program Files\MariaDB 10.5\bin;!PATH!
+    set FOUND_MYSQL=1
+    goto check_mysql
+)
+
+if exist "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" (
+    echo Found MySQL/MariaDB at: C:\Program Files\MySQL\MySQL Server 8.0\bin
+    set PATH=C:\Program Files\MySQL\MySQL Server 8.0\bin;!PATH!
+    set FOUND_MYSQL=1
+    goto check_mysql
+)
+
+if exist "C:\Program Files\MySQL\MySQL Server 5.7\bin\mysql.exe" (
+    echo Found MySQL/MariaDB at: C:\Program Files\MySQL\MySQL Server 5.7\bin
+    set PATH=C:\Program Files\MySQL\MySQL Server 5.7\bin;!PATH!
+    set FOUND_MYSQL=1
+    goto check_mysql
+)
+
+:check_mysql
 REM Check if MySQL is available
 mysql --version >nul 2>&1
 if errorlevel 1 (
-    echo ❌ MySQL/MariaDB is not installed or not in PATH
-    echo Please install MySQL or MariaDB first
-    echo Download from: https://mariadb.org/download/
+    if !FOUND_MYSQL! EQU 1 (
+        echo Found MySQL/MariaDB installation, but still can't execute mysql command.
+        echo Please ensure that MariaDB or MySQL is properly installed.
+    ) else (
+        echo MySQL/MariaDB is not installed or not in PATH
+        echo Please install MySQL or MariaDB first
+        echo Download from: https://mariadb.org/download/
+        echo.
+        echo After installation, please enter the path to your MariaDB bin directory (e.g., C:\Program Files\MariaDB 10.5\bin):
+        set /p CUSTOM_PATH=Path: 
+        
+        if exist "!CUSTOM_PATH!\mysql.exe" (
+            set PATH=!CUSTOM_PATH!;!PATH!
+            echo Added !CUSTOM_PATH! to PATH for this session.
+            goto check_mysql_again
+        ) else (
+            echo Could not find mysql.exe in the provided path.
+            pause
+            exit /b 1
+        )
+    )
+    pause
+    exit /b 1
+)
+
+:check_mysql_again
+mysql --version >nul 2>&1
+if errorlevel 1 (
+    echo Still can't execute mysql command. Please check your installation.
     pause
     exit /b 1
 )
@@ -25,22 +97,22 @@ set DB_USER=xsm_user
 set DB_HOST=localhost
 set DB_PASSWORD=localpassword123
 
-echo 📋 Database Configuration:
+echo Database Configuration:
 echo   Host: %DB_HOST%
 echo   Database: %DB_NAME%
 echo   User: %DB_USER%
 echo.
 
 REM Try configured credentials first
-echo 🔍 Testing database connection with configured credentials...
+echo Testing database connection with configured credentials...
 mysql -h %DB_HOST% -u %DB_USER% -p%DB_PASSWORD% -e "SELECT 1;" >nul 2>&1
 
 if errorlevel 1 (
-    echo ⚠️ Configured credentials failed. Trying root without password...
+    echo Configured credentials failed. Trying root without password...
     mysql -h %DB_HOST% -u root -e "SELECT 1;" >nul 2>&1
     
     if errorlevel 1 (
-        echo ⚠️ Root without password failed. Please enter your MySQL/MariaDB root password:
+        echo Root without password failed. Please enter your MySQL/MariaDB root password:
         set DB_USER=root
         set /p DB_PASSWORD=Root password (press Enter if no password): 
         
@@ -51,21 +123,21 @@ if errorlevel 1 (
         )
         
         if errorlevel 1 (
-            echo ❌ Failed to connect to database. Please check your credentials.
+            echo Failed to connect to database. Please check your credentials.
             pause
             exit /b 1
         )
     ) else (
-        echo ✅ Connected as root without password!
+        echo Connected as root without password!
         set DB_USER=root
         set DB_PASSWORD=
     )
 ) else (
-    echo ✅ Connected with configured credentials!
+    echo Connected with configured credentials!
 )
 
 REM Create database
-echo 🏗️ Creating database '%DB_NAME%'...
+echo Creating database '%DB_NAME%'...
 if "%DB_PASSWORD%"=="" (
     mysql -h %DB_HOST% -u %DB_USER% -e "CREATE DATABASE IF NOT EXISTS %DB_NAME% CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ) else (
@@ -73,15 +145,15 @@ if "%DB_PASSWORD%"=="" (
 )
 
 if errorlevel 1 (
-    echo ❌ Failed to create database
+    echo Failed to create database
     pause
     exit /b 1
 )
 
-echo ✅ Database '%DB_NAME%' created successfully!
+echo Database '%DB_NAME%' created successfully!
 
 REM Update backend .env file
-echo 🔧 Updating backend .env file...
+echo Updating backend .env file...
 set ENV_FILE=%BACKEND_DIR%\.env
 
 REM Create/update .env file with proper database credentials
@@ -109,13 +181,13 @@ echo GMAIL_USER=Tiktokwaalii2@gmail.com
 echo GMAIL_PASSWORD=your_gmail_app_password_here
 ) > "%ENV_FILE%"
 
-echo ✅ Backend .env file updated!
+echo Backend .env file updated!
 
 REM Setup tables
-echo 🔧 Setting up database tables...
+echo Setting up database tables...
 cd /d "%BACKEND_DIR%"
 if not exist "%BACKEND_DIR%\package.json" (
-    echo ❌ Backend directory not found at: %BACKEND_DIR%
+    echo Backend directory not found at: %BACKEND_DIR%
     pause
     exit /b 1
 )
@@ -124,25 +196,25 @@ echo Running npm run setup-db in %CD%...
 call npm run setup-db
 
 if errorlevel 1 (
-    echo ❌ Failed to setup database tables
+    echo Failed to setup database tables
     echo.
-    echo 💡 Troubleshooting:
+    echo Troubleshooting:
     echo 1. Make sure you're in the project root directory
-    echo 2. Ensure backend dependencies are installed: cd backend && npm install
+    echo 2. Ensure backend dependencies are installed: cd backend ^&^& npm install
     echo 3. Check database credentials are correct
     pause
     exit /b 1
 )
 
 echo.
-echo 🎉 Local database setup complete!
+echo Local database setup complete!
 echo.
-echo 📋 Database Details:
+echo Database Details:
 echo   Host: %DB_HOST%
 echo   Database: %DB_NAME%
 echo   User: %DB_USER%
 echo   Password: %DB_PASSWORD%
 echo.
-echo ✅ Backend .env file updated with database credentials
-echo 🚀 You can now run: npm run dev
+echo Backend .env file updated with database credentials
+echo You can now run: npm run dev
 pause
