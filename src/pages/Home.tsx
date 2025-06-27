@@ -769,16 +769,6 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
 
       {/* Home Marketing Section (above global footer) */}
       <footer className="bg-gradient-to-r from-xsm-black via-xsm-dark-gray to-xsm-black py-16 pb-8 mt-auto border-t border-xsm-medium-gray/30 relative w-full">
-        {/* Back to top button (left side) */}
-        <button 
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="absolute top-0 left-16 md:left-24 transform -translate-y-1/2 bg-xsm-yellow text-black rounded-full p-3 shadow-lg hover:bg-yellow-500 transition-colors"
-          aria-label="Back to top"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-          </svg>
-        </button>
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Hero Section */}
