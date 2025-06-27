@@ -88,7 +88,7 @@ const AppContent: React.FC = () => {
               <img 
                 src="/images/logo.png" 
                 alt="XSM Market Logo" 
-                className="h-8 object-contain drop-shadow-[0_0_8px_rgba(255,208,0,0.4)]"
+                className="h-16 object-contain drop-shadow-[0_0_15px_rgba(255,208,0,0.6)]"
               />
             </div>
             
