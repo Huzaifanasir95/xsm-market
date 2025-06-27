@@ -74,6 +74,14 @@ const User = sequelize.define('User', {
   otpExpires: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  passwordResetToken: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  passwordResetExpires: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   tableName: 'users',
@@ -119,6 +127,46 @@ User.prototype.verifyOTP = function(otp) {
 User.prototype.clearOTP = function() {
   this.emailOTP = null;
   this.otpExpires = null;
+};
+
+// Generate password reset token
+User.prototype.generatePasswordResetToken = function() {
+  const crypto = require('crypto');
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  this.passwordResetToken = resetToken;
+  this.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
+  return resetToken;
+};
+
+// Verify password reset token
+User.prototype.verifyPasswordResetToken = function(token) {
+  if (!this.passwordResetToken || !this.passwordResetExpires) {
+    return false;
+  }
+  
+  const now = new Date();
+  if (now > this.passwordResetExpires) {
+    return false; // Token expired
+  }
+  
+  return this.passwordResetToken === token;
+};
+
+// Clear password reset token
+User.prototype.clearPasswordResetToken = function() {
+  this.passwordResetToken = null;
+  this.passwordResetExpires = null;
+};
+
+// Generate random password
+User.prototype.generateRandomPassword = function() {
+  const length = 10;
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
 };
 
 // Custom validation for password requirement

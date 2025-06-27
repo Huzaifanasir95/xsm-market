@@ -18,6 +18,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Verify from './pages/Verify';
 import EmailVerify from './pages/EmailVerify';
+import ForgotPassword from './pages/ForgotPassword';
 
 // Inner component that has access to AuthContext
 const AppContent: React.FC = () => {
@@ -55,6 +56,8 @@ const AppContent: React.FC = () => {
         return <Verify setCurrentPage={setCurrentPage} />;
       case 'email-verify':
         return <EmailVerify setCurrentPage={setCurrentPage} />;
+      case 'forgot-password':
+        return <ForgotPassword setCurrentPage={setCurrentPage} />;
       default:
         return <Home />;
     }

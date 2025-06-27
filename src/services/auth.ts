@@ -536,6 +536,48 @@ export const changePassword = async (currentPassword: string, newPassword: strin
   }
 };
 
+// Forgot password
+export const forgotPassword = async (email: string): Promise<{ message: string }> => {
+  try {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to process forgot password request');
+    }
+  }
+};
+
+// Reset password with token
+export const resetPassword = async (token: string, newPassword: string): Promise<{ message: string }> => {
+  try {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, newPassword }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to reset password');
+    }
+  }
+};
+
 // Example of creating a channel listing (protected endpoint)
 export const createChannelListing = async (channelData: any): Promise<any> => {
   try {

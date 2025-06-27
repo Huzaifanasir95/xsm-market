@@ -626,45 +626,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
 
             {/* Password Change */}
             <div className="xsm-card">
-              {/* Debug Info */}
-              <div className="bg-blue-500/10 rounded-lg p-4 mb-6">
-                <h4 className="text-blue-400 font-semibold mb-2">Debug Info</h4>
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => {
-                      const localStorageUser = localStorage.getItem('userData');
-                      const parsedUser = localStorageUser ? JSON.parse(localStorageUser) : null;
-                      console.log('🔍 Current user data:', {
-                        user,
-                        authProvider: (user as any)?.authProvider,
-                        localStorageUser,
-                        parsedUser,
-                        isGoogleUser: (user as any)?.authProvider === 'google'
-                      });
-                      alert(`AuthProvider: ${(user as any)?.authProvider || 'undefined'}\nParsed User AuthProvider: ${parsedUser?.authProvider || 'undefined'}`);
-                    }}
-                    className="bg-blue-500 text-white px-3 py-1 rounded text-sm mr-2"
-                  >
-                    Check User Data
-                  </button>
-                  <button 
-                    onClick={() => {
-                      // Force reload user from localStorage
-                      const localStorageUser = localStorage.getItem('userData');
-                      if (localStorageUser) {
-                        const parsedUser = JSON.parse(localStorageUser);
-                        setUser(parsedUser);
-                        console.log('🔄 Force reloaded user:', parsedUser);
-                        alert('User data reloaded from localStorage');
-                      }
-                    }}
-                    className="bg-green-500 text-white px-3 py-1 rounded text-sm"
-                  >
-                    Reload User
-                  </button>
-                </div>
-              </div>
-              
               <h3 className="text-xl font-bold text-xsm-yellow mb-6">
                 {(user as any)?.authProvider === 'google' ? 'Set Password' : 'Change Password'}
               </h3>
@@ -774,23 +735,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               </div>
             </div>
 
-            {/* Account Actions */}
-            <div className="xsm-card">
-              <h3 className="text-xl font-bold text-xsm-yellow mb-6">Account Actions</h3>
-              <div className="bg-blue-500/10 rounded-lg p-4">
-                <h4 className="text-white font-semibold mb-2">Logout</h4>
-                <p className="text-xsm-light-gray mb-4">
-                  Sign out of your account to switch users or end your session.
-                </p>
-                <button
-                  onClick={handleLogout}
-                  className="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors flex items-center space-x-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </button>
-              </div>
-            </div>
+
           </div>
         </div>
       </div>

@@ -26,4 +26,10 @@ router.post('/google-signin', authController.googleSignIn);
 // Public username availability check (for registration)
 router.get('/check-username', authController.checkUsernameAvailabilityPublic);
 
+// Forgot password route
+router.post('/forgot-password', authController.forgotPassword);
+
+// Reset password route
+router.post('/reset-password', authController.resetPassword);
+
 module.exports = router;

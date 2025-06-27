@@ -539,3 +539,99 @@ exports.refreshToken = async (req, res) => {
     res.status(500).json({ message: 'Failed to refresh token', error: error.message });
   }
 };
+
+// Forgot password
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    console.log('Forgot password request for:', email);
+
+    // Validation
+    if (!email) {
+      return res.status(400).json({ message: 'Please provide your email address' });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
+    if (!user) {
+      // For security, don't reveal if email exists or not
+      return res.status(200).json({ 
+        message: 'If an account with that email exists, you will receive a password reset email shortly.' 
+      });
+    }
+
+    // Generate new random password
+    const newPassword = user.generateRandomPassword();
+    
+    // Update user with new password (will be hashed by the beforeSave hook)
+    user.password = newPassword;
+    await user.save();
+
+    // Send email with new password
+    const { sendNewPasswordEmail } = require('../utils/emailService');
+    const emailResult = await sendNewPasswordEmail(email, newPassword, user.username);
+    
+    if (!emailResult.success) {
+      console.error('Failed to send password reset email:', emailResult.error);
+      return res.status(500).json({ message: 'Failed to send password reset email. Please try again.' });
+    }
+
+    console.log(`New password generated and sent for user: ${user.id}`);
+
+    res.status(200).json({
+      message: 'A new temporary password has been sent to your email address. Please check your inbox and login with the new password.'
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Server error during password reset', error: error.message });
+  }
+};
+
+// Reset password (using token - alternative method, keeping for future use)
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    console.log('Reset password request with token');
+
+    // Validation
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'Please provide reset token and new password' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+
+    // Find user by reset token
+    const user = await User.findOne({ 
+      where: { 
+        passwordResetToken: token,
+        passwordResetExpires: {
+          [Op.gt]: new Date() // Token must not be expired
+        }
+      } 
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    // Update password
+    user.password = newPassword; // Will be hashed by beforeSave hook
+    user.clearPasswordResetToken();
+    await user.save();
+
+    console.log(`Password reset successfully for user: ${user.id}`);
+
+    res.status(200).json({
+      message: 'Password has been reset successfully. You can now login with your new password.'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Server error during password reset', error: error.message });
+  }
+};

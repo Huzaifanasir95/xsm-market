@@ -165,6 +165,17 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
               />
             </div>
 
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('forgot-password')}
+                className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
+                disabled={isLoading}
+              >
+                Forgot your password?
+              </button>
+            </div>
+
             <div>
               <Button 
                 type="submit" 
