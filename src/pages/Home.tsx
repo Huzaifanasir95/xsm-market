@@ -705,15 +705,8 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
         
         {/* Main Content */}
         <div className="w-full">
-          {/* Sort and Results Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-2">Available Channels</h2>
-              <p className="text-xsm-light-gray">
-                {filteredChannels.length} channels found
-              </p>
-            </div>
-            
+          {/* Sort Section */}
+          <div className="flex justify-end mb-8">
             <div className="flex items-center space-x-4">
               <label className="text-white font-medium">Sort by:</label>
               <select
