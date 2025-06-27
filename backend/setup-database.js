@@ -3,6 +3,13 @@ const User = require('./models/UserSequelize');
 
 async function setupDatabase() {
   try {
+    // Verify environment variables are loaded
+    if (!process.env.DB_NAME || !process.env.DB_HOST || !process.env.DB_USER) {
+      console.error('❌ Missing database configuration in .env file');
+      console.log('Required variables: DB_NAME, DB_HOST, DB_USER, DB_PASSWORD');
+      process.exit(1);
+    }
+
     console.log('🚀 Setting up XSM Market database...');
     console.log('📊 Database:', process.env.DB_NAME);
     console.log('🏠 Host:', process.env.DB_HOST);

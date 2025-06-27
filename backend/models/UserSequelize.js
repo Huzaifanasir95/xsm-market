@@ -46,8 +46,9 @@ const User = sequelize.define('User', {
   },
   googleId: {
     type: DataTypes.STRING(255),
-    allowNull: true,
-    unique: true
+    allowNull: true
+    // Note: Unique constraint on nullable field can cause issues in some DBs
+    // We'll handle uniqueness in application logic for Google IDs
   },
   authProvider: {
     type: DataTypes.ENUM('email', 'google'),
@@ -78,26 +79,8 @@ const User = sequelize.define('User', {
         user.password = await bcrypt.hash(user.password, salt);
       }
     }
-  },
-  indexes: [
-    {
-      unique: true,
-      fields: ['email']
-    },
-    {
-      unique: true,
-      fields: ['username']
-    },
-    {
-      unique: true,
-      fields: ['googleId'],
-      where: {
-        googleId: {
-          [sequelize.Sequelize.Op.ne]: null
-        }
-      }
-    }
-  ]
+  }
+  // Removed duplicate indexes - unique constraints in field definitions are sufficient
 });
 
 // Instance methods

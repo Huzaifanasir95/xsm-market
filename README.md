@@ -18,8 +18,8 @@ cd xsm-market
 # 2. Setup everything automatically
 npm run setup-local
 
-# 3. Create local database (make sure MySQL/MariaDB is running)
-npm run db:setup
+# 3. Setup local database (automated script)
+npm run db:setup-local
 
 # 4. Start development servers
 npm run dev
@@ -36,15 +36,28 @@ npm run dev
 npm run dev              # Start both frontend & backend
 npm run dev:frontend     # Start only React frontend
 npm run dev:backend      # Start only Node.js backend
-npm run db:setup         # Create database tables
+npm run db:setup-local   # Setup local database (automated)
+npm run db:setup         # Setup database tables only
 npm run build            # Build for production
 npm run clean            # Clean node_modules and builds
 ```
 
-## 🗄️ Database Setup
+## 🗄️ Database Setup (Automated)
 
-The app uses MariaDB/MySQL. Make sure it's running locally, then:
+The app uses MariaDB/MySQL. I've created an automated setup script that handles everything:
 
+**Option 1: Automated Setup (Recommended)**
+```bash
+# This script will:
+# - Check if MySQL/MariaDB is installed
+# - Test connection
+# - Create database
+# - Setup tables
+# - Update .env file
+npm run db:setup-local
+```
+
+**Option 2: Manual Setup**
 1. **Install MariaDB/MySQL** on your machine
 2. **Start the service**:
    - macOS: `brew services start mariadb`
@@ -52,11 +65,41 @@ The app uses MariaDB/MySQL. Make sure it's running locally, then:
    - Windows: Start via Services or XAMPP
 3. **Run setup**: `npm run db:setup`
 
-Default database config (can be changed in `backend/.env`):
-- Host: localhost
-- Database: xsm_market_local
-- User: root
-- Password: (empty - update if needed)
+The automated script will ask for your database password and handle everything else automatically!
+
+## 🔍 Troubleshooting Database Setup
+
+If you encounter issues with the database setup:
+
+**1. Connection Issues**
+```bash
+# Check if MariaDB/MySQL is running
+brew services list | grep mariadb    # macOS
+sudo systemctl status mariadb        # Linux
+```
+
+**2. Permission Issues**
+```bash
+# Reset root password (if needed)
+sudo mysql_secure_installation
+```
+
+**3. Manual Database Creation**
+```sql
+-- Connect to MySQL/MariaDB
+mysql -u root -p
+
+-- Create database manually
+CREATE DATABASE xsm_market_local CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EXIT;
+
+-- Then run: npm run db:setup
+```
+
+**4. Script Permissions (Unix/macOS)**
+```bash
+chmod +x scripts/setup-local-db.sh
+```
 
 ## 🛠️ Tech Stack
 
