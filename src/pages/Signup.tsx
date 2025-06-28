@@ -24,6 +24,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showOTPVerification, setShowOTPVerification] = useState(false);
@@ -38,7 +39,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
 
     // Form validation
     if (!username || !email || !password || !confirmPassword) {
-      const errorMsg = "All fields are required";
+      const errorMsg = "Username, email, password, and confirm password are required";
       setError(errorMsg);
       toast({
         variant: "destructive",
@@ -99,7 +100,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
 
     try {
       console.log("Sending registration request to backend...");
-      const response = await register(username, email, password);
+      const response = await register(username, email, password, fullName);
       console.log("Registration response:", response);
       
       // Check if response indicates verification is required
@@ -259,6 +260,22 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
                 onChange={(e) => setUsername(e.target.value)}
                 className="mt-1"
                 placeholder="Choose a username"
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="fullName" className="block text-sm font-medium text-white">
+                Full Name (Optional)
+              </label>
+              <Input
+                id="fullName"
+                name="fullName"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="mt-1"
+                placeholder="Enter your full name"
                 disabled={isLoading}
               />
             </div>

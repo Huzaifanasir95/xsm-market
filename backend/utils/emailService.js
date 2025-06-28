@@ -242,8 +242,104 @@ const sendPasswordResetEmail = async (email, resetToken, username) => {
   }
 };
 
+// Send new password email for forgot password
+const sendNewPasswordEmail = async (email, newPassword, username) => {
+  try {
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: {
+        name: 'XSM Market',
+        address: process.env.GMAIL_USER
+      },
+      to: email,
+      subject: 'Your New Password - XSM Market',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>New Password</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+            .password-box { background: white; border: 2px solid #667eea; padding: 20px; margin: 20px 0; text-align: center; border-radius: 8px; }
+            .password-text { font-size: 24px; font-weight: bold; color: #667eea; letter-spacing: 2px; font-family: monospace; background: #f0f0f0; padding: 10px; border-radius: 5px; }
+            .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+            .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            .footer { text-align: center; color: #666; font-size: 14px; margin-top: 30px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🔑 New Password Generated</h1>
+              <p>XSM Market - Password Reset</p>
+            </div>
+            <div class="content">
+              <h2>Hello ${username}!</h2>
+              <p>We received a request to reset your password. We've generated a new temporary password for your account:</p>
+              
+              <div class="password-box">
+                <p style="margin: 0; font-size: 16px; color: #666;">Your new temporary password is:</p>
+                <div class="password-text">${newPassword}</div>
+                <p style="margin: 0; font-size: 14px; color: #666;">Please copy this password and use it to log in</p>
+              </div>
+              
+              <div class="warning">
+                <strong>⚠️ Important Security Notice:</strong>
+                <ul style="margin: 10px 0 0 20px;">
+                  <li>This is a temporary password - please change it immediately after logging in</li>
+                  <li>For security reasons, log in and go to your Profile to set a new password</li>
+                  <li>This password will expire in 24 hours</li>
+                  <li>If you didn't request this password reset, please contact support immediately</li>
+                </ul>
+              </div>
+              
+              <div style="text-align: center;">
+                <a href="http://localhost:5174" class="button">Login to XSM Market</a>
+              </div>
+              
+              <p><strong>How to change your password:</strong></p>
+              <ol>
+                <li>Log in using the temporary password above</li>
+                <li>Go to your Profile page</li>
+                <li>Scroll down to the password change section</li>
+                <li>Enter the temporary password as your "current password"</li>
+                <li>Enter your new desired password</li>
+                <li>Click "Update Password"</li>
+              </ol>
+              
+              <div class="footer">
+                <p>Best regards,<br>The XSM Market Team</p>
+                <p style="font-size: 12px; color: #999;">
+                  This is an automated email. Please do not reply to this message.
+                  <br>Need help? Contact us at support@xsmmarket.com
+                </p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('New password email sent successfully:', result.messageId);
+    return { success: true, messageId: result.messageId };
+    
+  } catch (error) {
+    console.error('Error sending new password email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendOTPEmail,
   sendWelcomeEmail,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendNewPasswordEmail
 };

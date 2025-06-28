@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { User, Star, Edit, Trash2, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
+import { User as UserIcon, Star, Edit, LogOut, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
+import UserAdList from '@/components/UserAdList';
 import { useAuth } from '@/context/useAuth';
+import { User } from '@/context/AuthContext';
+import { updateProfile, changePassword, logout } from '@/services/auth';
 
 interface ProfileProps {
   setCurrentPage: (page: string) => void;
 }
 
 const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, setUser, setIsLoggedIn } = useAuth();
   
   // Debug logging
   console.log('🔍 Profile component state:', { 
@@ -18,13 +21,14 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     userData: localStorage.getItem('userData')
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   
   // Initialize profile with user data or defaults
   const [profile, setProfile] = useState({
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
-    fullName: user?.username || 'John Doe',
+    fullName: (user as any)?.fullName || '',
     joinDate: '2024-01-15',
     rating: 4.8,
     totalSales: 12,
@@ -36,11 +40,17 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   // Update profile when user data changes
   useEffect(() => {
     if (user) {
+      console.log('🔍 User data in Profile component:', {
+        user,
+        authProvider: (user as any)?.authProvider,
+        keys: Object.keys(user)
+      });
+      
       setProfile(prev => ({
         ...prev,
         username: user.username,
         email: user.email,
-        fullName: user.username, // Using username as fullName for now
+        fullName: (user as any).fullName || '',
         profilePicture: user.profilePicture || ''
       }));
     }
@@ -54,9 +64,10 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   }, [isLoggedIn, setCurrentPage]);
 
   const handleLogout = () => {
-    const { logout } = require('@/services/auth');
     logout();
-    setCurrentPage('login');
+    setUser(null);
+    setIsLoggedIn(false);
+    setCurrentPage('home');
   };
 
   // Show loading if no user data yet but we are logged in
@@ -100,7 +111,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                 <div className="xsm-card text-center mb-6">
                   <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
                     <div className="w-full h-full bg-xsm-yellow rounded-full flex items-center justify-center">
-                      <User className="w-12 h-12 text-xsm-black" />
+                      <UserIcon className="w-12 h-12 text-xsm-black" />
                     </div>
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2">{defaultUser.username}</h2>
@@ -183,6 +194,35 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     confirmPassword: '',
   });
 
+  // Handle profile picture upload
+  const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Check file size (limit to 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+      
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      // Convert to base64 for preview and storage
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64String = e.target?.result as string;
+        setEditForm(prev => ({
+          ...prev,
+          profilePicture: base64String
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const [listedChannels] = useState([
     {
       id: '1',
@@ -206,28 +246,179 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     },
   ]);
 
-  const handleSaveProfile = () => {
-    setProfile({ ...editForm });
-    setIsEditing(false);
-    alert('Profile updated successfully!');
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    
+    setIsUpdating(true);
+    try {
+      // Prepare the data to send to the API
+      const updateData: any = {};
+      
+      // Only include fields that have changed
+      if (editForm.username !== user.username) {
+        updateData.username = editForm.username;
+      }
+      
+      if (editForm.fullName !== (user as any).fullName) {
+        updateData.fullName = editForm.fullName;
+      }
+      
+      if (editForm.profilePicture !== user.profilePicture) {
+        updateData.profilePicture = editForm.profilePicture;
+      }
+      
+      // Only make API call if there are changes
+      if (Object.keys(updateData).length > 0) {
+        console.log('🔄 Updating profile with data:', updateData);
+        
+        // Call the API to update the profile
+        const updatedUser = await updateProfile(updateData);
+        
+        console.log('✅ Profile updated successfully:', updatedUser);
+        
+        // Update the user context with the new data
+        setUser(updatedUser);
+        
+        // Update local profile state
+        setProfile(prev => ({
+          ...prev,
+          username: updatedUser.username,
+          fullName: updatedUser.fullName || '',
+          profilePicture: updatedUser.profilePicture || ''
+        }));
+        
+        // Update the edit form to match the saved data
+        setEditForm(prev => ({
+          ...prev,
+          username: updatedUser.username,
+          fullName: updatedUser.fullName || '',
+          profilePicture: updatedUser.profilePicture || ''
+        }));
+        
+        alert('Profile updated successfully!');
+      } else {
+        alert('No changes to save!');
+      }
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('❌ Failed to update profile:', error);
+      
+      // Handle specific error messages
+      let errorMessage = 'Failed to update profile. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('Username is already taken')) {
+          errorMessage = 'Username is already taken. Please choose a different one.';
+        } else if (error.message.includes('Username must be between')) {
+          errorMessage = 'Username must be between 3 and 50 characters.';
+        } else if (error.message.includes('Username can only contain')) {
+          errorMessage = 'Username can only contain letters, numbers, and underscores.';
+        } else if (error.message.includes('Full name must be less than')) {
+          errorMessage = 'Full name must be less than 100 characters.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
+    // Debug logging for Google user detection
+    console.log('🔍 Password change attempt:', {
+      user,
+      authProvider: (user as any)?.authProvider,
+      isGoogleUser: (user as any)?.authProvider === 'google',
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword ? '***' : ''
+    });
+
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       alert('New passwords do not match!');
       return;
     }
-    alert('Password changed successfully!');
-    setPasswordForm({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
-  };
+    
+    if (!passwordForm.newPassword) {
+      alert('Please enter a new password!');
+      return;
+    }
+    
+    if (passwordForm.newPassword.length < 6) {
+      alert('New password must be at least 6 characters long!');
+      return;
+    }
 
-  const handleDeleteAccount = () => {
-    alert('Account deletion requested. You will receive a confirmation email within 24 hours.');
-    setShowDeleteConfirm(false);
+    setIsChangingPassword(true);
+    
+    try {
+      // First, fetch the latest user profile from backend to get authProvider
+      const token = localStorage.getItem('token');
+      const profileResponse = await fetch('http://localhost:5000/api/user/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        const backendUser = profileData.user;
+        console.log('🔍 Backend user data:', backendUser);
+        
+        const isGoogleUser = backendUser?.authProvider === 'google';
+        console.log('🔍 Is Google user from backend:', isGoogleUser);
+        
+        // For Google users, they don't need to enter current password
+        if (!isGoogleUser && !passwordForm.currentPassword) {
+          alert('Please enter your current password!');
+          setIsChangingPassword(false);
+          return;
+        }
+        
+        // For Google users, send empty current password; for email users, send the current password
+        await changePassword(
+          isGoogleUser ? '' : passwordForm.currentPassword, 
+          passwordForm.newPassword
+        );
+        
+        if (isGoogleUser) {
+          alert('Password set successfully! You can now login with email/password in addition to Google.');
+        } else {
+          alert('Password changed successfully!');
+        }
+        
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+      } else {
+        throw new Error('Failed to fetch user profile');
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to change password:', error);
+      
+      let errorMessage = 'Failed to change password. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('Current password is incorrect')) {
+          errorMessage = 'Current password is incorrect.';
+        } else if (error.message.includes('must be at least 6 characters')) {
+          errorMessage = 'New password must be at least 6 characters long.';
+        } else if (error.message.includes('Google account users don\'t have a current password')) {
+          errorMessage = 'For Google accounts, leave current password empty to set a new password.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleVerificationSubmit = async (documentType: string, file: File) => {
@@ -272,20 +463,33 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           {/* Profile Overview */}
           <div className="lg:col-span-1">
             <div className="xsm-card text-center mb-6">
-              <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
-                {profile.profilePicture ? (
+              <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden relative">
+                {(isEditing ? editForm.profilePicture : profile.profilePicture) ? (
                   <img 
-                    src={profile.profilePicture} 
+                    src={isEditing ? editForm.profilePicture : profile.profilePicture} 
                     alt={profile.fullName}
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <div className="w-full h-full bg-xsm-yellow rounded-full flex items-center justify-center">
-                    <User className="w-12 h-12 text-xsm-black" />
+                    <UserIcon className="w-12 h-12 text-xsm-black" />
+                  </div>
+                )}
+                {isEditing && (
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                    <Edit className="w-6 h-6 text-white" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePictureChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
                   </div>
                 )}
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">{profile.fullName}</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                {profile.fullName || profile.username}
+              </h2>
               <p className="text-xsm-light-gray mb-1">@{profile.username}</p>
               <p className="text-xsm-light-gray mb-4">{profile.email}</p>
               <div className="flex items-center justify-center space-x-2 mb-4">
@@ -340,16 +544,27 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   <div className="flex space-x-2">
                     <button
                       onClick={handleSaveProfile}
-                      className="xsm-button flex items-center space-x-2"
+                      disabled={isUpdating}
+                      className={`xsm-button flex items-center space-x-2 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <Save className="w-4 h-4" />
-                      <span>Save</span>
+                      {isUpdating ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Save</span>
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={() => {
                         setIsEditing(false);
                         setEditForm({ ...profile });
                       }}
+                      disabled={isUpdating}
                       className="xsm-button-secondary flex items-center space-x-2"
                     >
                       <X className="w-4 h-4" />
@@ -378,6 +593,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
                     disabled={!isEditing}
                     className={`xsm-input w-full ${!isEditing ? 'opacity-60' : ''}`}
+                    placeholder="Enter username (3-50 chars, letters, numbers, underscores only)"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -386,142 +602,112 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     type="email"
                     value={isEditing ? editForm.email : profile.email}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    disabled={!isEditing}
-                    className={`xsm-input w-full ${!isEditing ? 'opacity-60' : ''}`}
+                    disabled={true}
+                    className={`xsm-input w-full opacity-60`}
+                    title="Email cannot be changed here. Contact support if you need to update your email."
                   />
                 </div>
+                {isEditing && (
+                  <div className="md:col-span-2">
+                    <label className="block text-white font-medium mb-2">Profile Picture URL (Optional)</label>
+                    <input
+                      type="url"
+                      value={editForm.profilePicture}
+                      onChange={(e) => setEditForm({ ...editForm, profilePicture: e.target.value })}
+                      className="xsm-input w-full"
+                      placeholder="Enter image URL or upload an image above"
+                    />
+                    <p className="text-xs text-xsm-light-gray mt-1">
+                      You can either upload an image above or enter an image URL here.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Password Change */}
             <div className="xsm-card">
-              <h3 className="text-xl font-bold text-xsm-yellow mb-6">Change Password</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-white font-medium mb-2">Current Password</label>
-                  <input
-                    type="password"
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                    className="xsm-input w-full"
-                    placeholder="Enter current password"
-                  />
+              <h3 className="text-xl font-bold text-xsm-yellow mb-6">
+                {(user as any)?.authProvider === 'google' ? 'Set Password' : 'Change Password'}
+              </h3>
+              
+              {(user as any)?.authProvider === 'google' && (
+                <div className="bg-blue-500/10 rounded-lg p-4 mb-6">
+                  <h4 className="text-blue-400 font-semibold mb-2">Google Account</h4>
+                  <p className="text-white text-sm mb-2">
+                    You signed in with Google. You can set a password to enable email/password login as an alternative to Google sign-in.
+                  </p>
+                  <p className="text-xsm-light-gray text-xs">
+                    Setting a password won't affect your Google sign-in - you'll be able to use both methods.
+                  </p>
                 </div>
+              )}
+              
+              <div className="space-y-4">
+                {(user as any)?.authProvider !== 'google' && (
+                  <div>
+                    <label className="block text-white font-medium mb-2">Current Password</label>
+                    <input
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                      className="xsm-input w-full"
+                      placeholder="Enter current password"
+                    />
+                  </div>
+                )}
+                
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-white font-medium mb-2">New Password</label>
+                    <label className="block text-white font-medium mb-2">
+                      {(user as any)?.authProvider === 'google' ? 'New Password' : 'New Password'}
+                    </label>
                     <input
                       type="password"
                       value={passwordForm.newPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                       className="xsm-input w-full"
-                      placeholder="Enter new password"
+                      placeholder={(user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password'}
                     />
                   </div>
                   <div>
-                    <label className="block text-white font-medium mb-2">Confirm New Password</label>
+                    <label className="block text-white font-medium mb-2">Confirm Password</label>
                     <input
                       type="password"
                       value={passwordForm.confirmPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                       className="xsm-input w-full"
-                      placeholder="Confirm new password"
+                      placeholder="Confirm password"
                     />
                   </div>
                 </div>
                 <button
                   onClick={handlePasswordChange}
-                  className="xsm-button"
+                  disabled={isChangingPassword}
+                  className={`xsm-button ${isChangingPassword ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  Update Password
+                  {isChangingPassword ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
+                      {(user as any)?.authProvider === 'google' ? 'Setting Password...' : 'Updating Password...'}
+                    </>
+                  ) : (
+                    (user as any)?.authProvider === 'google' ? 'Set Password' : 'Update Password'
+                  )}
                 </button>
               </div>
             </div>
 
-            {/* Listed Channels */}
+            {/* My Ads */}
             <div className="xsm-card">
-              <h3 className="text-xl font-bold text-xsm-yellow mb-6">My Listed Channels</h3>
-              <div className="space-y-4">
-                {listedChannels.map(channel => (
-                  <div key={channel.id} className="bg-xsm-black/50 rounded-lg p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex-1">
-                        <h4 className="text-white font-semibold text-lg">{channel.name}</h4>
-                        <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-xsm-light-gray">
-                          <span>{channel.category}</span>
-                          <span>{formatNumber(channel.subscribers)} subscribers</span>
-                          <span className="text-xsm-yellow font-semibold">{formatPrice(channel.price)}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-center">
-                          <div className="text-white font-semibold">{channel.views}</div>
-                          <div className="text-xs text-xsm-light-gray">Views</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-white font-semibold">{channel.inquiries}</div>
-                          <div className="text-xs text-xsm-light-gray">Inquiries</div>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          channel.status === 'Active'
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-yellow-500/20 text-yellow-400'
-                        }`}>
-                          {channel.status}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <h3 className="text-xl font-bold text-xsm-yellow mb-6">My Listings</h3>
+              <UserAdList />
             </div>
 
-            {/* Danger Zone */}
-            <div className="xsm-card border-red-500/20">
-              <h3 className="text-xl font-bold text-red-400 mb-6">Danger Zone</h3>
-              <div className="bg-red-500/10 rounded-lg p-4">
-                <h4 className="text-white font-semibold mb-2">Delete Account</h4>
-                <p className="text-xsm-light-gray mb-4">
-                  Once you delete your account, there is no going back. Please be certain.
-                </p>
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors flex items-center space-x-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Account</span>
-                </button>
-              </div>
-            </div>
+
           </div>
         </div>
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-xsm-dark-gray rounded-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-red-400 mb-4">Confirm Account Deletion</h3>
-            <p className="text-white mb-6">
-              Are you absolutely sure you want to delete your account? This action cannot be undone and you will lose all your data.
-            </p>
-            <div className="flex space-x-4">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 xsm-button-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors"
-              >
-                Delete Account
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

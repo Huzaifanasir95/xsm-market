@@ -1,9 +1,11 @@
 import React, { useState, useEffect, cloneElement } from 'react';
 import ChannelCard from '../components/ChannelCard';
 import ChannelModal from '../components/ChannelModal';
+import AdList from '../components/AdList';
 import { TrendingUp, Zap, Shield, Search, Check, ChevronDown, ChevronUp, Sliders, X } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useToast } from "@/components/ui/use-toast";
+import { getAllAds } from '../services/ads';
 
 interface ChannelData {
   id: string;
@@ -72,134 +74,56 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   
   const channelTypes = ['Non Monitied', 'Premium', 'Monetized', 'New'];
 
-  // Mock data - in real app, this would come from an API
+  // Fetch real ads from API
   useEffect(() => {
-    const mockChannels: ChannelData[] = [
-      {
-        id: '1',
-        name: 'TechReview Pro',
-        category: 'Tech',
-        subscribers: 150000,
-        price: 15000,
-        monthlyIncome: 2500,
-        description: 'Established tech review channel with consistent upload schedule and high engagement rates. Monetized with multiple revenue streams including sponsorships.',
-        verified: true,
-        premium: true,
-        rating: 4.8,
-        views: 5200000,
-        thumbnail: 'https://placehold.co/600x400/333/yellow?text=TechReview',
-        seller: { name: 'TechSeller99', rating: 4.9, sales: 12 }
-      },
-      {
-        id: '2',
-        name: 'Gaming World HD',
-        category: 'Gaming',
-        subscribers: 89000,
-        price: 8500,
-        monthlyIncome: 1200,
-        description: 'Popular gaming channel focusing on indie games and reviews. Strong community engagement and growing subscriber base.',
-        verified: false,
-        premium: false,
-        rating: 4.5,
-        views: 2800000,
-        thumbnail: 'https://placehold.co/600x400/333/yellow?text=Gaming',
-        seller: { name: 'GamerPro', rating: 4.7, sales: 8 }
-      },
-      {
-        id: '3',
-        name: 'Fitness Journey',
-        category: 'Fitness',
-        subscribers: 234000,
-        price: 22000,
-        monthlyIncome: 3200,
-        description: 'Well-established fitness channel with workout routines, nutrition tips, and lifestyle content. Multiple income streams.',
-        verified: true,
-        premium: true,
-        rating: 4.9,
-        views: 8100000,
-        thumbnail: 'https://placehold.co/600x400/333/yellow?text=Fitness',
-        seller: { name: 'FitnessPro2024', rating: 5.0, sales: 15 }
-      },
-      {
-        id: '4',
-        name: 'Cooking Simple',
-        category: 'Cooking',
-        subscribers: 67000,
-        price: 5500,
-        monthlyIncome: 800,
-        description: 'Easy cooking recipes and kitchen tips. Great for beginners looking to start in the cooking niche.',
-        verified: false,
-        premium: false,
-        rating: 4.3,
-        views: 1200000,
-        thumbnail: 'https://placehold.co/600x400/333/yellow?text=Cooking',
-        seller: { name: 'ChefMaster', rating: 4.6, sales: 5 }
-      },
-      {
-        id: '5',
-        name: 'Travel Adventures',
-        category: 'Travel',
-        subscribers: 412000,
-        price: 35000,
-        monthlyIncome: 4500,
-        description: 'Premium travel channel with high-quality content from around the world. Excellent monetization and brand partnerships.',
-        verified: true,
-        premium: true,
-        rating: 4.8,
-        views: 12300000,
-        thumbnail: 'https://placehold.co/600x400/333/yellow?text=Travel',
-        seller: { name: 'Wanderlust_Official', rating: 4.9, sales: 20 }
-      },
-      {
-        id: '6',
-        name: 'Music Beats Studio',
-        category: 'Music',
-        subscribers: 125000,
-        price: 12000,
-        monthlyIncome: 1800,
-        description: 'Music production and beat-making tutorials. Popular among aspiring producers and musicians.',
-        verified: true,
-        premium: false,
-        rating: 4.6,
-        views: 3400000,
-        thumbnail: 'https://placehold.co/600x400/333/yellow?text=Music',
-        seller: { name: 'BeatMaker_Pro', rating: 4.8, sales: 10 }
-      },
-      {
-        id: '7',
-        name: 'Education Plus',
-        category: 'Education',
-        subscribers: 95000,
-        price: 9000,
-        monthlyIncome: 1100,
-        description: 'Educational content covering a wide range of academic subjects. Popular with students and lifelong learners.',
-        verified: true,
-        premium: false,
-        rating: 4.4,
-        views: 2100000,
-        thumbnail: 'https://placehold.co/600x400/333/yellow?text=Education',
-        seller: { name: 'LearnFast', rating: 4.5, sales: 7 }
-      },
-      {
-        id: '8',
-        name: 'Comedy Central',
-        category: 'Comedy',
-        subscribers: 320000,
-        price: 28000,
-        monthlyIncome: 3800,
-        description: 'Hilarious sketches and stand-up comedy clips. High engagement rates and loyal fan base.',
-        verified: true,
-        premium: true,
-        rating: 4.7,
-        views: 9500000,
-        thumbnail: 'https://placehold.co/600x400/333/yellow?text=Comedy',
-        seller: { name: 'FunnyGuy', rating: 4.8, sales: 14 }
+    const fetchAds = async () => {
+      try {
+        const response = await getAllAds();
+        if (response && response.ads) {
+          // Transform API data to match ChannelData interface
+          const transformedAds = response.ads.map((ad: any) => ({
+            id: ad.id.toString(),
+            name: ad.title,
+            category: ad.category || 'General',
+            subscribers: ad.subscribers || 0,
+            price: ad.price || 0,
+            monthlyIncome: ad.monthlyIncome || 0,
+            description: ad.description || '',
+            verified: ad.User?.isVerified || false,
+            premium: ad.isMonetized || false,
+            rating: 4.5, // Default rating
+            views: Math.floor(Math.random() * 1000000) + 100000, // Mock views for now
+            thumbnail: `https://placehold.co/600x400/333/yellow?text=${ad.platform || 'Channel'}`,
+            seller: {
+              name: ad.User?.username || 'Anonymous',
+              rating: 4.5,
+              sales: Math.floor(Math.random() * 20) + 1
+            }
+          }));
+          setChannels(transformedAds);
+          setFilteredChannels(transformedAds);
+        } else {
+          // Fallback to mock data if API fails
+          console.warn('No ads found, using mock data');
+          setChannels([]);
+          setFilteredChannels([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch ads:', error);
+        // Show a toast notification
+        toast({
+          title: "Error",
+          description: "Failed to load channels. Please try again later.",
+          variant: "destructive",
+        });
+        // Set empty arrays instead of mock data
+        setChannels([]);
+        setFilteredChannels([]);
       }
-    ];
-    
-    setChannels(mockChannels);
-    setFilteredChannels(mockChannels);
-  }, []);
+    };
+
+    fetchAds();
+  }, [toast]);
 
   interface FilterOptions {
     categories: string[];
@@ -269,7 +193,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
     setFilteredChannels(sorted);
   };
 
-  const handleShowMore = (channel: ChannelData) => {
+  const handleShowMore = (item: any) => {
     if (!isLoggedIn) {
       toast({
         title: "Login Required",
@@ -283,7 +207,24 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
       return;
     }
     
-    setSelectedChannel(channel);
+    // Convert Ad to ChannelData format if needed
+    const channelData: ChannelData = {
+      id: item.id?.toString() || item.id,
+      name: item.title || item.name,
+      category: item.category,
+      subscribers: item.subscribers || 0,
+      price: item.price,
+      monthlyIncome: item.monthlyIncome,
+      description: item.description || '',
+      verified: item.verified || false,
+      premium: item.premium || false,
+      rating: item.rating || 0,
+      views: item.views || item.totalViews || 0,
+      thumbnail: item.thumbnail || '',
+      seller: item.seller || { name: 'Unknown', rating: 0, sales: 0 }
+    };
+    
+    setSelectedChannel(channelData);
     setIsModalOpen(true);
   };
 
@@ -723,26 +664,8 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
             </div>
           </div>
 
-          {/* Channel Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredChannels.map(channel => (
-              <ChannelCard
-                key={channel.id}
-                channel={channel}
-                onShowMore={handleShowMore}
-              />
-            ))}
-          </div>
-
-          {filteredChannels.length === 0 && (
-            <div className="text-center py-16">
-              <div className="text-6xl mb-4">🔍</div>
-              <h3 className="text-2xl font-bold text-white mb-2">No channels found</h3>
-              <p className="text-xsm-light-gray">
-                Try adjusting your filters to see more results
-              </p>
-            </div>
-          )}
+          {/* Ad List - Using real database data */}
+          <AdList onShowMore={handleShowMore} />
         </div>
       </div>
       

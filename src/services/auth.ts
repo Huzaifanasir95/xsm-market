@@ -1,5 +1,5 @@
 // API URL - automatically switches between development and production
-const API_URL = typeof __API_URL__ !== 'undefined' 
+export const API_URL = typeof __API_URL__ !== 'undefined' 
   ? __API_URL__ 
   : 'http://localhost:5000/api';
 
@@ -13,6 +13,7 @@ const USER_KEY = 'userData';
 interface User {
   id: string;
   username: string;
+  fullName?: string;
   email: string;
   profilePicture?: string;
   authProvider?: string;
@@ -34,6 +35,7 @@ export interface AuthResponse {
   user?: {
     id: string;
     username: string;
+    fullName?: string;
     email: string;
     profilePicture?: string;
     authProvider?: string;
@@ -242,11 +244,12 @@ export const login = async (email: string, password: string): Promise<AuthRespon
   }
 };
 
-export const register = async (username: string, email: string, password: string): Promise<AuthResponse> => {
+export const register = async (username: string, email: string, password: string, fullName?: string): Promise<AuthResponse> => {
   try {
     console.log('Attempting to register with:', { 
       username, 
       email,
+      fullName,
       password: password ? '[FILTERED]' : undefined 
     });
     
@@ -282,7 +285,8 @@ export const register = async (username: string, email: string, password: string
       body: JSON.stringify({ 
         username: username.trim(),
         email: email.trim().toLowerCase(),
-        password 
+        password,
+        fullName: fullName?.trim() || ''
       }),
       mode: 'cors',
       credentials: 'include'
@@ -385,6 +389,8 @@ export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
       throw new Error(data.message || 'Failed to sign in with Google');
     }
 
+    console.log('🔍 Google sign-in response:', data);
+
     // Store tokens with proper expiry management
     if (data.token) {
       setTokenData({
@@ -396,6 +402,7 @@ export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
     
     // Store user data
     if (data.user) {
+      console.log('🔍 Storing Google user data:', data.user);
       setCurrentUser(data.user);
     }
     
@@ -493,12 +500,80 @@ export const updateProfile = async (userData: Partial<User>): Promise<User> => {
       body: JSON.stringify(userData),
     });
     const data = await handleFetchError(response);
+    
+    // Update the user data in localStorage
+    if (data.user) {
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    }
+    
     return data.user;
   } catch (error) {
     if (error instanceof Error) {
       throw error;
     } else {
       throw new Error('Failed to update user profile');
+    }
+  }
+};
+
+// Change user password
+export const changePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
+  try {
+    const response = await authenticatedFetch(`${API_URL}/user/password`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        currentPassword,
+        newPassword
+      }),
+    });
+    await handleFetchError(response);
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to change password');
+    }
+  }
+};
+
+// Forgot password
+export const forgotPassword = async (email: string): Promise<{ message: string }> => {
+  try {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to process forgot password request');
+    }
+  }
+};
+
+// Reset password with token
+export const resetPassword = async (token: string, newPassword: string): Promise<{ message: string }> => {
+  try {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, newPassword }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to reset password');
     }
   }
 };

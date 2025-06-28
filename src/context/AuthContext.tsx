@@ -5,9 +5,11 @@ import { isAuthenticated, getCurrentUser } from '../services/auth';
 export interface User {
   id: string;
   username: string;
+  fullName?: string;
   email: string;
   profilePicture?: string;
   authProvider?: string;
+  isEmailVerified?: boolean;
 }
 
 export interface AuthContextType {
@@ -41,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('🔍 Auth check results:', { 
         authStatus, 
         userData,
+        authProvider: userData?.authProvider,
         token: localStorage.getItem('token') ? 'exists' : 'missing',
         userDataString: localStorage.getItem('userData')
       });
