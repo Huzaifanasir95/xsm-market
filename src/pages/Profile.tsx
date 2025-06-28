@@ -4,7 +4,7 @@ import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
 import { useAuth } from '@/context/useAuth';
 import { User } from '@/context/AuthContext';
-import { updateProfile, changePassword, logout } from '@/services/auth';
+import { updateProfile, changePassword, logout, API_URL } from '@/services/auth';
 
 interface ProfileProps {
   setCurrentPage: (page: string) => void;
@@ -356,7 +356,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     try {
       // First, fetch the latest user profile from backend to get authProvider
       const token = localStorage.getItem('token');
-      const profileResponse = await fetch('http://localhost:5000/api/user/profile', {
+      const profileResponse = await fetch(`${API_URL}/user/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
