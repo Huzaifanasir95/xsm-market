@@ -37,7 +37,27 @@ const testConnection = async () => {
   }
 };
 
+// Initialize database connection
+const initializeDatabase = async () => {
+  try {
+    console.log('🔄 Testing database connection...');
+    await sequelize.authenticate();
+    console.log('✅ Database connection established successfully.');
+    
+    // Sync database models (create tables if they don't exist)
+    console.log('🔄 Synchronizing database models...');
+    await sequelize.sync({ alter: false }); // Don't alter existing tables
+    console.log('✅ Database models synchronized.');
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error.message);
+    throw error;
+  }
+};
+
 module.exports = {
   sequelize,
-  testConnection
+  testConnection,
+  initializeDatabase
 };
