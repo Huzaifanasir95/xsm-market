@@ -2,7 +2,7 @@ import React, { useState, useEffect, cloneElement } from 'react';
 import ChannelCard from '../components/ChannelCard';
 import ChannelModal from '../components/ChannelModal';
 import AdList from '../components/AdList';
-import { TrendingUp, Zap, Shield, Search, Check, ChevronDown, ChevronUp, Sliders, X } from 'lucide-react';
+import { TrendingUp, Zap, Shield, Search, Check, Sliders } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useToast } from "@/components/ui/use-toast";
 import { getAllAds } from '../services/ads';
@@ -41,7 +41,6 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   const [sortBy, setSortBy] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState<string>('YouTube');
-  const [showPlatformDropdown, setShowPlatformDropdown] = useState(false);
   const [monetizationEnabled, setMonetizationEnabled] = useState(false);
   const [subscriberRange, setSubscriberRange] = useState({ min: '', max: '' });
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
@@ -155,7 +154,6 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   const clearAllFilters = () => {
     setSearchQuery('');
     setSelectedPlatform('All Platforms');
-    setShowPlatformDropdown(false);
     setMonetizationEnabled(false);
     setSubscriberRange({ min: '', max: '' });
     setPriceRange({ min: '', max: '' });
@@ -451,9 +449,9 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
                   </button>
                 </div>
               
-                <div className="grid md:grid-cols-4 gap-4 items-end">
+                <div className="grid grid-cols-1 items-end">
                   {/* Main search */}
-                  <div className="md:col-span-2">
+                  <div className="w-full">
                     <label className="block text-white font-medium mb-2">Search by name or category</label>
                     <div className="relative">
                       <input
@@ -465,54 +463,6 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
                       />
                     </div>
                   </div>
-                  
-                  {/* Platform dropdown */}
-                  <div>
-                    <label className="block text-white font-medium mb-2">Platform</label>
-                    <div className="relative">
-                      <button
-                      type="button"
-                      onClick={() => setShowPlatformDropdown(!showPlatformDropdown)}
-                      className="xsm-input w-full flex items-center justify-between bg-xsm-black/50 border border-xsm-medium-gray hover:border-xsm-yellow transition-all"
-                    >
-                      <div className="flex items-center">
-                        {selectedPlatform !== 'All Platforms' && platforms.find(p => p.name === selectedPlatform)?.logo}
-                        <span className="ml-1">{selectedPlatform}</span>
-                      </div>
-                      <ChevronDown className="w-4 h-4 text-xsm-light-gray" />
-                    </button>
-                      
-                      {showPlatformDropdown && (
-                        <div className="absolute z-10 mt-1 w-full bg-xsm-black rounded-md shadow-lg border border-xsm-medium-gray">
-                          <div className="py-1">
-                            {platforms.map(platform => (
-                              <button
-                                key={platform.id}
-                                onClick={() => {
-                                  setSelectedPlatform(platform.name);
-                                  setShowPlatformDropdown(false);
-                                }}
-                                className="w-full px-4 py-2 text-left hover:bg-xsm-medium-gray/20 flex items-center justify-between"
-                              >
-                                <div className="flex items-center">
-                                  {platform.logo}
-                                  <span className={platform.name === selectedPlatform ? "text-xsm-yellow" : "text-white"}>
-                                    {platform.name}
-                                  </span>
-                                </div>
-                                {platform.name === selectedPlatform && (
-                                  <Check className="w-4 h-4 text-xsm-yellow" />
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Space for layout balance */}
-                  <div></div>
                 </div>
               </>
             )}
