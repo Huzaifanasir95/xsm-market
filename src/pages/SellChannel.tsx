@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, ChevronDown } from 'lucide-react';
+import { createAd } from '../services/ads';
 
-const SellChannel: React.FC = () => {
+interface SellChannelProps {
+  setCurrentPage?: (page: string) => void;
+}
+
+const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
   const contentTypes = ["Unique content", "Rewritten", "Not unique content", "Mixed"];
   const contentCategories = [
     "Cars & Bikes", 
@@ -21,7 +26,9 @@ const SellChannel: React.FC = () => {
   ];
   
   const [formData, setFormData] = useState({
+    title: '',
     channelUrl: '',
+    platform: '',
     price: '',
     category: '',
     contentType: '',
@@ -30,6 +37,8 @@ const SellChannel: React.FC = () => {
     promotionDetails: '',
     isMonetized: false,
     contentCategory: '',
+    subscribers: '',
+    monthlyIncome: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,25 +73,74 @@ const SellChannel: React.FC = () => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    alert('Listing created successfully! It will be reviewed by our admin team.');
-    
-    // Reset form
-    setFormData({
-      channelUrl: '',
-      price: '',
-      category: '',
-      contentType: '',
-      description: '',
-      incomeDetails: '',
-      promotionDetails: '',
-      isMonetized: false,
-      contentCategory: '',
-    });
-    setFiles([]);
-    setIsSubmitting(false);
+    try {
+      // Auto-detect platform from URL
+      let platform = 'youtube'; // default
+      if (formData.channelUrl.includes('facebook.com') || formData.channelUrl.includes('fb.com')) {
+        platform = 'facebook';
+      } else if (formData.channelUrl.includes('instagram.com')) {
+        platform = 'instagram';
+      } else if (formData.channelUrl.includes('twitter.com') || formData.channelUrl.includes('x.com')) {
+        platform = 'twitter';
+      } else if (formData.channelUrl.includes('tiktok.com')) {
+        platform = 'tiktok';
+      }
+
+      // Prepare ad data with explicit null handling for ENUM fields
+      const adData = {
+        title: formData.title || `${platform.charAt(0).toUpperCase() + platform.slice(1)} Channel`,
+        channelUrl: formData.channelUrl,
+        platform,
+        category: formData.category,
+        contentType: formData.contentType && formData.contentType.trim() !== '' ? formData.contentType : null,
+        contentCategory: formData.contentCategory && formData.contentCategory.trim() !== '' ? formData.contentCategory : null,
+        description: formData.description || '',
+        price: parseFloat(formData.price) || 0,
+        subscribers: formData.subscribers ? parseInt(formData.subscribers) : 0,
+        monthlyIncome: formData.monthlyIncome ? parseFloat(formData.monthlyIncome) : 0,
+        isMonetized: Boolean(formData.isMonetized),
+        incomeDetails: formData.incomeDetails || '',
+        promotionDetails: formData.promotionDetails || '',
+        screenshots: files.map(file => file.name), // This would need proper file upload handling
+        tags: [] // Add empty tags array
+      };
+
+      console.log('Submitting ad data:', adData);
+
+      const result = await createAd(adData);
+      console.log('Ad creation result:', result);
+      alert('🎉 Listing created successfully and is now live on the marketplace! Redirecting to homepage...');
+      
+      // Reset form
+      setFormData({
+        title: '',
+        channelUrl: '',
+        platform: '',
+        price: '',
+        category: '',
+        contentType: '',
+        description: '',
+        incomeDetails: '',
+        promotionDetails: '',
+        isMonetized: false,
+        contentCategory: '',
+        subscribers: '',
+        monthlyIncome: '',
+      });
+      setFiles([]);
+
+      // Small delay before redirect to let user see the success message
+      setTimeout(() => {
+        // Redirect to homepage to see the new listing
+        if (setCurrentPage) {
+          setCurrentPage('home');
+        }
+      }, 1500);
+    } catch (error: any) {
+      alert(error.message || 'Failed to create listing. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Close dropdowns when clicking outside
@@ -109,6 +167,18 @@ const SellChannel: React.FC = () => {
           <h1 className="text-3xl font-bold mb-8">CREATE NEW LISTING</h1>
 
           <div className="space-y-6">
+            {/* Title Input */}
+            <div>
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                className="xsm-input w-full"
+                placeholder="Listing title (e.g., 'Premium Gaming YouTube Channel')"
+              />
+            </div>
+
             {/* URL Input */}
             <div>
               <input
@@ -165,6 +235,31 @@ const SellChannel: React.FC = () => {
                 onChange={handleInputChange}
                 className="xsm-input w-full"
                 placeholder="Enter price ($)"
+              />
+            </div>
+
+            {/* Subscribers Input */}
+            <div>
+              <input
+                type="number"
+                name="subscribers"
+                value={formData.subscribers}
+                onChange={handleInputChange}
+                className="xsm-input w-full"
+                placeholder="Number of subscribers/followers (optional)"
+              />
+            </div>
+
+            {/* Monthly Income Input */}
+            <div>
+              <input
+                type="number"
+                name="monthlyIncome"
+                value={formData.monthlyIncome}
+                onChange={handleInputChange}
+                className="xsm-input w-full"
+                placeholder="Monthly income in $ (optional)"
+                step="0.01"
               />
             </div>
 

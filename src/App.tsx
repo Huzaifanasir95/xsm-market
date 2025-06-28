@@ -37,7 +37,7 @@ const AppContent: React.FC = () => {
       case 'home':
         return <Home setCurrentPage={setCurrentPage} />;
       case 'sell':
-        return <SellChannel />;
+        return <SellChannel setCurrentPage={setCurrentPage} />;
       case 'chat':
         return <Chat />;
       case 'profile':

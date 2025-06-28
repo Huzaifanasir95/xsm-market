@@ -1,5 +1,5 @@
 // API URL - automatically switches between development and production
-const API_URL = typeof __API_URL__ !== 'undefined' 
+export const API_URL = typeof __API_URL__ !== 'undefined' 
   ? __API_URL__ 
   : 'http://localhost:5000/api';
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User as UserIcon, Star, Edit, LogOut, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
+import UserAdList from '@/components/UserAdList';
 import { useAuth } from '@/context/useAuth';
 import { User } from '@/context/AuthContext';
 import { updateProfile, changePassword, logout } from '@/services/auth';
@@ -697,42 +698,10 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               </div>
             </div>
 
-            {/* Listed Channels */}
+            {/* My Ads */}
             <div className="xsm-card">
-              <h3 className="text-xl font-bold text-xsm-yellow mb-6">My Listed Channels</h3>
-              <div className="space-y-4">
-                {listedChannels.map(channel => (
-                  <div key={channel.id} className="bg-xsm-black/50 rounded-lg p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex-1">
-                        <h4 className="text-white font-semibold text-lg">{channel.name}</h4>
-                        <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-xsm-light-gray">
-                          <span>{channel.category}</span>
-                          <span>{formatNumber(channel.subscribers)} subscribers</span>
-                          <span className="text-xsm-yellow font-semibold">{formatPrice(channel.price)}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-center">
-                          <div className="text-white font-semibold">{channel.views}</div>
-                          <div className="text-xs text-xsm-light-gray">Views</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-white font-semibold">{channel.inquiries}</div>
-                          <div className="text-xs text-xsm-light-gray">Inquiries</div>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          channel.status === 'Active'
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-yellow-500/20 text-yellow-400'
-                        }`}>
-                          {channel.status}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <h3 className="text-xl font-bold text-xsm-yellow mb-6">My Listings</h3>
+              <UserAdList />
             </div>
 
 

@@ -2,8 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { sequelize, testConnection } = require('./config/database');
+const { initializeDatabase } = require('./models');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
+const adRoutes = require('./routes/ads');
 
 // Load environment variables
 dotenv.config();
@@ -36,6 +38,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/ads', adRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -57,12 +60,8 @@ const startServer = async () => {
       process.exit(1);
     }
 
-    // Sync database (create tables if they don't exist)
-    await sequelize.sync({ 
-      alter: process.env.NODE_ENV === 'development', // Only alter tables in development
-      force: false // Never drop tables in production
-    });
-    console.log('✅ Database synchronized successfully');
+    // Initialize database with associations
+    await initializeDatabase();
 
     // Start the server
     app.listen(PORT, () => {

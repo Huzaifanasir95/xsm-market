@@ -177,4 +177,21 @@ User.addHook('beforeValidate', (user) => {
   }
 });
 
+// Define associations
+User.associate = (models) => {
+  // A user can have many ads
+  User.hasMany(models.Ad, {
+    foreignKey: 'userId',
+    as: 'ads',
+    onDelete: 'CASCADE'
+  });
+
+  // A user can buy many ads
+  User.hasMany(models.Ad, {
+    foreignKey: 'soldTo',
+    as: 'purchases',
+    onDelete: 'SET NULL'
+  });
+};
+
 module.exports = User;
