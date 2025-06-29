@@ -91,14 +91,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-8">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-center items-center mb-4">
                 <h1 className="text-4xl font-bold text-xsm-yellow">My Profile</h1>
-                <button
-                  onClick={handleLogout}
-                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Logout
-                </button>
               </div>
               <p className="text-xl text-white">
                 Profile loaded with default data (please refresh to see your actual data)
@@ -445,14 +439,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-center items-center mb-4">
             <h1 className="text-4xl font-bold text-xsm-yellow">My Profile</h1>
-            <button
-              onClick={handleLogout}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              Logout
-            </button>
           </div>
           <p className="text-xl text-white">
             Manage your account settings and view your marketplace activity
