@@ -28,12 +28,11 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   const getNavItems = () => {
     const items = [];
     
-    if (isLoggedIn) {
-      items.push(
-        { id: 'sell', label: 'Begin Selling', icon: PlusCircle },
-        
-      );
-    }
+    // Always add the 'Begin Selling' button regardless of login status
+    items.push(
+      { id: 'sell', label: 'Begin Selling', icon: PlusCircle },
+      
+    );
 
     return items;
   };
@@ -48,10 +47,16 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
         <div className="flex justify-between items-center h-[60px] md:h-[72px]">
           {/* Left Side - Begin Selling Button */}
           <div className="flex items-center">
-            {isLoggedIn && navItems.map((item) => (
+            {navItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => {
+                  if (isLoggedIn || item.id !== 'sell') {
+                    setCurrentPage(item.id);
+                  } else {
+                    setCurrentPage('login');
+                  }
+                }}
                 className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
                   currentPage === item.id
                     ? 'text-xsm-yellow bg-xsm-medium-gray'
@@ -155,12 +160,16 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   </Avatar>
                   <span className="text-white">Hi, <span className="text-xsm-yellow font-medium">{user?.username || 'User'}</span></span>
                 </div>
-                {/* In mobile view, we'll still show the selling button in the dropdown menu */}
+                {/* Show nav items in mobile menu */}
                 {navItems.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => {
-                      setCurrentPage(item.id);
+                      if (isLoggedIn || item.id !== 'sell') {
+                        setCurrentPage(item.id);
+                      } else {
+                        setCurrentPage('login');
+                      }
                       setIsMenuOpen(false);
                     }}
                     className={`flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
@@ -186,16 +195,33 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                 </button>
               </>
             ) : (
-              <button
-                onClick={() => {
-                  setCurrentPage('login');
-                  setIsMenuOpen(false);
-                }}
-                className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium bg-xsm-yellow hover:bg-yellow-500 text-black"
-              >
-                <User className="w-5 h-5" />
-                <span>Login</span>
-              </button>
+              <>
+                {/* Show nav items for non-logged in users */}
+                {navItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setCurrentPage('login');
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
+                  >
+                    {item.icon && <item.icon className="w-5 h-5" />}
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+                
+                <button
+                  onClick={() => {
+                    setCurrentPage('login');
+                    setIsMenuOpen(false);
+                  }}
+                  className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium bg-xsm-yellow hover:bg-yellow-500 text-black"
+                >
+                  <User className="w-5 h-5" />
+                  <span>Login</span>
+                </button>
+              </>
             )}
           </div>
         </div>
