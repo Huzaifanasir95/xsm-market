@@ -46,7 +46,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [incomeRange, setIncomeRange] = useState({ min: '', max: '' });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [showSearchBar, setShowSearchBar] = useState(true);
+  const [showSearchBar, setShowSearchBar] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -161,8 +161,8 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
     setSelectedCategories([]);
     setSelectedTypes([]);
     
-    // Make sure search is visible and advanced filters are hidden after clearing
-    setShowSearchBar(true);
+    // Hide search bar and advanced filters after clearing
+    setShowSearchBar(false);
     setShowAdvancedFilters(false);
   };
 
@@ -388,24 +388,32 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
-                <button 
-                  className={`xsm-button-secondary h-10 px-4 flex items-center justify-center border-2 ${showSearchBar ? 'border-xsm-yellow bg-xsm-yellow/30 text-xsm-yellow' : 'border-xsm-yellow/50 bg-xsm-black text-white'} rounded-md shadow-md hover:shadow-xsm-yellow/40 transition-all`}
-                  onClick={() => setShowSearchBar(!showSearchBar)}
-                  title="Toggle Search"
-                >
-                  <Search className="w-5 h-5 mr-2" strokeWidth={2.5} />
-                  <span className="font-medium">Search</span>
-                </button>
-                
-                {showSearchBar && (
+                {!showSearchBar ? (
                   <button 
-                    className={`xsm-button-secondary h-10 px-4 flex items-center justify-center border-2 ${showAdvancedFilters ? 'border-xsm-yellow bg-xsm-yellow/30 text-xsm-yellow' : 'border-xsm-yellow/50 bg-xsm-black text-white'} rounded-md shadow-md hover:shadow-xsm-yellow/40 transition-all`}
-                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                    title="Advanced Filters"
+                    className="h-12 w-12 flex items-center justify-center bg-xsm-yellow text-black rounded-md shadow hover:bg-yellow-500 transition-colors"
+                    onClick={() => setShowSearchBar(true)}
+                    title="Show Search"
                   >
-                    <Sliders className="w-5 h-5 mr-2" strokeWidth={2.5} />
-                    <span className="font-medium">Filter</span>
+                    <Search className="w-6 h-6" />
                   </button>
+                ) : (
+                  <>
+                    <button 
+                      className="h-12 w-12 flex items-center justify-center bg-xsm-yellow text-black rounded-md shadow hover:bg-yellow-500 transition-colors"
+                      onClick={() => setShowSearchBar(false)}
+                      title="Hide Search"
+                    >
+                      <Search className="w-6 h-6" />
+                    </button>
+                    
+                    <button 
+                      className="h-12 w-12 flex items-center justify-center bg-xsm-yellow text-black rounded-md shadow hover:bg-yellow-500 transition-colors"
+                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                      title="Advanced Filters"
+                    >
+                      <Sliders className="w-6 h-6" />
+                    </button>
+                  </>
                 )}
               </div>
               {showSearchBar && (
