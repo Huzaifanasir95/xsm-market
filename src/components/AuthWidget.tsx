@@ -250,8 +250,8 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
 
   if (showOTPVerification) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-xsm-dark-gray rounded-lg p-6 max-w-md w-full mx-4">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn">
+        <div className="bg-xsm-dark-gray rounded-lg p-6 max-w-md w-full mx-4 animate-scaleIn">
           <OTPVerification
             email={registrationEmail}
             onVerificationSuccess={handleOTPVerificationSuccess}
@@ -263,17 +263,17 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="w-full max-w-md mx-4 bg-xsm-dark-gray border-xsm-medium-gray relative">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn p-4">
+      <Card className="w-full max-w-sm mx-4 bg-xsm-dark-gray border-xsm-medium-gray relative animate-scaleIn max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white"
+          className="absolute top-2 right-2 text-gray-400 hover:text-white"
         >
-          <X className="w-6 h-6" />
+          <X className="w-4 h-4" />
         </button>
         
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-xsm-yellow mb-6 text-center">
+        <div className="p-3">
+          <h2 className="text-lg font-bold text-xsm-yellow mb-3 text-center">
             {isLogin ? 'Sign in to your account' : 'Create your account'}
           </h2>
 
@@ -283,11 +283,11 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
             </Alert>
           )}
 
-          <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-4" noValidate>
+          <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-2" noValidate>
             {!isLogin && (
               <>
                 <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-white mb-1">
+                  <label htmlFor="username" className="block text-xs font-medium text-white mb-0.5">
                     Username
                   </label>
                   <Input
@@ -304,7 +304,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                 </div>
 
                 <div>
-                  <label htmlFor="fullName" className="block text-sm font-medium text-white mb-1">
+                  <label htmlFor="fullName" className="block text-xs font-medium text-white mb-0.5">
                     Full Name (Optional)
                   </label>
                   <Input
@@ -322,7 +322,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-white mb-1">
+              <label htmlFor="email" className="block text-xs font-medium text-white mb-0.5">
                 Email address
               </label>
               <Input
@@ -340,7 +340,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-white mb-1">
+              <label htmlFor="password" className="block text-xs font-medium text-white mb-0.5">
                 Password
               </label>
               <Input
@@ -359,7 +359,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
 
             {!isLogin && (
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-white mb-1">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-white mb-0.5">
                   Confirm Password
                 </label>
                 <Input
@@ -419,7 +419,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
               </div>
             )}
 
-            <div className="relative">
+            <div className="relative my-2">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-xsm-medium-gray" />
               </div>

@@ -63,10 +63,10 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                 <button
                   key={item.id}
                   onClick={() => {
-                    if (isLoggedIn || item.id !== 'sell') {
+                    if (isLoggedIn) {
                       setCurrentPage(item.id);
                     } else {
-                      setCurrentPage('login');
+                      setShowAuthWidget(true);
                     }
                   }}
                   className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
@@ -177,10 +177,10 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                     <button
                       key={item.id}
                       onClick={() => {
-                        if (isLoggedIn || item.id !== 'sell') {
+                        if (isLoggedIn) {
                           setCurrentPage(item.id);
                         } else {
-                          setCurrentPage('login');
+                          setShowAuthWidget(true);
                         }
                         setIsMenuOpen(false);
                       }}
@@ -213,7 +213,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                     <button
                       key={item.id}
                       onClick={() => {
-                        setCurrentPage('login');
+                        setShowAuthWidget(true);
                         setIsMenuOpen(false);
                       }}
                       className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
