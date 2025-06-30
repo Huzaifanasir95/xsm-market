@@ -37,3 +37,6 @@ exports.protect = async (req, res, next) => {
     res.status(500).json({ message: 'Error checking authentication', error: error.message });
   }
 };
+
+// Alias for compatibility with chat routes
+exports.authenticateToken = exports.protect;

@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageCircle } from 'lucide-react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useTokenManager } from '@/hooks/useTokenManager';
+import { useAuth } from '@/context/useAuth';
+import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import SellChannel from './pages/SellChannel';
@@ -24,6 +26,7 @@ import AdminDashboard from './pages/AdminDashboard';
 // Inner component that has access to AuthContext
 const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
+  const { isLoggedIn, user } = useAuth();
   
   // Initialize token manager for session handling
   useTokenManager();
@@ -34,9 +37,16 @@ const AppContent: React.FC = () => {
   }, [currentPage]);
 
   const renderPage = () => {
+    console.log('🎯 Rendering page:', currentPage);
+    
     switch (currentPage) {
       case 'home':
-        return <Home setCurrentPage={setCurrentPage} />;
+        // Wrap Home component with error boundary for debugging
+        return (
+          <ErrorBoundary>
+            <Home setCurrentPage={setCurrentPage} />
+          </ErrorBoundary>
+        );
       case 'sell':
         return <SellChannel setCurrentPage={setCurrentPage} />;
       case 'chat':
@@ -62,27 +72,29 @@ const AppContent: React.FC = () => {
       case 'admin-dashboard':
         return <AdminDashboard setCurrentPage={setCurrentPage} />;
       default:
-        return <Home />;
+        return <div className="text-white p-8">Default Home</div>;
     }
   };
 
   return (
     <div className="min-h-screen bg-xsm-black">
-      <Toaster />
-      <Sonner />
-      <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
-      <main className="animate-fade-in">
-        {renderPage()}
-      </main>
-        
-      {/* Floating Chat Button */}
-      <button
-        onClick={() => setCurrentPage('chat')}
-        className="fixed bottom-6 right-6 bg-xsm-yellow hover:bg-yellow-500 text-black p-4 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-50 flex items-center justify-center"
-        aria-label="Open Chat"
-      >
-        <MessageCircle className="w-6 h-6" />
-      </button>
+      <ErrorBoundary>
+        <Toaster />
+        <Sonner />
+        <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        <main className="animate-fade-in">
+          {renderPage()}
+        </main>
+          
+        {/* Floating Chat Button */}
+        <button
+          onClick={() => setCurrentPage('chat')}
+          className="fixed bottom-6 right-6 bg-xsm-yellow hover:bg-yellow-500 text-black p-4 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-50 flex items-center justify-center"
+          aria-label="Open Chat"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </button>
+      </ErrorBoundary>
 
       {/* Footer - Simplified design */}
       <footer className="bg-xsm-black border-t border-xsm-medium-gray/30 py-4">

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getAllAds } from '../services/ads';
 import { Star, Users, DollarSign, Shield, X, CreditCard, MessageCircle } from 'lucide-react';
+import { useAuth } from '@/context/useAuth';
+import AdChatButton from './AdChatButton';
 
 interface Ad {
   id: number;
@@ -27,14 +29,16 @@ interface Ad {
 
 interface AdListProps {
   onShowMore: (ad: Ad) => void;
+  onNavigateToChat?: () => void;
 }
 
-const AdList: React.FC<AdListProps> = ({ onShowMore }) => {
+const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
+  const { user, isLoggedIn } = useAuth();
   const [paymentData, setPaymentData] = useState({
     cardNumber: '',
     expiryDate: '',
@@ -51,11 +55,33 @@ const AdList: React.FC<AdListProps> = ({ onShowMore }) => {
   useEffect(() => {
     const fetchAds = async () => {
       try {
+        console.log('📡 AdList: Fetching ads...');
         setLoading(true);
-        const response = await getAllAds(filters);
-        setAds(response.ads || []);
         setError(null);
+        
+        const response = await getAllAds(filters);
+        console.log('📡 AdList: Response received:', response);
+        
+        if (response && response.ads) {
+          // Ensure data types are consistent
+          const formattedAds = response.ads.map((ad: any) => ({
+            ...ad,
+            id: Number(ad.id),
+            seller: {
+              id: Number(ad.seller?.id || ad.User?.id || 0),
+              username: ad.seller?.username || ad.User?.username || 'Anonymous',
+              profilePicture: ad.seller?.profilePicture || ad.User?.profilePicture || ''
+            }
+          }));
+          
+          console.log('📡 AdList: Formatted ads:', formattedAds.length);
+          setAds(formattedAds);
+        } else {
+          console.warn('📡 AdList: No ads in response');
+          setAds([]);
+        }
       } catch (err: any) {
+        console.error('❌ AdList: Error fetching ads:', err);
         setError(err.message || 'Failed to fetch ads');
         setAds([]);
       } finally {
@@ -265,13 +291,31 @@ const AdList: React.FC<AdListProps> = ({ onShowMore }) => {
                 )}
               </div>
 
-              {/* Purchase Button */}
-              <button
-                onClick={(e) => handlePurchase(ad, e)}
-                className="w-full xsm-button mt-4 bg-xsm-yellow hover:bg-yellow-400 text-black font-medium"
-              >
-                Make Purchase
-              </button>
+              {/* Action Buttons */}
+              <div className="mt-4 space-y-2">
+                {/* Contact Seller Button - only show if user is logged in and not the seller */}
+                {isLoggedIn && user && String(user.id) !== String(ad.seller.id) && (
+                  <AdChatButton
+                    adId={ad.id}
+                    sellerId={ad.seller.id}
+                    currentUserId={user.id}
+                    adTitle={ad.title}
+                    onNavigateToChat={onNavigateToChat}
+                    onChatCreated={(chatId) => {
+                      console.log('Chat created with ID:', chatId);
+                      // Could show a success message or redirect to chat
+                    }}
+                  />
+                )}
+                
+                {/* Purchase Button */}
+                <button
+                  onClick={(e) => handlePurchase(ad, e)}
+                  className="w-full xsm-button bg-xsm-yellow hover:bg-yellow-400 text-black font-medium"
+                >
+                  Make Purchase
+                </button>
+              </div>
             </div>
           </div>
         ))}

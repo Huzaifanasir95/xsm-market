@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Flag, User, Shield, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { io, Socket } from 'socket.io-client';
-import { API_URL } from '@/services/auth';
 
 interface Message {
   id: number;
@@ -51,26 +50,6 @@ const Chat: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initialize Socket.IO connection
-  useEffect(() => {
-    if (isLoggedIn && user) {
-      const newSocket = io(API_URL.replace('/api', ''));
-      
-      newSocket.on('connect', () => {
-        newSocket.emit('user_connected', { userId: user.id });
-      });
-
-      newSocket.on('new_message', (message: Message) => {
-        setMessages(prev => [...prev, message]);
-        updateChatLastMessage(message);
-      });
-
-      setSocket(newSocket);
-
-      return () => {
-        newSocket.close();
-      };
-    }
-  }, [isLoggedIn, user]);
 
   // Fetch chats when component mounts
   useEffect(() => {
@@ -96,7 +75,7 @@ const Chat: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/chat/chats`, {
+      const response = await fetch('/api/chat/chats', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -113,7 +92,7 @@ const Chat: React.FC = () => {
   const fetchMessages = async (chatId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/chat/chats/${chatId}/messages`, {
+      const response = await fetch(`/api/chat/chats/${chatId}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -122,7 +101,7 @@ const Chat: React.FC = () => {
       setMessages(data);
       
       // Mark messages as read
-      await fetch(`${API_URL}/chat/chats/${chatId}/read`, {
+      await fetch(`/api/chat/chats/${chatId}/read`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -138,7 +117,7 @@ const Chat: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/chat/chats/${selectedChat.id}/messages`, {
+      const response = await fetch(`/api/chat/chats/${selectedChat.id}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
