@@ -2,6 +2,7 @@ import React, { useState, useEffect, cloneElement } from 'react';
 import ChannelCard from '../components/ChannelCard';
 import ChannelModal from '../components/ChannelModal';
 import AdList from '../components/AdList';
+import AuthWidget from '../components/AuthWidget';
 import { TrendingUp, Zap, Shield, Search, Check, Sliders } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useToast } from "@/components/ui/use-toast";
@@ -32,6 +33,7 @@ interface HomeProps {
 }
 
 const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
+  const [showAuthWidget, setShowAuthWidget] = useState(false);
   const [channels, setChannels] = useState<ChannelData[]>([]);
   const [filteredChannels, setFilteredChannels] = useState<ChannelData[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<ChannelData | null>(null);
@@ -199,9 +201,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
         className: "bg-amber-500 text-white",
       });
       
-      if (setCurrentPage) {
-        setCurrentPage('login');
-      }
+      setShowAuthWidget(true);
       return;
     }
     
@@ -376,320 +376,325 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray">
-      {/* Main content area */}
-      <div className="flex-grow">
-        {/* Search & Filter Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-10">
-          <div className="bg-xsm-dark-gray rounded-lg p-6 mb-8 shadow-lg border border-xsm-medium-gray/30 relative overflow-hidden">
-          {/* Fade gradient effect for search section */}
-          <div className="absolute inset-0 bg-gradient-radial from-xsm-yellow/10 via-xsm-dark-gray/80 to-xsm-dark-gray pointer-events-none"></div>
-          
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                {!showSearchBar ? (
-                  <button 
-                    className="h-12 w-12 flex items-center justify-center bg-xsm-yellow text-black rounded-md shadow hover:bg-yellow-500 transition-colors"
-                    onClick={() => setShowSearchBar(true)}
-                    title="Show Search"
-                  >
-                    <Search className="w-6 h-6" />
-                  </button>
-                ) : (
-                  <>
+    <>
+      {showAuthWidget && (
+        <AuthWidget onClose={() => setShowAuthWidget(false)} />
+      )}
+      <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray">
+        {/* Main content area */}
+        <div className="flex-grow">
+          {/* Search & Filter Section */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-10">
+            <div className="bg-xsm-dark-gray rounded-lg p-6 mb-8 shadow-lg border border-xsm-medium-gray/30 relative overflow-hidden">
+            {/* Fade gradient effect for search section */}
+            <div className="absolute inset-0 bg-gradient-radial from-xsm-yellow/10 via-xsm-dark-gray/80 to-xsm-dark-gray pointer-events-none"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  {!showSearchBar ? (
                     <button 
                       className="h-12 w-12 flex items-center justify-center bg-xsm-yellow text-black rounded-md shadow hover:bg-yellow-500 transition-colors"
-                      onClick={() => setShowSearchBar(false)}
-                      title="Hide Search"
+                      onClick={() => setShowSearchBar(true)}
+                      title="Show Search"
                     >
                       <Search className="w-6 h-6" />
                     </button>
-                    
-                    <button 
-                      className="h-12 w-12 flex items-center justify-center bg-xsm-yellow text-black rounded-md shadow hover:bg-yellow-500 transition-colors"
-                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                      title="Advanced Filters"
-                    >
-                      <Sliders className="w-6 h-6" />
-                    </button>
-                  </>
+                  ) : (
+                    <>
+                      <button 
+                        className="h-12 w-12 flex items-center justify-center bg-xsm-yellow text-black rounded-md shadow hover:bg-yellow-500 transition-colors"
+                        onClick={() => setShowSearchBar(false)}
+                        title="Hide Search"
+                      >
+                        <Search className="w-6 h-6" />
+                      </button>
+                      
+                      <button 
+                        className="h-12 w-12 flex items-center justify-center bg-xsm-yellow text-black rounded-md shadow hover:bg-yellow-500 transition-colors"
+                        onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                        title="Advanced Filters"
+                      >
+                        <Sliders className="w-6 h-6" />
+                      </button>
+                    </>
+                  )}
+                </div>
+                {showSearchBar && (
+                  <button 
+                    onClick={clearAllFilters}
+                    className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
+                  >
+                    Clear All Filters
+                  </button>
                 )}
               </div>
-              {showSearchBar && (
-                <button 
-                  onClick={clearAllFilters}
-                  className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
-                >
-                  Clear All Filters
-                </button>
-              )}
-            </div>
-            
-            {showSearchBar && (
-              <>
-                {/* Platform quick filter buttons */}
-                <div className="flex flex-wrap items-center gap-3 mb-5 py-2">
-                  <span className="text-sm text-white mr-2 font-medium">Quick Filter:</span>
-                  {platforms.filter(p => p.id !== 'all' && p.id !== 'telegram').map(platform => (
-                    <button
-                      key={platform.id}
-                      onClick={() => setSelectedPlatform(platform.name)}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border-2 shadow-lg ${
-                        selectedPlatform === platform.name 
-                          ? 'bg-xsm-yellow text-black border-xsm-yellow ring-2 ring-xsm-yellow ring-offset-2 ring-offset-xsm-dark-gray' 
-                          : 'bg-xsm-black text-xsm-yellow border-xsm-yellow/50 hover:bg-xsm-yellow/10 hover:border-xsm-yellow'
-                      }`}
-                      title={platform.name}
-                    >
-                      {platform.logo && cloneElement(platform.logo as React.ReactElement, { className: "w-6 h-6" })}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setSelectedPlatform('All Platforms')}
-                    className={`text-xs py-2 px-4 rounded-full border-2 shadow-md transition-all ${
-                      selectedPlatform === 'All Platforms' 
-                        ? 'bg-xsm-yellow text-black border-xsm-yellow font-bold' 
-                        : 'bg-xsm-black text-white border-xsm-yellow/50 hover:bg-xsm-yellow/10 hover:border-xsm-yellow hover:text-xsm-yellow'
-                    }`}
-                  >
-                    All Platforms
-                  </button>
-                </div>
               
-                <div className="grid grid-cols-1 items-end">
-                  {/* Main search */}
-                  <div className="w-full">
-                    <label className="block text-white font-medium mb-2">Search by name or category</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search channels..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="xsm-input w-full"
+              {showSearchBar && (
+                <>
+                  {/* Platform quick filter buttons */}
+                  <div className="flex flex-wrap items-center gap-3 mb-5 py-2">
+                    <span className="text-sm text-white mr-2 font-medium">Quick Filter:</span>
+                    {platforms.filter(p => p.id !== 'all' && p.id !== 'telegram').map(platform => (
+                      <button
+                        key={platform.id}
+                        onClick={() => setSelectedPlatform(platform.name)}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border-2 shadow-lg ${
+                          selectedPlatform === platform.name 
+                            ? 'bg-xsm-yellow text-black border-xsm-yellow ring-2 ring-xsm-yellow ring-offset-2 ring-offset-xsm-dark-gray' 
+                            : 'bg-xsm-black text-xsm-yellow border-xsm-yellow/50 hover:bg-xsm-yellow/10 hover:border-xsm-yellow'
+                        }`}
+                        title={platform.name}
+                      >
+                        {platform.logo && cloneElement(platform.logo as React.ReactElement, { className: "w-6 h-6" })}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setSelectedPlatform('All Platforms')}
+                      className={`text-xs py-2 px-4 rounded-full border-2 shadow-md transition-all ${
+                        selectedPlatform === 'All Platforms' 
+                          ? 'bg-xsm-yellow text-black border-xsm-yellow font-bold' 
+                          : 'bg-xsm-black text-white border-xsm-yellow/50 hover:bg-xsm-yellow/10 hover:border-xsm-yellow hover:text-xsm-yellow'
+                      }`}
+                    >
+                      All Platforms
+                    </button>
+                  </div>
+                
+                  <div className="grid grid-cols-1 items-end">
+                    {/* Main search */}
+                    <div className="w-full">
+                      <label className="block text-white font-medium mb-2">Search by name or category</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search channels..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="xsm-input w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {/* Basic Range Filters - shown when either search bar or advanced filters are visible */}
+              {(showSearchBar || showAdvancedFilters) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-xsm-light-gray text-sm mb-1">Subscribers</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <input 
+                        type="number" 
+                        placeholder="Min" 
+                        className="xsm-input" 
+                        value={subscriberRange.min}
+                        onChange={(e) => setSubscriberRange(prev => ({ ...prev, min: e.target.value }))}
+                      />
+                      <input 
+                        type="number" 
+                        placeholder="Max" 
+                        className="xsm-input" 
+                        value={subscriberRange.max}
+                        onChange={(e) => setSubscriberRange(prev => ({ ...prev, max: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xsm-light-gray text-sm mb-1">Price ($)</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <input 
+                        type="number" 
+                        placeholder="Min" 
+                        className="xsm-input" 
+                        value={priceRange.min}
+                        onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                      />
+                      <input 
+                        type="number" 
+                        placeholder="Max" 
+                        className="xsm-input" 
+                        value={priceRange.max}
+                        onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
                       />
                     </div>
                   </div>
                 </div>
-              </>
-            )}
-            
-            {/* Basic Range Filters - shown when either search bar or advanced filters are visible */}
-            {(showSearchBar || showAdvancedFilters) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                  <label className="block text-xsm-light-gray text-sm mb-1">Subscribers</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input 
-                      type="number" 
-                      placeholder="Min" 
-                      className="xsm-input" 
-                      value={subscriberRange.min}
-                      onChange={(e) => setSubscriberRange(prev => ({ ...prev, min: e.target.value }))}
-                    />
-                    <input 
-                      type="number" 
-                      placeholder="Max" 
-                      className="xsm-input" 
-                      value={subscriberRange.max}
-                      onChange={(e) => setSubscriberRange(prev => ({ ...prev, max: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xsm-light-gray text-sm mb-1">Price ($)</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input 
-                      type="number" 
-                      placeholder="Min" 
-                      className="xsm-input" 
-                      value={priceRange.min}
-                      onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                    />
-                    <input 
-                      type="number" 
-                      placeholder="Max" 
-                      className="xsm-input" 
-                      value={priceRange.max}
-                      onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Advanced filters */}
-            {showAdvancedFilters && (
-              <div className="mt-6 pt-6 border-t border-xsm-medium-gray/30">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Categories */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-white font-medium">Categories</h3>
-                      {selectedCategories.length > 0 && (
-                        <button 
-                          onClick={() => setSelectedCategories([])}
-                          className="text-xs text-xsm-light-gray hover:text-xsm-yellow transition-colors"
-                        >
-                          Clear
-                        </button>
-                      )}
+              )}
+              
+              {/* Advanced filters */}
+              {showAdvancedFilters && (
+                <div className="mt-6 pt-6 border-t border-xsm-medium-gray/30">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Categories */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-white font-medium">Categories</h3>
+                        {selectedCategories.length > 0 && (
+                          <button 
+                            onClick={() => setSelectedCategories([])}
+                            className="text-xs text-xsm-light-gray hover:text-xsm-yellow transition-colors"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {categories.map((category) => (
+                          <label key={category} className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedCategories.includes(category)}
+                              onChange={() => toggleCategory(category)}
+                              className="hidden"
+                            />
+                            <div className={`w-4 h-4 border rounded flex items-center justify-center ${
+                              selectedCategories.includes(category)
+                                ? 'bg-xsm-yellow border-xsm-yellow'
+                                : 'border-xsm-light-gray'
+                            }`}>
+                              {selectedCategories.includes(category) && (
+                                <Check className="w-3 h-3 text-xsm-black" />
+                              )}
+                            </div>
+                            <span className="text-white text-sm">{category}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {categories.map((category) => (
-                        <label key={category} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedCategories.includes(category)}
-                            onChange={() => toggleCategory(category)}
-                            className="hidden"
-                          />
-                          <div className={`w-4 h-4 border rounded flex items-center justify-center ${
-                            selectedCategories.includes(category)
-                              ? 'bg-xsm-yellow border-xsm-yellow'
-                              : 'border-xsm-light-gray'
-                          }`}>
-                            {selectedCategories.includes(category) && (
-                              <Check className="w-3 h-3 text-xsm-black" />
-                            )}
-                          </div>
-                          <span className="text-white text-sm">{category}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Channel Types */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-white font-medium">Channel Type</h3>
-                      {selectedTypes.length > 0 && (
-                        <button 
-                          onClick={() => setSelectedTypes([])}
-                          className="text-xs text-xsm-light-gray hover:text-xsm-yellow transition-colors"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {channelTypes.map((type) => (
-                        <label key={type} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedTypes.includes(type)}
-                            onChange={() => toggleType(type)}
-                            className="hidden"
-                          />
-                          <div className={`w-4 h-4 border rounded flex items-center justify-center ${
-                            selectedTypes.includes(type)
-                              ? 'bg-xsm-yellow border-xsm-yellow'
-                              : 'border-xsm-light-gray'
-                          }`}>
-                            {selectedTypes.includes(type) && (
-                              <Check className="w-3 h-3 text-xsm-black" />
-                            )}
-                          </div>
-                          <span className="text-white text-sm">{type}</span>
-                        </label>
-                      ))}
+                    
+                    {/* Channel Types */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-white font-medium">Channel Type</h3>
+                        {selectedTypes.length > 0 && (
+                          <button 
+                            onClick={() => setSelectedTypes([])}
+                            className="text-xs text-xsm-light-gray hover:text-xsm-yellow transition-colors"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {channelTypes.map((type) => (
+                          <label key={type} className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedTypes.includes(type)}
+                              onChange={() => toggleType(type)}
+                              className="hidden"
+                            />
+                            <div className={`w-4 h-4 border rounded flex items-center justify-center ${
+                              selectedTypes.includes(type)
+                                ? 'bg-xsm-yellow border-xsm-yellow'
+                                : 'border-xsm-light-gray'
+                            }`}>
+                              {selectedTypes.includes(type) && (
+                                <Check className="w-3 h-3 text-xsm-black" />
+                              )}
+                            </div>
+                            <span className="text-white text-sm">{type}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Main Content */}
-        <div className="w-full">
-          {/* Sort Section */}
-          <div className="flex justify-end mb-8">
-            <div className="flex items-center space-x-4">
-              <label className="text-white font-medium">Sort by:</label>
-              <select
-                value={sortBy}
-                onChange={(e) => handleSortChange(e.target.value)}
-                className="xsm-input py-2 px-3"
-              >
-                <option value="newest">Newest</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="subscribers">Most Subscribers</option>
-                <option value="income">Highest Income</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Ad List - Using real database data */}
-          <AdList onShowMore={handleShowMore} />
-        </div>
-      </div>
-      
-      {/* Channel Detail Modal */}
-      <ChannelModal
-        channel={selectedChannel}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
-      
-      {/* Fixed back to top button */}
-      {showBackToTop && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-8 left-8 bg-xsm-yellow text-black rounded-full p-3 shadow-lg hover:bg-yellow-500 transition-colors z-50 animate-fade-in"
-          aria-label="Back to top"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-          </svg>
-        </button>
-      )}
-      </div>
-
-      {/* Home Marketing Section (above global footer) */}
-      <footer className="bg-gradient-to-r from-xsm-black via-xsm-dark-gray to-xsm-black py-16 pb-8 mt-auto border-t border-xsm-medium-gray/30 relative w-full">
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Hero Section */}
-          <div className="text-center mb-12">
-            <div className="flex justify-center mb-6">
-              <img 
-                src="/images/logo.png" 
-                alt="XSM Market Logo" 
-                className="h-16 md:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,208,0,0.5)]"
-              />
-            </div>
-            <div className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto">
-              The premier marketplace for buying and selling YouTube channels.
-              <br />
-              Secure transactions, verified sellers, and premium opportunities.
-            </div>
-            
-            {/* Features Section - Simple Row */}
-            <div className="flex flex-wrap justify-center gap-8 text-sm">
-              <div className="flex items-center space-x-2 text-white">
-                <Shield className="w-5 h-5 text-xsm-yellow" />
-                <span>Secure Escrow</span>
-              </div>
-              <div className="flex items-center space-x-2 text-white">
-                <TrendingUp className="w-5 h-5 text-xsm-yellow" />
-                <span>Verified Growth</span>
-              </div>
-              <div className="flex items-center space-x-2 text-white">
-                <Zap className="w-5 h-5 text-xsm-yellow" />
-                <span>Instant Transfers</span>
-              </div>
+              )}
             </div>
           </div>
           
-          {/* Supported Platforms section removed as requested */}
-          
-          {/* No navigation links or copyright here - those are in the global footer */}
+          {/* Main Content */}
+          <div className="w-full">
+            {/* Sort Section */}
+            <div className="flex justify-end mb-8">
+              <div className="flex items-center space-x-4">
+                <label className="text-white font-medium">Sort by:</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => handleSortChange(e.target.value)}
+                  className="xsm-input py-2 px-3"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                  <option value="subscribers">Most Subscribers</option>
+                  <option value="income">Highest Income</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Ad List - Using real database data */}
+            <AdList onShowMore={handleShowMore} />
+          </div>
         </div>
-      </footer>
-    </div>
+        
+        {/* Channel Detail Modal */}
+        <ChannelModal
+          channel={selectedChannel}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
+        
+        {/* Fixed back to top button */}
+        {showBackToTop && (
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="fixed bottom-8 left-8 bg-xsm-yellow text-black rounded-full p-3 shadow-lg hover:bg-yellow-500 transition-colors z-50 animate-fade-in"
+            aria-label="Back to top"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+            </svg>
+          </button>
+        )}
+        </div>
+
+        {/* Home Marketing Section (above global footer) */}
+        <footer className="bg-gradient-to-r from-xsm-black via-xsm-dark-gray to-xsm-black py-16 pb-8 mt-auto border-t border-xsm-medium-gray/30 relative w-full">
+          
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Hero Section */}
+            <div className="text-center mb-12">
+              <div className="flex justify-center mb-6">
+                <img 
+                  src="/images/logo.png" 
+                  alt="XSM Market Logo" 
+                  className="h-16 md:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,208,0,0.5)]"
+                />
+              </div>
+              <div className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto">
+                The premier marketplace for buying and selling YouTube channels.
+                <br />
+                Secure transactions, verified sellers, and premium opportunities.
+              </div>
+              
+              {/* Features Section - Simple Row */}
+              <div className="flex flex-wrap justify-center gap-8 text-sm">
+                <div className="flex items-center space-x-2 text-white">
+                  <Shield className="w-5 h-5 text-xsm-yellow" />
+                  <span>Secure Escrow</span>
+                </div>
+                <div className="flex items-center space-x-2 text-white">
+                  <TrendingUp className="w-5 h-5 text-xsm-yellow" />
+                  <span>Verified Growth</span>
+                </div>
+                <div className="flex items-center space-x-2 text-white">
+                  <Zap className="w-5 h-5 text-xsm-yellow" />
+                  <span>Instant Transfers</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Supported Platforms section removed as requested */}
+            
+            {/* No navigation links or copyright here - those are in the global footer */}
+          </div>
+        </footer>
+      </div>
+    </>
   );
 };
 
