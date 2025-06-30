@@ -12,7 +12,6 @@ interface ChannelData {
   verified: boolean;
   premium: boolean;
   rating: number;
-  views: number;
   thumbnail: string;
   seller: {
     name: string;

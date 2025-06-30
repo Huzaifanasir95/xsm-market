@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAllAds } from '../services/ads';
-import { Star, Users, Eye, DollarSign } from 'lucide-react';
+import { Star, Users, DollarSign } from 'lucide-react';
 
 interface Ad {
   id: number;
@@ -17,7 +17,6 @@ interface Ad {
   verified: boolean;
   premium: boolean;
   rating: number;
-  totalViews: number;
   seller: {
     id: number;
     username: string;
@@ -210,23 +209,20 @@ const AdList: React.FC<AdListProps> = ({ onShowMore }) => {
                 <h3 className="text-white font-semibold text-lg line-clamp-2 group-hover:text-xsm-yellow transition-colors">
                   {ad.title}
                 </h3>
-                <p className="text-xsm-light-gray text-sm mt-1">
-                  {ad.category}
-                </p>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center space-x-1">
-                  <Users className="w-4 h-4 text-xsm-yellow" />
+              <div className="flex flex-col gap-1 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-medium">Category:</span>
+                  <span className="text-xsm-light-gray">{ad.category}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-medium">Subscribers:</span>
                   <span className="text-white">{formatNumber(ad.subscribers)}</span>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Eye className="w-4 h-4 text-xsm-yellow" />
-                  <span className="text-white">{ad.views}</span>
-                </div>
                 {ad.monthlyIncome > 0 && (
-                  <div className="flex items-center space-x-1 col-span-2">
+                  <div className="flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-green-400" />
                     <span className="text-green-400">{formatPrice(ad.monthlyIncome)}/mo</span>
                   </div>
