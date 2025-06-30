@@ -231,18 +231,17 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
                 )}
               </div>
 
-              {/* Price */}
-              <div className="absolute bottom-2 right-2 bg-black/80 text-xsm-yellow px-3 py-1 rounded font-bold">
-                {formatPrice(ad.price)}
-              </div>
             </div>
 
             {/* Content */}
             <div className="space-y-3">
-              <div>
-                <h3 className="text-white font-semibold text-lg line-clamp-2 group-hover:text-xsm-yellow transition-colors">
+              <div className="flex items-start justify-between gap-4">
+                <h3 className="text-white font-semibold text-lg line-clamp-2 group-hover:text-xsm-yellow transition-colors flex-1">
                   {ad.title}
                 </h3>
+                <div className="text-xsm-yellow font-bold whitespace-nowrap text-lg">
+                  {formatPrice(ad.price)}
+                </div>
               </div>
 
               {/* Stats */}
