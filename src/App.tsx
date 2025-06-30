@@ -82,16 +82,21 @@ const AppContent: React.FC = () => {
       </button>
 
       {/* Footer - Simplified design */}
-      <footer className="bg-xsm-black border-t border-xsm-medium-gray/30 py-6">
+      <footer className="bg-xsm-black border-t border-xsm-medium-gray/30 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Logo and Button Row */}
-          <div className="flex justify-between items-center mb-4">
-            {/* Logo (left) */}
-            <div>
+          <div className="flex justify-between items-center mb-3">
+            {/* Logo with glow effect (left) */}
+            <div className="group relative">
+              {/* Logo highlight background with yellow fade in middle */}
+              <div className="absolute -inset-4 bg-gradient-radial from-xsm-yellow/30 via-xsm-medium-gray/30 to-transparent rounded-full blur-lg opacity-80 group-hover:opacity-100 transition-all duration-300 group-hover:from-xsm-yellow/50"></div>
+              {/* Extra glow effect on hover */}
+              <div className="absolute -inset-2 bg-gradient-radial from-xsm-yellow/15 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 animate-pulse"></div>
+              <div className="absolute -inset-6 bg-gradient-radial from-xsm-yellow/5 via-transparent to-transparent rounded-full animate-pulse opacity-70"></div>
               <img 
                 src="/images/logo.png" 
                 alt="XSM Market Logo" 
-                className="h-16 object-contain drop-shadow-[0_0_15px_rgba(255,208,0,0.6)]"
+                className="h-10 md:h-[48px] object-contain relative z-10 group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_4px_rgba(255,208,0,0.5)]"
               />
             </div>
             
@@ -113,7 +118,7 @@ const AppContent: React.FC = () => {
           </div>
           
           {/* Copyright */}
-          <p className="mt-4 text-center text-xs text-xsm-medium-gray">
+          <p className="mt-3 text-center text-xs text-xsm-medium-gray">
             © 2025 XSM Market. All rights reserved.
           </p>
         </div>
