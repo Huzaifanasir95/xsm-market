@@ -165,7 +165,11 @@ const AdList: React.FC<AdListProps> = ({ onShowMore }) => {
       {/* Ad Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {ads.map((ad) => (
-          <div key={ad.id} className="xsm-card group hover:scale-105 transition-all duration-300">
+          <div 
+            key={ad.id} 
+            className="xsm-card group hover:scale-105 transition-all duration-300 cursor-pointer"
+            onClick={() => onShowMore(ad)}
+          >
             {/* Thumbnail */}
             <div className="relative h-48 bg-gradient-to-br from-xsm-medium-gray to-xsm-dark-gray rounded-lg mb-4 overflow-hidden">
               {ad.thumbnail ? (
@@ -256,12 +260,14 @@ const AdList: React.FC<AdListProps> = ({ onShowMore }) => {
                 )}
               </div>
 
-              {/* Show More Button */}
+              {/* Purchase Button */}
               <button
-                onClick={() => onShowMore(ad)}
-                className="w-full xsm-button mt-4"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent card click when clicking button
+                }}
+                className="w-full xsm-button mt-4 bg-xsm-yellow hover:bg-yellow-400 text-black font-medium"
               >
-                Show More Details
+                Make Purchase
               </button>
             </div>
           </div>
