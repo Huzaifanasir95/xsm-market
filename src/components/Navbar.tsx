@@ -114,9 +114,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                     <button className="flex items-center space-x-2">
                       <span className="text-xsm-light-gray mr-1">Hi, <span className="text-xsm-yellow">{user?.username || 'User'}</span></span>
                       <Avatar className="w-9 h-9 border-2 border-xsm-medium-gray hover:border-xsm-yellow transition-colors">
-                        {user?.profilePicture ? (
-                          <AvatarImage src={user.profilePicture} alt={user?.username || 'User'} />
-                        ) : null}
+                        <AvatarImage src={user?.profileImage || '/placeholder.svg'} alt={user?.username || 'User'} />
                         <AvatarFallback className="bg-xsm-medium-gray text-white hover:bg-xsm-yellow hover:text-xsm-black transition-colors">
                           <User className="w-5 h-5" />
                         </AvatarFallback>
@@ -170,9 +168,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   {/* User greeting for mobile view */}
                   <div className="flex items-center px-3 py-2 space-x-2">
                     <Avatar className="w-8 h-8 border-2 border-xsm-medium-gray">
-                      {user?.profilePicture ? (
-                        <AvatarImage src={user.profilePicture} alt={user?.username || 'User'} />
-                      ) : null}
+                      <AvatarImage src={user?.profileImage || '/placeholder.svg'} alt={user?.username || 'User'} />
                       <AvatarFallback className="bg-xsm-medium-gray text-white">
                         <User className="w-4 h-4" />
                       </AvatarFallback>
