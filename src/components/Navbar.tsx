@@ -111,25 +111,28 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
               {isLoggedIn ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center space-x-2">
-                      <span className="text-xsm-light-gray mr-1">Hi, <span className="text-xsm-yellow">{user?.username || 'User'}</span></span>
-                      <Avatar className="w-9 h-9 border-2 border-xsm-medium-gray hover:border-xsm-yellow transition-colors">
-                        <AvatarImage src={user?.profileImage || '/placeholder.svg'} alt={user?.username || 'User'} />
-                        <AvatarFallback className="bg-xsm-medium-gray text-white hover:bg-xsm-yellow hover:text-xsm-black transition-colors">
-                          <User className="w-5 h-5" />
-                        </AvatarFallback>
-                      </Avatar>
+                    <button className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+                      <div className="w-8 h-8 bg-xsm-yellow rounded-full overflow-hidden">
+                        {user?.profilePicture ? (
+                          <img
+                            src={user.profilePicture}
+                            alt={user.username}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User className="w-5 h-5 text-black m-1.5" />
+                        )}
+                      </div>
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
-                    <DropdownMenuItem onClick={() => setCurrentPage('profile')} className="text-white hover:text-xsm-yellow cursor-pointer">
-                      <User className="w-4 h-4 mr-2" />
-                      Profile
+                    <DropdownMenuItem onClick={() => setCurrentPage('profile')} className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
                     </DropdownMenuItem>
-                    {/* Chat option in dropdown for mobile fallback */}
-                    <DropdownMenuItem onClick={handleLogout} className="text-white hover:text-xsm-yellow cursor-pointer">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Logout
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Logout</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -168,7 +171,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   {/* User greeting for mobile view */}
                   <div className="flex items-center px-3 py-2 space-x-2">
                     <Avatar className="w-8 h-8 border-2 border-xsm-medium-gray">
-                      <AvatarImage src={user?.profileImage || '/placeholder.svg'} alt={user?.username || 'User'} />
+                      <AvatarImage src={user?.profilePicture || '/placeholder.svg'} alt={user?.username || 'User'} />
                       <AvatarFallback className="bg-xsm-medium-gray text-white">
                         <User className="w-4 h-4" />
                       </AvatarFallback>
