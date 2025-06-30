@@ -250,7 +250,14 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
 
   if (showOTPVerification) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn">
+      <div 
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+      >
         <div className="bg-xsm-dark-gray rounded-lg p-6 max-w-md w-full mx-4 animate-scaleIn">
           <OTPVerification
             email={registrationEmail}
@@ -263,7 +270,14 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn p-4">
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <Card className="w-full max-w-sm mx-4 bg-xsm-dark-gray border-xsm-medium-gray relative animate-scaleIn max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
