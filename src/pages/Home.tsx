@@ -78,8 +78,20 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   
   // Category and type options
   const categories = [
-    'Gaming', 'Music', 'Tech', 'Lifestyle', 'Education', 'Entertainment',
-    'Sports', 'News', 'Comedy', 'Cooking', 'Travel', 'Fashion', 'Fitness'
+    "Cars & Bikes", 
+    "Luxury & Motivation", 
+    "Pets & Animals", 
+    "Games",
+    "Movies & Music", 
+    "Fashion & Style", 
+    "Education & Q&A",
+    "Food",
+    "Nature & Travel", 
+    "Fitness & Sports", 
+    "Models & Celebs",
+    "Reviews & How-To", 
+    "YT Shorts & FB Reels",
+    "Crypto & NFT"
   ];
   
   const channelTypes = ['Non Monitied', 'Premium', 'Monetized', 'New'];
