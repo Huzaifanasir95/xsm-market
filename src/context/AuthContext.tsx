@@ -10,6 +10,7 @@ export interface User {
   profilePicture?: string;
   authProvider?: string;
   isEmailVerified?: boolean;
+  isAdmin?: boolean;
 }
 
 export interface AuthContextType {

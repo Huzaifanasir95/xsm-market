@@ -38,9 +38,15 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
     
     // Always add the 'Begin Selling' button regardless of login status
     items.push(
-      { id: 'sell', label: 'Begin Selling', icon: PlusCircle },
-      
+      { id: 'sell', label: 'Begin Selling', icon: PlusCircle }
     );
+
+    // Add Admin Dashboard button for logged in users
+    if (isLoggedIn) {
+      items.push(
+        { id: 'admin-dashboard', label: 'Admin Dashboard', icon: Settings }
+      );
+    }
 
     return items;
   };
