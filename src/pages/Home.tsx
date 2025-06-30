@@ -640,21 +640,42 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Hero Section */}
             <div className="text-center mb-12">
-              <div className="flex justify-center mb-6">
-                <img 
-                  src="/images/logo.png" 
-                  alt="XSM Market Logo" 
-                  className="h-16 md:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,208,0,0.5)]"
-                />
-              </div>
-              <div className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto">
-                The premier marketplace for buying and selling YouTube channels.
-                <br />
-                Secure transactions, verified sellers, and premium opportunities.
+              <div className="space-y-8 mb-12">
+                {/* Main title with gradient effect */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-radial from-xsm-yellow/20 via-transparent to-transparent opacity-75 blur-xl"></div>
+                  <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white relative z-10 tracking-tight">
+                    XSM-Market is a versatile platform for secure social media account transactions
+                  </h1>
+                </div>
+
+                {/* Main description with gradient background */}
+                <div className="relative max-w-3xl mx-auto">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-xsm-yellow/5 to-transparent"></div>
+                  <p className="text-base md:text-lg text-xsm-light-gray py-4 px-6 relative z-10">
+                    XSM-Market is your trusted platform for securely making deals between sellers and buyers of all kinds of social media accounts.
+                  </p>
+                </div>
+
+                {/* Buyer & Seller Benefits */}
+                <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                  <div className="bg-xsm-black/50 p-6 rounded-lg border border-xsm-medium-gray/30">
+                    <h3 className="text-xl font-medium text-xsm-yellow mb-3">For Buyers</h3>
+                    <p className="text-white">
+                      We guarantee the transfer of your new channel to you or your money back. Our escrow service ensures your investment is protected.
+                    </p>
+                  </div>
+                  <div className="bg-xsm-black/50 p-6 rounded-lg border border-xsm-medium-gray/30">
+                    <h3 className="text-xl font-medium text-xsm-yellow mb-3">For Sellers</h3>
+                    <p className="text-white">
+                      You can be sure that you either get your agreed upon payment, or your channel will be returned to you. Our platform ensures secure transactions.
+                    </p>
+                  </div>
+                </div>
               </div>
               
               {/* Features Section - Simple Row */}
-              <div className="flex flex-wrap justify-center gap-8 text-sm">
+              <div className="flex flex-wrap justify-center gap-8 text-sm mt-12">
                 <div className="flex items-center space-x-2 text-white">
                   <Shield className="w-5 h-5 text-xsm-yellow" />
                   <span>Secure Escrow</span>
