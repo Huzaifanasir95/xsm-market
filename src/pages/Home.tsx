@@ -608,24 +608,6 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
           
           {/* Main Content */}
           <div className="w-full">
-            {/* Sort Section */}
-            <div className="flex justify-end mb-8">
-              <div className="flex items-center space-x-4">
-                <label className="text-white font-medium">Sort by:</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => handleSortChange(e.target.value)}
-                  className="xsm-input py-2 px-3"
-                >
-                  <option value="newest">Newest</option>
-                  <option value="price-low">Price: Low to High</option>
-                  <option value="price-high">Price: High to Low</option>
-                  <option value="subscribers">Most Subscribers</option>
-                  <option value="income">Highest Income</option>
-                </select>
-              </div>
-            </div>
-
             {/* Ad List - Using real database data */}
             <AdList onShowMore={handleShowMore} />
           </div>

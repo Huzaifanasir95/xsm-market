@@ -156,34 +156,7 @@ const AdList: React.FC<AdListProps> = ({ onShowMore }) => {
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex flex-wrap gap-4">
-          <select
-            value={filters.platform}
-            onChange={(e) => setFilters({ ...filters, platform: e.target.value })}
-            className="xsm-input"
-          >
-            <option value="all">All Platforms</option>
-            <option value="youtube">YouTube</option>
-            <option value="facebook">Facebook</option>
-            <option value="instagram">Instagram</option>
-            <option value="twitter">Twitter</option>
-            <option value="tiktok">TikTok</option>
-          </select>
-
-          <select
-            value={filters.sortBy}
-            onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
-            className="xsm-input"
-          >
-            <option value="createdAt">Recently Added</option>
-            <option value="price">Price</option>
-            <option value="subscribers">Subscribers</option>
-            <option value="views">Most Viewed</option>
-          </select>
-        </div>
-
+      <div className="flex justify-end mb-4">
         <div className="text-sm text-xsm-light-gray">
           {ads.length} {ads.length === 1 ? 'listing' : 'listings'} found
         </div>
