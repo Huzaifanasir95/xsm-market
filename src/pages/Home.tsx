@@ -22,6 +22,7 @@ interface ChannelData {
   views: number;
   thumbnail: string;
   seller: {
+    id: number;
     name: string;
     rating: number;
     sales: number;
@@ -231,7 +232,12 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
       rating: item.rating || 0,
       views: item.views || item.totalViews || 0,
       thumbnail: item.thumbnail || '',
-      seller: item.seller || { name: 'Unknown', rating: 0, sales: 0 }
+      seller: {
+        id: item.seller?.id || 0,
+        name: item.seller?.username || item.seller?.name || 'Unknown',
+        rating: item.seller?.rating || 0,
+        sales: item.seller?.sales || 0
+      }
     };
     
     setSelectedChannel(channelData);

@@ -18,6 +18,7 @@ interface ChannelData {
   views: number;
   thumbnail: string;
   seller: {
+    id: number;
     name: string;
     rating: number;
     sales: number;
@@ -77,7 +78,7 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
       return;
     }
 
-    if (String(user.id) === String(channel.id)) {
+    if (String(user.id) === String(channel.seller.id)) {
       alert("You can't contact yourself");
       return;
     }
@@ -85,6 +86,32 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
     try {
       setIsCreating(true);
       const token = localStorage.getItem('token');
+      
+      // First, check if a chat already exists with this seller
+      const checkChatResponse = await fetch(`${API_URL}/chat/check-existing`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          sellerId: channel.seller.id,
+          adId: channel.id
+        })
+      });
+
+      const checkResult = await checkChatResponse.json();
+      
+      if (checkResult.exists) {
+        // Chat exists, just navigate to it
+        onClose(); // Close the modal first
+        if (onNavigateToChat) {
+          onNavigateToChat();
+        }
+        return;
+      }
+
+      // No existing chat, create a new one with initial message
       const response = await fetch(`${API_URL}/chat/ad-inquiry`, {
         method: 'POST',
         headers: {
@@ -93,7 +120,9 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
         },
         body: JSON.stringify({
           adId: channel.id,
-          message: `Hi, I'm interested in your channel: ${channel.name}`
+          sellerId: channel.seller.id,
+          message: `Hi, I'm interested in your channel: ${channel.name}`,
+          sellerName: channel.seller.name
         })
       });
 

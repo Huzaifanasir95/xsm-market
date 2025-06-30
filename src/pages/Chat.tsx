@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Flag, User, Shield, MessageCircle } from 'lucide-react';
+import { Send, Flag, User, Shield, MessageCircle, Search } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { io, Socket } from 'socket.io-client';
 import { API_URL } from '@/services/auth';
@@ -44,6 +44,8 @@ const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [chats, setChats] = useState<ChatData[]>([]);
+  const [filteredChats, setFilteredChats] = useState<ChatData[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [socket, setSocket] = useState<Socket | null>(null);
   const [loading, setLoading] = useState(true);
   const [reportModalOpen, setReportModalOpen] = useState(false);
@@ -84,6 +86,22 @@ const Chat: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Filter chats based on search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredChats(chats);
+    } else {
+      const filtered = chats.filter(chat => {
+        const chatName = getChatDisplayName(chat).toLowerCase();
+        const lastMessage = chat.lastMessage?.toLowerCase() || '';
+        const query = searchQuery.toLowerCase();
+        
+        return chatName.includes(query) || lastMessage.includes(query);
+      });
+      setFilteredChats(filtered);
+    }
+  }, [chats, searchQuery]);
+
   // Join chat room when chat is selected
   useEffect(() => {
     if (socket && selectedChat) {
@@ -103,6 +121,7 @@ const Chat: React.FC = () => {
       });
       const data = await response.json();
       setChats(data);
+      setFilteredChats(data);
     } catch (error) {
       console.error('Error fetching chats:', error);
     } finally {
@@ -207,12 +226,28 @@ const Chat: React.FC = () => {
   };
 
   const getChatDisplayName = (chat: ChatData) => {
-    if (chat.type === 'ad_inquiry' && chat.ad) {
-      return chat.ad.title;
+    // For ad inquiries, show seller name instead of ad title
+    if (chat.type === 'ad_inquiry') {
+      if (chat.otherParticipants.length > 0) {
+        const otherUser = chat.otherParticipants[0];
+        return otherUser.fullName || otherUser.username;
+      }
+      // Fallback to ad title if no participants
+      if (chat.ad) {
+        return `Inquiry: ${chat.ad.title}`;
+      }
     }
+    
+    // For direct chats, show the other participant's name
     if (chat.otherParticipants.length > 0) {
       return chat.otherParticipants[0].fullName || chat.otherParticipants[0].username;
     }
+    
+    // Use chat name if available
+    if (chat.name) {
+      return chat.name;
+    }
+    
     return 'Unknown';
   };
 
@@ -248,17 +283,27 @@ const Chat: React.FC = () => {
                 </h3>
               </div>
 
-              <div className="overflow-y-auto" style={{ height: 'calc(100% - 73px)' }}>
+              <div className="p-4 border-b border-xsm-medium-gray">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search conversations..."
+                  className="w-full px-4 py-2 bg-xsm-dark-gray text-white rounded-lg border border-xsm-medium-gray focus:outline-none focus:border-xsm-yellow"
+                />
+              </div>
+
+              <div className="overflow-y-auto" style={{ height: 'calc(100% - 113px)' }}>
                 {loading ? (
                   <div className="p-4 text-center text-white">Loading chats...</div>
-                ) : chats.length === 0 ? (
+                ) : filteredChats.length === 0 ? (
                   <div className="p-4 text-center text-gray-400">
                     <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     <p>No conversations yet</p>
                     <p className="text-sm">Start chatting by contacting a seller!</p>
                   </div>
                 ) : (
-                  chats.map(chat => (
+                  filteredChats.map(chat => (
                     <div
                       key={chat.id}
                       onClick={() => setSelectedChat(chat)}
@@ -277,7 +322,7 @@ const Chat: React.FC = () => {
                             </h4>
                             {chat.ad && (
                               <p className="text-xs text-xsm-yellow">
-                                ${chat.ad.price}
+                                {chat.ad.title} - ${chat.ad.price}
                               </p>
                             )}
                           </div>
@@ -310,7 +355,7 @@ const Chat: React.FC = () => {
                       <div>
                         <h4 className="text-white font-medium">{getChatDisplayName(selectedChat)}</h4>
                         {selectedChat.ad && (
-                          <p className="text-sm text-xsm-yellow">Ad Inquiry - ${selectedChat.ad.price}</p>
+                          <p className="text-sm text-xsm-yellow">{selectedChat.ad.title} - ${selectedChat.ad.price}</p>
                         )}
                       </div>
                     </div>

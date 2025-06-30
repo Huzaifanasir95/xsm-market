@@ -308,7 +308,7 @@ const markMessagesAsRead = async (req, res) => {
 // Create ad inquiry chat
 const createAdInquiryChat = async (req, res) => {
   try {
-    const { adId, message } = req.body;
+    const { adId, message, sellerId, sellerName } = req.body;
     const buyerId = parseInt(req.user.id);
 
     if (!adId || !message) {
@@ -328,58 +328,73 @@ const createAdInquiryChat = async (req, res) => {
       return res.status(404).json({ message: 'Ad not found' });
     }
 
-    const sellerId = ad.userId;
+    const actualSellerId = sellerId || ad.userId;
+    const actualSellerName = sellerName || ad.seller?.fullName || ad.seller?.username || 'Unknown Seller';
 
-    if (sellerId === buyerId) {
+    if (actualSellerId === buyerId) {
       return res.status(400).json({ message: 'Cannot create chat with yourself' });
     }
 
-    // Check if chat already exists for this ad between these users
-    const existingChat = await Chat.findOne({
+    // First, comprehensively check if chat already exists between these specific users for this ad
+    const existingChats = await Chat.findAll({
       where: { adId, type: 'ad_inquiry' },
       include: [{
         model: ChatParticipant,
         as: 'participants',
         where: {
-          userId: { [Op.in]: [buyerId, sellerId] },
           isActive: true
         }
       }]
     });
 
+    let existingChat = null;
+    for (const chat of existingChats) {
+      const participantIds = chat.participants.map(p => p.userId);
+      const hasBothUsers = participantIds.includes(parseInt(buyerId)) && participantIds.includes(parseInt(actualSellerId));
+      
+      if (hasBothUsers) {
+        existingChat = chat;
+        break;
+      }
+    }
+
     let chat;
     if (existingChat) {
+      // Use existing chat - don't send a new message
       chat = existingChat;
+      console.log(`Using existing chat ${chat.id} for buyer ${buyerId} and seller ${actualSellerId} for ad ${adId}`);
     } else {
       // Create new ad inquiry chat
       chat = await Chat.create({
         type: 'ad_inquiry',
         adId,
-        name: `Inquiry for: ${ad.title}`
+        name: `Chat with ${actualSellerName}`
       });
 
       // Add participants
       await ChatParticipant.bulkCreate([
-        { chatId: chat.id, userId: sellerId, role: 'admin' },
+        { chatId: chat.id, userId: actualSellerId, role: 'admin' },
         { chatId: chat.id, userId: buyerId, role: 'member' }
       ]);
+
+      // Send initial message only for new chats
+      const newMessage = await Message.create({
+        content: message.trim(),
+        senderId: buyerId,
+        chatId: chat.id,
+        messageType: 'text'
+      });
+
+      // Update chat's last message
+      await Chat.update({
+        lastMessage: message.trim(),
+        lastMessageTime: new Date()
+      }, {
+        where: { id: chat.id }
+      });
+
+      console.log(`Created new chat ${chat.id} for buyer ${buyerId} and seller ${actualSellerId} for ad ${adId}`);
     }
-
-    // Send initial message
-    const newMessage = await Message.create({
-      content: message.trim(),
-      senderId: buyerId,
-      chatId: chat.id,
-      messageType: 'text'
-    });
-
-    // Update chat's last message
-    await Chat.update({
-      lastMessage: message.trim(),
-      lastMessageTime: new Date()
-    }, {
-      where: { id: chat.id }
-    });
 
     // Return chat with details
     const chatWithDetails = await Chat.findByPk(chat.id, {
@@ -412,7 +427,7 @@ const createAdInquiryChat = async (req, res) => {
       ]
     });
 
-    res.status(201).json(chatWithDetails);
+    res.status(existingChat ? 200 : 201).json(chatWithDetails);
   } catch (error) {
     console.error('Error creating ad inquiry chat:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
