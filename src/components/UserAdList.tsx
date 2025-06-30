@@ -168,12 +168,7 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
               : `No ads with status "${filter}"`
             }
           </p>
-          <button
-            onClick={() => window.location.href = '#sell'}
-            className="xsm-button"
-          >
-            Create Your First Listing
-          </button>
+          
         </div>
       ) : (
         <div className="space-y-4">

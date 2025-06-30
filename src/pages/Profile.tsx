@@ -10,12 +10,24 @@ interface ProfileProps {
   setCurrentPage: (page: string) => void;
 }
 
+interface UpdateData {
+  username?: string;
+  fullName?: string;
+  profilePicture?: string;
+}
+
+interface ExtendedUser extends User {
+  fullName?: string;
+  joinDate?: string;
+  authProvider?: 'google' | 'email';
+}
+
 const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
-  const { user, isLoggedIn, setUser, setIsLoggedIn } = useAuth();
-  
-  // Debug logging
+  const { user, isLoggedIn, setUser, setIsLoggedIn } = useAuth();    const typedUser = user as ExtendedUser;
+
+    // Debug logging
   console.log('🔍 Profile component state:', { 
-    user, 
+    user: typedUser, 
     isLoggedIn, 
     token: localStorage.getItem('token') ? 'exists' : 'missing',
     userData: localStorage.getItem('userData')
@@ -23,13 +35,46 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [editForm, setEditForm] = useState({
+    username: '',
+    email: '',
+    fullName: '',
+    profilePicture: ''
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [listedChannels] = useState([
+    {
+      id: '1',
+      name: 'TechReview Pro',
+      category: 'Tech',
+      subscribers: 150000,
+      price: 15000,
+      status: 'Active',
+      views: 245,
+      inquiries: 8,
+    },
+    {
+      id: '2',
+      name: 'Gaming World HD',
+      category: 'Gaming',
+      subscribers: 89000,
+      price: 8500,
+      status: 'Pending Review',
+      views: 123,
+      inquiries: 3,
+    },
+  ]);
   
   // Initialize profile with user data or defaults
   const [profile, setProfile] = useState({
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
-    fullName: (user as any)?.fullName || '',
-    joinDate: '2024-01-15',
+    fullName: (user as ExtendedUser)?.fullName || '',
+    joinDate: (user as ExtendedUser)?.joinDate || '2025-01-15', // Keep the date format as is
     rating: 4.8,
     totalSales: 12,
     totalPurchases: 5,
@@ -51,7 +96,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         username: user.username,
         email: user.email,
         fullName: (user as any).fullName || '',
-        profilePicture: user.profilePicture || ''
+        profilePicture: user.profilePicture || '',
+        joinDate: (user as any)?.joinDate || prev.joinDate
       }));
     }
   }, [user]);
@@ -181,13 +227,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     );
   }
 
-  const [editForm, setEditForm] = useState({ ...profile });
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-
   // Handle profile picture upload
   const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -216,29 +255,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       reader.readAsDataURL(file);
     }
   };
-
-  const [listedChannels] = useState([
-    {
-      id: '1',
-      name: 'TechReview Pro',
-      category: 'Tech',
-      subscribers: 150000,
-      price: 15000,
-      status: 'Active',
-      views: 245,
-      inquiries: 8,
-    },
-    {
-      id: '2',
-      name: 'Gaming World HD',
-      category: 'Gaming',
-      subscribers: 89000,
-      price: 8500,
-      status: 'Pending Review',
-      views: 123,
-      inquiries: 3,
-    },
-  ]);
 
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -435,6 +451,25 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     return num.toString();
   };
 
+  const getRelativeTimeString = (dateString: string) => {
+    const joinDate = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - joinDate.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 1) return 'Joined today';
+    if (diffDays === 1) return 'Joined yesterday';
+    if (diffDays < 30) return `Joined ${diffDays} days ago`;
+    
+    const diffMonths = Math.floor(diffDays / 30);
+    if (diffMonths === 1) return 'Joined 1 month ago';
+    if (diffMonths < 12) return `Joined ${diffMonths} months ago`;
+    
+    const diffYears = Math.floor(diffDays / 365);
+    if (diffYears === 1) return 'Joined 1 year ago';
+    return `Joined ${diffYears} years ago`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -445,24 +480,31 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           <p className="text-xl text-white">
             Manage your account settings and view your marketplace activity
           </p>
+          <p className="text-sm text-xsm-light-gray mt-2">
+            {getRelativeTimeString(profile.joinDate)}
+          </p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Profile Overview */}
           <div className="lg:col-span-1">
             <div className="xsm-card text-center mb-6">
-              <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden relative">
-                {(isEditing ? editForm.profilePicture : profile.profilePicture) ? (
-                  <img 
-                    src={isEditing ? editForm.profilePicture : profile.profilePicture} 
-                    alt={profile.fullName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-xsm-yellow rounded-full flex items-center justify-center">
-                    <UserIcon className="w-12 h-12 text-xsm-black" />
-                  </div>
-                )}
+              <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center relative">
+                {/* Green ring for active status */}
+                <div className="absolute inset-0 rounded-full border-2 border-green-400 animate-pulse"></div>
+                <div className="w-[90px] h-[90px] rounded-full overflow-hidden relative">
+                  {(isEditing ? editForm.profilePicture : profile.profilePicture) ? (
+                    <img 
+                      src={isEditing ? editForm.profilePicture : profile.profilePicture} 
+                      alt={profile.fullName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-xsm-yellow rounded-full flex items-center justify-center">
+                      <UserIcon className="w-12 h-12 text-xsm-black" />
+                    </div>
+                  )}
+                </div>
                 {isEditing && (
                   <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
                     <Edit className="w-6 h-6 text-white" />
@@ -490,7 +532,11 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                 <span className="text-xsm-light-gray">({profile.totalSales + profile.totalPurchases} transactions)</span>
               </div>
               <div className="text-sm text-xsm-light-gray mb-4">
-                Member since {new Date(profile.joinDate).toLocaleDateString()}
+                {getRelativeTimeString(profile.joinDate)}
+              </div>
+              <div className="text-xs text-green-400 flex items-center justify-center gap-1 mb-4">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span>Active now</span>
               </div>
               {user && (
                 <div className="text-xs text-green-400 bg-green-500/10 rounded-full px-3 py-1 inline-block">
