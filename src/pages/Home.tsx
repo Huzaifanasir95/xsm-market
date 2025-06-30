@@ -633,6 +633,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
           channel={selectedChannel}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
+          onNavigateToChat={() => setCurrentPage && setCurrentPage('chat')}
         />
         
         {/* Fixed back to top button */}

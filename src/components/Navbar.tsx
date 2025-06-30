@@ -107,17 +107,6 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
             {/* Desktop Navigation on right */}
             <div className="hidden md:flex items-center space-x-4">
               {/* Chat Button - only show for logged in users */}
-              {isLoggedIn && (
-                <button
-                  onClick={() => setCurrentPage('chat')}
-                  className="relative p-2 text-white hover:text-xsm-yellow transition-colors duration-200 rounded-md hover:bg-xsm-medium-gray"
-                  title="Messages"
-                >
-                  <MessageSquare className="w-5 h-5" />
-                  {/* TODO: Add unread message indicator */}
-                </button>
-              )}
-
               {/* Profile Dropdown or Login Button */}
               {isLoggedIn ? (
                 <DropdownMenu>
@@ -140,10 +129,6 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                       Profile
                     </DropdownMenuItem>
                     {/* Chat option in dropdown for mobile fallback */}
-                    <DropdownMenuItem onClick={() => setCurrentPage('chat')} className="text-white hover:text-xsm-yellow cursor-pointer">
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      Messages
-                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleLogout} className="text-white hover:text-xsm-yellow cursor-pointer">
                       <LogOut className="w-4 h-4 mr-2" />
                       Logout
@@ -216,18 +201,6 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                       <span>{item.label}</span>
                     </button>
                   ))}
-                  
-                  {/* Messages button for mobile */}
-                  <button
-                    onClick={() => {
-                      setCurrentPage('chat');
-                      setIsMenuOpen(false);
-                    }}
-                    className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
-                  >
-                    <MessageSquare className="w-5 h-5" />
-                    <span>Messages</span>
-                  </button>
                   
                   <button
                     onClick={() => {

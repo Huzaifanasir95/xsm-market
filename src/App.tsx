@@ -89,10 +89,19 @@ const AppContent: React.FC = () => {
         {/* Floating Chat Button */}
         <button
           onClick={() => setCurrentPage('chat')}
-          className="fixed bottom-6 right-6 bg-xsm-yellow hover:bg-yellow-500 text-black p-4 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-50 flex items-center justify-center"
+          className="fixed bg-xsm-yellow hover:bg-yellow-500 text-black p-4 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-[9999] flex items-center justify-center relative"
+          style={{ 
+            bottom: '24px', 
+            right: '24px',
+            position: 'fixed'
+          }}
           aria-label="Open Chat"
         >
           <MessageCircle className="w-6 h-6" />
+          {/* Unread notification indicator */}
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          </div>
         </button>
       </ErrorBoundary>
 

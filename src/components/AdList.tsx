@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { getAllAds } from '../services/ads';
 import { Star, Users, DollarSign, Shield, X, CreditCard, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
-import AdChatButton from './AdChatButton';
 
 interface Ad {
   id: number;
@@ -293,21 +292,6 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
 
               {/* Action Buttons */}
               <div className="mt-4 space-y-2">
-                {/* Contact Seller Button - only show if user is logged in and not the seller */}
-                {isLoggedIn && user && String(user.id) !== String(ad.seller.id) && (
-                  <AdChatButton
-                    adId={ad.id}
-                    sellerId={ad.seller.id}
-                    currentUserId={user.id}
-                    adTitle={ad.title}
-                    onNavigateToChat={onNavigateToChat}
-                    onChatCreated={(chatId) => {
-                      console.log('Chat created with ID:', chatId);
-                      // Could show a success message or redirect to chat
-                    }}
-                  />
-                )}
-                
                 {/* Purchase Button */}
                 <button
                   onClick={(e) => handlePurchase(ad, e)}
