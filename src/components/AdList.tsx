@@ -171,18 +171,23 @@ const AdList: React.FC<AdListProps> = ({ onShowMore }) => {
             onClick={() => onShowMore(ad)}
           >
             {/* Thumbnail */}
-            <div className="relative h-48 bg-gradient-to-br from-xsm-medium-gray to-xsm-dark-gray rounded-lg mb-4 overflow-hidden">
-              {ad.thumbnail ? (
+            <div className="relative h-48 bg-gradient-to-br from-xsm-medium-gray to-xsm-dark-gray rounded-lg mb-4 overflow-hidden group/image">
+              <div className="w-full h-full overflow-hidden">
                 <img 
-                  src={ad.thumbnail} 
+                  src={ad.thumbnail || '/placeholder.svg'} 
                   alt={ad.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-all duration-500 ease-in-out group-hover:scale-105 group-hover/image:scale-110"
+                  style={{ objectPosition: 'center' }}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = '/placeholder.svg';
+                  }}
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-6xl">
-                  📺
-                </div>
-              )}
+              </div>
+              
+              {/* Overlay on hover */}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300"></div>
               
               {/* Platform Badge */}
               <div className="absolute top-2 left-2">
