@@ -1,7 +1,7 @@
 // API URL - automatically switches between development and production
-export const API_URL = typeof __API_URL__ !== 'undefined' 
-  ? __API_URL__ 
-  : 'http://localhost:5000/api';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+console.log('🌐 API_URL configured as:', API_URL);
 
 // Token management constants
 const TOKEN_KEY = 'token';
@@ -11,7 +11,7 @@ const USER_KEY = 'userData';
 
 // Import User interface
 interface User {
-  id: string;
+  id: number;
   username: string;
   fullName?: string;
   email: string;
@@ -33,7 +33,7 @@ export interface AuthResponse {
   refreshToken?: string;
   expiresIn?: number;
   user?: {
-    id: string;
+    id: number;
     username: string;
     fullName?: string;
     email: string;
@@ -205,6 +205,8 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}): Promi
 
 export const login = async (email: string, password: string): Promise<AuthResponse> => {
   try {
+    console.log('🔄 Starting login process for:', email);
+    
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: {
@@ -215,6 +217,11 @@ export const login = async (email: string, password: string): Promise<AuthRespon
     });
 
     const data = await response.json();
+    console.log('📡 Login response received:', { 
+      ok: response.ok, 
+      status: response.status,
+      data: { ...data, token: data.token ? 'exists' : 'missing' }
+    });
 
     if (!response.ok) {
       throw new Error(data.message || 'Failed to login');
@@ -222,6 +229,7 @@ export const login = async (email: string, password: string): Promise<AuthRespon
 
     // Store tokens with proper expiry management
     if (data.token) {
+      console.log('💾 Storing token data...');
       setTokenData({
         accessToken: data.token,
         refreshToken: data.refreshToken,
@@ -231,9 +239,11 @@ export const login = async (email: string, password: string): Promise<AuthRespon
     
     // Store user data
     if (data.user) {
+      console.log('👤 Storing user data:', data.user);
       setCurrentUser(data.user);
     }
     
+    console.log('✅ Login process completed successfully');
     return data;
   } catch (error) {
     if (error instanceof Error) {
@@ -338,14 +348,21 @@ export const logout = (): void => {
 
 export const isAuthenticated = (): boolean => {
   const token = localStorage.getItem(TOKEN_KEY);
+  console.log('🔍 Checking authentication:', { 
+    hasToken: !!token, 
+    tokenLength: token?.length,
+    isExpired: token ? isTokenExpired() : 'no token'
+  });
+  
   if (!token) return false;
   
   // Check if token is expired
   if (isTokenExpired()) {
-    console.log('Token is expired');
+    console.log('❌ Token is expired');
     return false;
   }
   
+  console.log('✅ User is authenticated');
   return true;
 };
 
@@ -356,15 +373,23 @@ export const getToken = (): string | null => {
 
 export const getCurrentUser = (): User | null => {
   const userDataString = localStorage.getItem(USER_KEY);
+  console.log('👤 Getting current user:', { 
+    hasUserData: !!userDataString,
+    dataLength: userDataString?.length 
+  });
+  
   if (userDataString) {
     try {
-      return JSON.parse(userDataString);
+      const user = JSON.parse(userDataString);
+      console.log('👤 Parsed user data:', user);
+      return user;
     } catch (error) {
-      console.error('Error parsing user data:', error);
+      console.error('❌ Error parsing user data:', error);
       localStorage.removeItem(USER_KEY);
       return null;
     }
   }
+  console.log('❌ No user data found');
   return null;
 };
 

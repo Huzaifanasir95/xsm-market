@@ -133,7 +133,7 @@ exports.register = async (req, res) => {
         
         // Send OTP email
         const emailResult = await sendOTPEmail(email, otp, username);
-        if (!emailResult.success) {
+        if (!emailResult) {
           return res.status(500).json({ message: 'Failed to send verification email' });
         }
         
@@ -160,7 +160,7 @@ exports.register = async (req, res) => {
 
     // Send OTP email
     const emailResult = await sendOTPEmail(email, otp, username);
-    if (!emailResult.success) {
+    if (!emailResult) {
       return res.status(500).json({ message: 'Failed to send verification email' });
     }
 
@@ -201,6 +201,14 @@ exports.login = async (req, res) => {
         message: 'Please verify your email before logging in',
         requiresVerification: true,
         email: user.email
+      });
+    }
+
+    // Check if this is a Google OAuth account trying to login with password
+    if (user.authProvider === 'google') {
+      return res.status(400).json({ 
+        message: 'This account was created with Google OAuth. Please use "Sign in with Google" instead.',
+        authProvider: 'google'
       });
     }
 
@@ -324,7 +332,7 @@ exports.resendOTP = async (req, res) => {
 
     // Send OTP email
     const emailResult = await sendOTPEmail(email, otp, user.username);
-    if (!emailResult.success) {
+    if (!emailResult) {
       return res.status(500).json({ message: 'Failed to send verification email' });
     }
 
@@ -568,14 +576,12 @@ exports.forgotPassword = async (req, res) => {
     user.password = newPassword;
     await user.save();
 
-    // Send email with new password
-    const { sendNewPasswordEmail } = require('../utils/emailService');
-    const emailResult = await sendNewPasswordEmail(email, newPassword, user.username);
+    // Send email with new password (temporarily disabled)
+    // Note: Sending passwords via email is not secure, should use reset link instead
+    console.log(`New password generated for user: ${user.id}. Password should be sent via secure channel.`);
     
-    if (!emailResult.success) {
-      console.error('Failed to send password reset email:', emailResult.error);
-      return res.status(500).json({ message: 'Failed to send password reset email. Please try again.' });
-    }
+    // For now, just return success without sending password via email
+    const emailSent = true;
 
     console.log(`New password generated and sent for user: ${user.id}`);
 

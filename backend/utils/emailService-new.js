@@ -7,7 +7,7 @@ const createTransporter = () => {
     throw new Error('Email credentials not configured');
   }
   
-  return nodemailer.createTransport({
+  return nodemailer.createTransporter({
     service: 'gmail',
     auth: {
       user: process.env.GMAIL_USER, // Your Gmail address

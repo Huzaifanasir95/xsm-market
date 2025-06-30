@@ -22,6 +22,7 @@ interface ChannelData {
   views: number;
   thumbnail: string;
   seller: {
+    id: number;
     name: string;
     rating: number;
     sales: number;
@@ -48,6 +49,14 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [incomeRange, setIncomeRange] = useState({ min: '', max: '' });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // Add debug logging
+  console.log('🏠 Home component rendering, isLoggedIn:', isLoggedIn);
+
+  // Add error boundary fallback
+  if (!setCurrentPage) {
+    return <div className="text-white p-4">Error: Missing setCurrentPage prop</div>;
+  }
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -79,7 +88,10 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   useEffect(() => {
     const fetchAds = async () => {
       try {
+        console.log('🔄 Fetching ads...');
         const response = await getAllAds();
+        console.log('📡 Ads response:', response);
+        
         if (response && response.ads) {
           // Transform API data to match ChannelData interface
           const transformedAds = response.ads.map((ad: any) => ({
@@ -101,23 +113,24 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
               sales: Math.floor(Math.random() * 20) + 1
             }
           }));
+          console.log('✅ Transformed ads:', transformedAds.length);
           setChannels(transformedAds);
           setFilteredChannels(transformedAds);
         } else {
           // Fallback to mock data if API fails
-          console.warn('No ads found, using mock data');
+          console.warn('⚠️ No ads found, using empty arrays');
           setChannels([]);
           setFilteredChannels([]);
         }
       } catch (error) {
-        console.error('Failed to fetch ads:', error);
+        console.error('❌ Failed to fetch ads:', error);
         // Show a toast notification
         toast({
           title: "Error",
           description: "Failed to load channels. Please try again later.",
           variant: "destructive",
         });
-        // Set empty arrays instead of mock data
+        // Set empty arrays instead of crashing
         setChannels([]);
         setFilteredChannels([]);
       }
@@ -219,7 +232,12 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
       rating: item.rating || 0,
       views: item.views || item.totalViews || 0,
       thumbnail: item.thumbnail || '',
-      seller: item.seller || { name: 'Unknown', rating: 0, sales: 0 }
+      seller: {
+        id: item.seller?.id || 0,
+        name: item.seller?.username || item.seller?.name || 'Unknown',
+        rating: item.seller?.rating || 0,
+        sales: item.seller?.sales || 0
+      }
     };
     
     setSelectedChannel(channelData);
@@ -609,7 +627,10 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
           {/* Main Content */}
           <div className="w-full">
             {/* Ad List - Using real database data */}
-            <AdList onShowMore={handleShowMore} />
+            <AdList 
+              onShowMore={handleShowMore} 
+              onNavigateToChat={() => setCurrentPage && setCurrentPage('chat')}
+            />
           </div>
         </div>
         
@@ -618,6 +639,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
           channel={selectedChannel}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
+          onNavigateToChat={() => setCurrentPage && setCurrentPage('chat')}
         />
         
         {/* Fixed back to top button */}

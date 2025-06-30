@@ -25,25 +25,40 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
     setError('');
     setIsLoading(true);
 
+    console.log('🚀 Starting login process...');
+
     try {
       const response = await login(email, password);
+      console.log('📡 Login response:', response);
       
       if (response.user) {
+        console.log('✅ Login successful, setting auth state...');
         setIsLoggedIn(true);
         setUser(response.user);
         toast({
           title: "Success!",
           description: "You have successfully logged in.",
         });
+        console.log('🏠 Redirecting to home page...');
         setCurrentPage('home');
       } else {
         throw new Error('Login succeeded but user data is missing');
       }
     } catch (err) {
+      console.error('❌ Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to login';
       
+      // Check if it's a Google OAuth account error
+      if (errorMessage.includes('Google OAuth')) {
+        setError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: "Account Created with Google",
+          description: "This account was created with Google OAuth. Please use 'Sign in with Google' instead.",
+        });
+      }
       // Check if it's an email verification error
-      if (errorMessage.includes('verify your email')) {
+      else if (errorMessage.includes('verify your email')) {
         setError(errorMessage);
         toast({
           variant: "destructive",

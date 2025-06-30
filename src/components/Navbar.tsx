@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, User, PlusCircle, LogOut, Settings, Heart, Star } from 'lucide-react';
+import { Menu, X, User, PlusCircle, LogOut, Settings, Heart, Star, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { logout } from '@/services/auth';
 import AuthWidget from './AuthWidget';
@@ -105,8 +105,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
             </div>
 
             {/* Desktop Navigation on right */}
-            <div className="hidden md:flex items-center space-x-8">
-
+            <div className="hidden md:flex items-center space-x-4">
+              {/* Chat Button - only show for logged in users */}
               {/* Profile Dropdown or Login Button */}
               {isLoggedIn ? (
                 <DropdownMenu>
@@ -128,6 +128,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                       <User className="w-4 h-4 mr-2" />
                       Profile
                     </DropdownMenuItem>
+                    {/* Chat option in dropdown for mobile fallback */}
                     <DropdownMenuItem onClick={handleLogout} className="text-white hover:text-xsm-yellow cursor-pointer">
                       <LogOut className="w-4 h-4 mr-2" />
                       Logout

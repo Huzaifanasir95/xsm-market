@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
 import { X, Star, Users, Eye, DollarSign, Shield, MessageCircle, CreditCard } from 'lucide-react';
+import { API_URL } from '@/services/auth';
+import { useAuth } from '@/context/useAuth';
 
 interface ChannelData {
   id: string;
@@ -16,6 +18,7 @@ interface ChannelData {
   views: number;
   thumbnail: string;
   seller: {
+    id: number;
     name: string;
     rating: number;
     sales: number;
@@ -26,10 +29,13 @@ interface ChannelModalProps {
   channel: ChannelData | null;
   isOpen: boolean;
   onClose: () => void;
+  onNavigateToChat?: () => void;
 }
 
-const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose }) => {
+const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, onNavigateToChat }) => {
+  const { user, isLoggedIn } = useAuth();
   const [showPayment, setShowPayment] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [paymentData, setPaymentData] = useState({
     cardNumber: '',
     expiryDate: '',
@@ -66,8 +72,77 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose })
     onClose();
   };
 
-  const handleContact = () => {
-    alert('Chat feature coming soon! You can contact the seller through our secure messaging system.');
+  const handleContact = async () => {
+    if (!isLoggedIn || !user) {
+      alert('Please log in to contact the seller');
+      return;
+    }
+
+    if (String(user.id) === String(channel.seller.id)) {
+      alert("You can't contact yourself");
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      const token = localStorage.getItem('token');
+      
+      // First, check if a chat already exists with this seller
+      const checkChatResponse = await fetch(`${API_URL}/chat/check-existing`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          sellerId: channel.seller.id,
+          adId: channel.id
+        })
+      });
+
+      const checkResult = await checkChatResponse.json();
+      
+      if (checkResult.exists) {
+        // Chat exists, just navigate to it
+        onClose(); // Close the modal first
+        if (onNavigateToChat) {
+          onNavigateToChat();
+        }
+        return;
+      }
+
+      // No existing chat, create a new one with initial message
+      const response = await fetch(`${API_URL}/chat/ad-inquiry`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          adId: channel.id,
+          sellerId: channel.seller.id,
+          message: `Hi, I'm interested in your channel: ${channel.name}`,
+          sellerName: channel.seller.name
+        })
+      });
+
+      const chat = await response.json();
+      
+      if (response.ok) {
+        onClose(); // Close the modal first
+        // Navigate to chat page
+        if (onNavigateToChat) {
+          onNavigateToChat();
+        }
+      } else {
+        alert(chat.message || 'Failed to create chat');
+      }
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      alert('Failed to create chat');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -146,10 +221,11 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose })
                     </div>
                     <button 
                       onClick={handleContact}
-                      className="xsm-button-secondary flex items-center space-x-2"
+                      disabled={isCreating}
+                      className="xsm-button-secondary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <MessageCircle className="w-4 h-4" />
-                      <span>Contact</span>
+                      <span>{isCreating ? 'Connecting...' : 'Contact'}</span>
                     </button>
                   </div>
                 </div>

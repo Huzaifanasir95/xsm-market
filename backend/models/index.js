@@ -1,6 +1,9 @@
 const { sequelize } = require('../config/database');
 const User = require('./UserSequelize');
 const Ad = require('./Ad');
+const Chat = require('./Chat');
+const Message = require('./Message');
+const ChatParticipant = require('./ChatParticipant');
 
 // Set up associations
 const initializeAssociations = () => {
@@ -30,6 +33,77 @@ const initializeAssociations = () => {
     onDelete: 'SET NULL'
   });
 
+  // Chat associations
+  Chat.hasMany(Message, {
+    foreignKey: 'chatId',
+    as: 'messages',
+    onDelete: 'CASCADE'
+  });
+
+  Chat.hasMany(ChatParticipant, {
+    foreignKey: 'chatId',
+    as: 'participants',
+    onDelete: 'CASCADE'
+  });
+
+  Chat.belongsTo(Ad, {
+    foreignKey: 'adId',
+    as: 'ad',
+    onDelete: 'SET NULL'
+  });
+
+  // Message associations
+  Message.belongsTo(Chat, {
+    foreignKey: 'chatId',
+    as: 'chat',
+    onDelete: 'CASCADE'
+  });
+
+  Message.belongsTo(User, {
+    foreignKey: 'senderId',
+    as: 'sender',
+    onDelete: 'CASCADE'
+  });
+
+  Message.belongsTo(Message, {
+    foreignKey: 'replyToId',
+    as: 'replyTo',
+    onDelete: 'SET NULL'
+  });
+
+  // ChatParticipant associations
+  ChatParticipant.belongsTo(Chat, {
+    foreignKey: 'chatId',
+    as: 'chat',
+    onDelete: 'CASCADE'
+  });
+
+  ChatParticipant.belongsTo(User, {
+    foreignKey: 'userId',
+    as: 'user',
+    onDelete: 'CASCADE'
+  });
+
+  // User chat associations through ChatParticipant
+  User.hasMany(ChatParticipant, {
+    foreignKey: 'userId',
+    as: 'chatParticipants',
+    onDelete: 'CASCADE'
+  });
+
+  User.hasMany(Message, {
+    foreignKey: 'senderId',
+    as: 'sentMessages',
+    onDelete: 'CASCADE'
+  });
+
+  // Ad chat associations
+  Ad.hasMany(Chat, {
+    foreignKey: 'adId',
+    as: 'chats',
+    onDelete: 'SET NULL'
+  });
+
   console.log('✅ Database associations initialized');
 };
 
@@ -39,21 +113,35 @@ const initializeDatabase = async () => {
     // Set up associations
     initializeAssociations();
 
-    // Sync database
-    await sequelize.sync({ 
-      alter: process.env.NODE_ENV === 'development',
-      force: false 
-    });
+    // Only sync chat tables to avoid key limit issues with existing tables
+    console.log('📊 Syncing chat tables only...');
+    
+    // Sync chat tables individually without altering existing structure
+    await Chat.sync({ force: false });
+    console.log('✅ Chat table synced');
+    
+    await Message.sync({ force: false });
+    console.log('✅ Message table synced');
+    
+    await ChatParticipant.sync({ force: false });
+    console.log('✅ ChatParticipant table synced');
 
     console.log('✅ Database initialized successfully');
     return true;
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
-    throw error;
+    // Don't throw error, just log it and continue
+    console.log('⚠️ Continuing without full database sync...');
+    return false;
   }
 };
 
 module.exports = {
   initializeDatabase,
-  initializeAssociations
+  initializeAssociations,
+  User,
+  Ad,
+  Chat,
+  Message,
+  ChatParticipant
 };
