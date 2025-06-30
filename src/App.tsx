@@ -110,7 +110,6 @@ const AppContent: React.FC = () => {
             <button onClick={() => setCurrentPage('contact')} className="hover:text-xsm-yellow transition-colors">Contact</button>
             <button onClick={() => setCurrentPage('terms')} className="hover:text-xsm-yellow transition-colors">Terms of Service</button>
             <button onClick={() => setCurrentPage('privacy')} className="hover:text-xsm-yellow transition-colors">Privacy Policy</button>
-            <button onClick={() => setCurrentPage('about')} className="hover:text-xsm-yellow transition-colors">FAQ</button>
           </div>
           
           {/* Copyright */}

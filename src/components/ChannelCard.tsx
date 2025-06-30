@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Play, Users, DollarSign, Eye, Star } from 'lucide-react';
+import { Play, Users, Star } from 'lucide-react';
 
 interface ChannelData {
   id: string;
@@ -82,29 +81,17 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
           {channel.name}
         </h3>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="flex flex-col space-y-2">
+          {/* Subscribers only */}
           <div className="flex items-center space-x-2 text-xsm-light-gray">
             <Users className="w-4 h-4" />
             <span>{formatNumber(channel.subscribers)} subs</span>
           </div>
-          <div className="flex items-center space-x-2 text-xsm-light-gray">
-            <Eye className="w-4 h-4" />
-            <span>{formatNumber(channel.views)} views</span>
-          </div>
-        </div>
 
-        {/* Price and Income */}
-        <div className="flex justify-between items-center">
+          {/* Price */}
           <div className="text-2xl font-bold text-xsm-yellow">
             {formatPrice(channel.price)}
           </div>
-          {channel.monthlyIncome && (
-            <div className="text-sm text-green-400 flex items-center space-x-1">
-              <DollarSign className="w-4 h-4" />
-              <span>{formatPrice(channel.monthlyIncome)}/mo</span>
-            </div>
-          )}
         </div>
 
         {/* Seller Info */}

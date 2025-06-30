@@ -38,7 +38,6 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
     isMonetized: false,
     contentCategory: '',
     subscribers: '',
-    monthlyIncome: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,7 +96,6 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         description: formData.description || '',
         price: parseFloat(formData.price) || 0,
         subscribers: formData.subscribers ? parseInt(formData.subscribers) : 0,
-        monthlyIncome: formData.monthlyIncome ? parseFloat(formData.monthlyIncome) : 0,
         isMonetized: Boolean(formData.isMonetized),
         incomeDetails: formData.incomeDetails || '',
         promotionDetails: formData.promotionDetails || '',
@@ -125,7 +123,6 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         isMonetized: false,
         contentCategory: '',
         subscribers: '',
-        monthlyIncome: '',
       });
       setFiles([]);
 
@@ -247,19 +244,6 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
                 onChange={handleInputChange}
                 className="xsm-input w-full"
                 placeholder="Number of subscribers/followers (optional)"
-              />
-            </div>
-
-            {/* Monthly Income Input */}
-            <div>
-              <input
-                type="number"
-                name="monthlyIncome"
-                value={formData.monthlyIncome}
-                onChange={handleInputChange}
-                className="xsm-input w-full"
-                placeholder="Monthly income in $ (optional)"
-                step="0.01"
               />
             </div>
 
@@ -386,8 +370,6 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
                   placeholder="Ways of Promotion"
                 />
               </div>
-
-              {/* No additional fields needed here */}
 
               {/* Screenshot Upload */}
               <div className="mt-6">
