@@ -22,6 +22,7 @@ import Verify from './pages/Verify';
 import EmailVerify from './pages/EmailVerify';
 import ForgotPassword from './pages/ForgotPassword';
 import AdminDashboard from './pages/AdminDashboard';
+import Contact from './pages/Contact';
 
 // Inner component that has access to AuthContext
 const AppContent: React.FC = () => {
@@ -55,6 +56,8 @@ const AppContent: React.FC = () => {
         return <Profile setCurrentPage={setCurrentPage} />;
       case 'about':
         return <About />;
+      case 'contact':
+        return <Contact setCurrentPage={setCurrentPage} />;
       case 'terms':
         return <Terms />;
       case 'privacy':

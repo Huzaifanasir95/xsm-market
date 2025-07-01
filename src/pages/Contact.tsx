@@ -2,7 +2,11 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageCircle, Clock } from 'lucide-react';
 
-const Contact: React.FC = () => {
+interface ContactProps {
+  setCurrentPage: (page: string) => void;
+}
+
+const Contact: React.FC<ContactProps> = ({ setCurrentPage }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -121,24 +125,13 @@ const Contact: React.FC = () => {
 
             <div className="xsm-card">
               <h3 className="text-xl font-bold text-xsm-yellow mb-4">Quick Help</h3>
-              <div className="space-y-3">
+              <div>
                 <button className="w-full text-left p-3 bg-xsm-black/50 rounded-lg hover:bg-xsm-medium-gray transition-colors">
                   <div className="flex items-center space-x-3">
                     <MessageCircle className="w-5 h-5 text-xsm-yellow" />
                     <div>
                       <div className="text-white font-medium">Live Chat</div>
                       <div className="text-xs text-xsm-light-gray">Get instant help</div>
-                    </div>
-                  </div>
-                </button>
-                <button className="w-full text-left p-3 bg-xsm-black/50 rounded-lg hover:bg-xsm-medium-gray transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-5 h-5 bg-xsm-yellow rounded text-xsm-black text-xs font-bold flex items-center justify-center">
-                      ?
-                    </div>
-                    <div>
-                      <div className="text-white font-medium">FAQ</div>
-                      <div className="text-xs text-xsm-light-gray">Common questions</div>
                     </div>
                   </div>
                 </button>
@@ -261,42 +254,6 @@ const Contact: React.FC = () => {
           </div>
         </div>
 
-        {/* Additional Resources */}
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold text-xsm-yellow mb-8 text-center">Additional Resources</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="xsm-card text-center">
-              <div className="w-12 h-12 bg-xsm-yellow rounded-full mx-auto mb-4 flex items-center justify-center">
-                <div className="text-xsm-black font-bold">?</div>
-              </div>
-              <h3 className="text-white font-semibold mb-2">Help Center</h3>
-              <p className="text-xsm-light-gray text-sm mb-4">
-                Browse our comprehensive help articles and tutorials
-              </p>
-              <button className="xsm-button-secondary text-sm">Visit Help Center</button>
-            </div>
-            <div className="xsm-card text-center">
-              <div className="w-12 h-12 bg-xsm-yellow rounded-full mx-auto mb-4 flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-xsm-black" />
-              </div>
-              <h3 className="text-white font-semibold mb-2">Community Forum</h3>
-              <p className="text-xsm-light-gray text-sm mb-4">
-                Connect with other users and share experiences
-              </p>
-              <button className="xsm-button-secondary text-sm">Join Community</button>
-            </div>
-            <div className="xsm-card text-center">
-              <div className="w-12 h-12 bg-xsm-yellow rounded-full mx-auto mb-4 flex items-center justify-center">
-                <div className="text-xsm-black font-bold">!</div>
-              </div>
-              <h3 className="text-white font-semibold mb-2">Status Page</h3>
-              <p className="text-xsm-light-gray text-sm mb-4">
-                Check our platform status and scheduled maintenance
-              </p>
-              <button className="xsm-button-secondary text-sm">View Status</button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
