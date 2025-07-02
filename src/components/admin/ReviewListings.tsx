@@ -7,6 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getAllAds } from '@/services/ads';
 
 interface Listing {
   id: string;
@@ -24,54 +25,35 @@ const ReviewListings: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - replace with actual API call later
-  const listings: Listing[] = [
-    {
-      id: '1',
-      title: 'Gaming PC Setup',
-      seller: 'John Doe',
-      price: '$1,200',
-      category: 'Electronics',
-      status: 'pending',
-      createdAt: '2025-06-29',
-      reportCount: 0,
-      thumbnail: '/images/placeholder.svg'
-    },
-    {
-      id: '2',
-      title: 'Vintage Watch Collection',
-      seller: 'Jane Smith',
-      price: '$850',
-      category: 'Collectibles',
-      status: 'reported',
-      createdAt: '2025-06-28',
-      reportCount: 3,
-      thumbnail: '/images/placeholder.svg'
-    },
-    {
-      id: '3',
-      title: 'Mountain Bike',
-      seller: 'Mike Johnson',
-      price: '$450',
-      category: 'Sports',
-      status: 'active',
-      createdAt: '2025-06-27',
-      reportCount: 0,
-      thumbnail: '/images/placeholder.svg'
-    },
-    {
-      id: '4',
-      title: 'Designer Handbag',
-      seller: 'Sarah Wilson',
-      price: '$380',
-      category: 'Fashion',
-      status: 'rejected',
-      createdAt: '2025-06-26',
-      reportCount: 1,
-      thumbnail: '/images/placeholder.svg'
-    }
-  ];
+  React.useEffect(() => {
+    setLoading(true);
+    setError(null);
+    getAllAds()
+      .then((data) => {
+        // Map backend ads to Listing interface
+        const mapped = (data.ads || []).map(ad => ({
+          id: ad.id,
+          title: ad.title,
+          seller: ad.seller?.username || 'Unknown',
+          price: ad.price ? `$${ad.price}` : '',
+          category: ad.category || 'Other',
+          status: ad.status || 'active',
+          createdAt: ad.createdAt ? ad.createdAt.split('T')[0] : '',
+          reportCount: ad.reportCount || 0,
+          thumbnail: ad.thumbnail || '/images/placeholder.svg',
+        }));
+        setListings(mapped);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to fetch listings');
+        setLoading(false);
+      });
+  }, []);
 
   const categories = ['Electronics', 'Collectibles', 'Sports', 'Fashion', 'Home', 'Other'];
 
@@ -149,6 +131,11 @@ const ReviewListings: React.FC = () => {
         </div>
 
         {/* Listings Grid */}
+        {loading ? (
+          <div className="text-center text-xsm-light-gray py-8">Loading listings...</div>
+        ) : error ? (
+          <div className="text-center text-red-400 py-8">{error}</div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredListings.map((listing) => (
             <div key={listing.id} className="bg-xsm-dark-gray rounded-xl border border-xsm-medium-gray overflow-hidden">
@@ -224,6 +211,7 @@ const ReviewListings: React.FC = () => {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );
