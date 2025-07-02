@@ -2,6 +2,9 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageCircle, Clock } from 'lucide-react';
 
+// API URL configuration
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 interface ContactProps {
   setCurrentPage: (page: string) => void;
 }
@@ -33,22 +36,45 @@ const Contact: React.FC<ContactProps> = ({ setCurrentPage }) => {
   };
 
   const handleSubmit = async () => {
+    // Validate form
+    if (!formData.name || !formData.email || !formData.subject || !formData.category || !formData.message) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    alert('Message sent successfully! We\'ll get back to you within 24 hours.');
-    
-    // Reset form
-    setFormData({
-      name: '',
-      email: '',
-      subject: '',
-      category: '',
-      message: '',
-    });
-    setIsSubmitting(false);
+    try {
+      const response = await fetch(`${API_URL}/contact/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('Message sent successfully! We\'ll get back to you within 24 hours.');
+        
+        // Reset form
+        setFormData({
+          name: '',
+          email: '',
+          subject: '',
+          category: '',
+          message: '',
+        });
+      } else {
+        alert(result.message || 'Failed to send message. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('An error occurred while sending your message. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Auto-Extract Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid #444;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background: #333;
+            color: white;
+        }
+        button {
+            background: #ffd700;
+            color: black;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #ffed4e;
+        }
+        button:disabled {
+            background: #666;
+            color: #aaa;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+        }
+        .error {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .profile-pic {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 15px;
+            float: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Social Media Auto-Extract Demo</h1>
+        <p>Paste your social media URL and click "Extract Profile" to automatically fill in your listing details!</p>
+        
+        <input 
+            type="text" 
+            id="urlInput" 
+            placeholder="Paste your Instagram, YouTube, TikTok, Twitter, or Facebook URL here..."
+            value="https://instagram.com/nike"
+        >
+        
+        <button onclick="extractProfile()" id="extractBtn">Extract Profile</button>
+        
+        <div id="result" style="display: none;"></div>
+        
+        <div style="margin-top: 30px;">
+            <h3>📋 Auto-filled Form Data:</h3>
+            <input type="text" id="titleField" placeholder="Title (auto-filled)" readonly>
+            <input type="text" id="platformField" placeholder="Platform (auto-detected)" readonly>
+            <input type="text" id="followersField" placeholder="Followers/Subscribers (auto-filled)" readonly>
+        </div>
+    </div>
+
+    <script>
+        async function extractProfile() {
+            const url = document.getElementById('urlInput').value.trim();
+            const button = document.getElementById('extractBtn');
+            const result = document.getElementById('result');
+            
+            if (!url) {
+                showResult('Please enter a URL first', true);
+                return;
+            }
+            
+            // Show loading state
+            button.disabled = true;
+            button.textContent = 'Extracting...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/social-media/extract-profile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('Profile extracted successfully!', false);
+                    fillForm(data.data);
+                } else {
+                    showResult(`Extraction failed: ${data.message}`, true);
+                }
+                
+            } catch (error) {
+                showResult(`Error: ${error.message}`, true);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Extract Profile';
+            }
+        }
+        
+        function showResult(message, isError) {
+            const result = document.getElementById('result');
+            result.style.display = 'block';
+            result.className = isError ? 'result error' : 'result';
+            result.innerHTML = isError ? `❌ ${message}` : `✅ ${message}`;
+        }
+        
+        function fillForm(data) {
+            document.getElementById('titleField').value = data.title || 'N/A';
+            document.getElementById('platformField').value = (data.platform || 'unknown').toUpperCase();
+            document.getElementById('followersField').value = formatFollowers(data.followers || data.subscribers || 0);
+            
+            // Show profile picture if available
+            if (data.profilePicture) {
+                const result = document.getElementById('result');
+                result.innerHTML += `<br><img src="${data.profilePicture}" alt="Profile" class="profile-pic" onerror="this.style.display='none'">Profile picture extracted!`;
+            }
+        }
+        
+        function formatFollowers(count) {
+            if (count >= 1000000000) {
+                return `${(count / 1000000000).toFixed(1)}B followers`;
+            } else if (count >= 1000000) {
+                return `${(count / 1000000).toFixed(1)}M followers`;
+            } else if (count >= 1000) {
+                return `${(count / 1000).toFixed(1)}K followers`;
+            }
+            return count > 0 ? `${count} followers` : 'Followers not detected';
+        }
+    </script>
+</body>
+</html>
