@@ -462,7 +462,9 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   };
 
   const getRelativeTimeString = (dateString: string) => {
+    if (!dateString) return 'Join date unavailable';
     const joinDate = new Date(dateString);
+    if (isNaN(joinDate.getTime())) return 'Join date unavailable';
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - joinDate.getTime());
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
