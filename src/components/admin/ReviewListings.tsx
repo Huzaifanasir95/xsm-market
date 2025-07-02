@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, MoreVertical, CheckCircle, XCircle, AlertCircle, Eye, MessageCircle, Flag, Ban, Trash } from 'lucide-react';
+import { Search, Filter, MoreVertical, CheckCircle, XCircle, AlertCircle, Eye, MessageCircle, Flag, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getAllAds } from '@/services/ads';
+import { getAllAds, deleteAd } from '@/services/ads';
 
 interface Listing {
   id: string;
@@ -28,6 +28,8 @@ const ReviewListings: React.FC = () => {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   React.useEffect(() => {
     setLoading(true);
@@ -88,6 +90,19 @@ const ReviewListings: React.FC = () => {
         return 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20';
       default:
         return 'bg-blue-400/10 text-blue-400 border-blue-400/20';
+    }
+  };
+
+  // Handle delete listing
+  const handleDeleteListing = async (listingId: string) => {
+    if (!window.confirm('Are you sure you want to delete this listing? This action cannot be undone.')) return;
+    try {
+      await deleteAd(listingId);
+      setListings(prev => prev.filter(l => l.id !== listingId));
+      setShowModal(false);
+      alert('Listing deleted successfully!');
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete listing');
     }
   };
 
@@ -179,28 +194,11 @@ const ReviewListings: React.FC = () => {
                       <MoreVertical className="h-5 w-5 text-xsm-light-gray" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
+                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer" onClick={() => { setSelectedListing(listing); setShowModal(true); }}>
                         <Eye className="w-4 h-4 mr-2" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Reject
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                        <MessageCircle className="w-4 h-4 mr-2" />
-                        Contact Seller
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                        <Ban className="w-4 h-4 mr-2" />
-                        Block Listing
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-500 hover:text-red-400 cursor-pointer">
+                      <DropdownMenuItem className="text-red-500 hover:text-red-400 cursor-pointer" onClick={() => handleDeleteListing(listing.id)}>
                         <Trash className="w-4 h-4 mr-2" />
                         Delete Listing
                       </DropdownMenuItem>
@@ -213,6 +211,32 @@ const ReviewListings: React.FC = () => {
         </div>
         )}
       </div>
+
+      {/* Listing Details Modal */}
+      {showModal && selectedListing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div className="bg-xsm-dark-gray rounded-xl p-8 max-w-lg w-full relative">
+            <button className="absolute top-4 right-4 text-xsm-yellow hover:text-white" onClick={() => setShowModal(false)}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="mb-4">
+              <img src={selectedListing.thumbnail} alt={selectedListing.title} className="w-full h-48 object-cover rounded-lg" />
+            </div>
+            <h2 className="text-2xl font-bold text-xsm-yellow mb-2">{selectedListing.title}</h2>
+            <div className="mb-2 text-white"><span className="font-semibold">Seller:</span> {selectedListing.seller}</div>
+            <div className="mb-2 text-white"><span className="font-semibold">Price:</span> {selectedListing.price}</div>
+            <div className="mb-2 text-white"><span className="font-semibold">Category:</span> {selectedListing.category}</div>
+            <div className="mb-2 text-white"><span className="font-semibold">Status:</span> {selectedListing.status}</div>
+            <div className="mb-2 text-white"><span className="font-semibold">Created At:</span> {selectedListing.createdAt}</div>
+            <div className="mb-2 text-white"><span className="font-semibold">Report Count:</span> {selectedListing.reportCount}</div>
+            <button className="mt-4 w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-semibold" onClick={() => handleDeleteListing(selectedListing.id)}>
+              Delete Listing
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

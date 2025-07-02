@@ -181,6 +181,22 @@ exports.getAllChats = async (req, res) => {
   }
 };
 
+// Delete chat (admin only)
+exports.deleteChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const chat = await Chat.findByPk(chatId);
+    if (!chat) {
+      return res.status(404).json({ message: 'Chat not found' });
+    }
+    await chat.destroy();
+    res.status(200).json({ message: 'Chat deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting chat:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 exports.getDashboardStats = async (req, res) => {
   try {
     const totalUsers = await User.count();
@@ -241,6 +257,7 @@ module.exports = {
   updateUserStatus: exports.updateUserStatus,
   deleteUser: exports.deleteUser,
   getAllChats: exports.getAllChats,
+  deleteChat: exports.deleteChat,
   getDashboardStats: exports.getDashboardStats,
   getRecentActivities: exports.getRecentActivities
 };
