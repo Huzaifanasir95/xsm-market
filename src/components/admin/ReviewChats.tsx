@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getAllChats } from '@/services/admin';
 
 interface Participant {
   id: string;
@@ -20,75 +21,26 @@ interface Chat {
   lastMessageTime: string;
 }
 
-// Dummy data for demonstration
-const dummyChats: Chat[] = [
-  {
-    id: '1',
-    participants: [
-      { id: '1', username: 'John Doe' },
-      { id: '2', username: 'Jane Smith' }
-    ],
-    messages: [
-      {
-        id: '1',
-        content: 'Hey, I\'m interested in your listing',
-        sender: 'John Doe',
-        timestamp: '2025-07-02T10:00:00'
-      },
-      {
-        id: '2',
-        content: 'Sure! What would you like to know?',
-        sender: 'Jane Smith',
-        timestamp: '2025-07-02T10:05:00'
-      },
-      {
-        id: '3',
-        content: 'Is it still available?',
-        sender: 'John Doe',
-        timestamp: '2025-07-02T10:07:00'
-      }
-    ],
-    lastMessage: 'Is it still available?',
-    lastMessageTime: '2025-07-02T10:07:00'
-  },
-  {
-    id: '2',
-    participants: [
-      { id: '3', username: 'Mike Johnson' },
-      { id: '4', username: 'Sarah Wilson' }
-    ],
-    messages: [
-      {
-        id: '4',
-        content: 'What\'s the best price you can offer?',
-        sender: 'Mike Johnson',
-        timestamp: '2025-07-02T09:30:00'
-      },
-      {
-        id: '5',
-        content: 'I can do 15% off the listed price',
-        sender: 'Sarah Wilson',
-        timestamp: '2025-07-02T09:35:00'
-      }
-    ],
-    lastMessage: 'I can do 15% off the listed price',
-    lastMessageTime: '2025-07-02T09:35:00'
-  }
-];
-
 const ReviewChats: React.FC = () => {
-  const [chats, setChats] = useState<Chat[]>(dummyChats);
+  const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate loading
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    setError(null);
+    getAllChats()
+      .then((data) => {
+        setChats(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to fetch chats');
+        setLoading(false);
+      });
   }, []);
 
   const formatDate = (dateString: string) => {
@@ -100,6 +52,12 @@ const ReviewChats: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-xsm-yellow"></div>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 text-red-400">{error}</div>
     );
   }
 

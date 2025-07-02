@@ -22,5 +22,6 @@ router.get('/users', adminController.getAllUsers);
 router.get('/users/:userId', adminController.getUserById);
 router.put('/users/:userId/status', adminController.updateUserStatus);
 router.delete('/users/:userId', adminController.deleteUser);
+router.get('/chats', adminController.getAllChats);
 
 module.exports = router;

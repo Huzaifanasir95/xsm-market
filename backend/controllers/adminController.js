@@ -1,5 +1,6 @@
 const User = require('../models/UserSequelize');
 const { Op } = require('sequelize');
+const { Chat, ChatParticipant, Message } = require('../models');
 
 // Get all users for admin
 exports.getAllUsers = async (req, res) => {
@@ -127,9 +128,62 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
+// Get all chats for admin review
+exports.getAllChats = async (req, res) => {
+  try {
+    const chats = await Chat.findAll({
+      include: [
+        {
+          model: ChatParticipant,
+          as: 'participants',
+          include: [{
+            model: User,
+            as: 'user',
+            attributes: ['id', 'username']
+          }]
+        },
+        {
+          model: Message,
+          as: 'messages',
+          order: [['createdAt', 'ASC']],
+          include: [{
+            model: User,
+            as: 'sender',
+            attributes: ['id', 'username']
+          }]
+        }
+      ],
+      order: [['lastMessageTime', 'DESC']]
+    });
+
+    // Transform for frontend
+    const result = chats.map(chat => ({
+      id: chat.id,
+      participants: (chat.participants || []).map(p => ({
+        id: p.user?.id,
+        username: p.user?.username
+      })),
+      messages: (chat.messages || []).map(m => ({
+        id: m.id,
+        content: m.content,
+        sender: m.sender?.username,
+        timestamp: m.createdAt
+      })),
+      lastMessage: chat.lastMessage,
+      lastMessageTime: chat.lastMessageTime
+    }));
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error fetching all chats for admin:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers: exports.getAllUsers,
   getUserById: exports.getUserById,
   updateUserStatus: exports.updateUserStatus,
-  deleteUser: exports.deleteUser
+  deleteUser: exports.deleteUser,
+  getAllChats: exports.getAllChats
 };
