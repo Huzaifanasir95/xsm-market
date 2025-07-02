@@ -7,6 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getAllUsers } from '@/services/admin';
 
 interface UserData {
   id: string;
@@ -21,46 +22,23 @@ interface UserData {
 const ManageUsers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - replace with actual API call later
-  const users: UserData[] = [
-    {
-      id: '1',
-      username: 'John Doe',
-      email: 'john@example.com',
-      status: 'active',
-      role: 'user',
-      joinDate: '2025-01-15',
-      lastActive: '2025-06-30'
-    },
-    {
-      id: '2',
-      username: 'Jane Smith',
-      email: 'jane@example.com',
-      status: 'active',
-      role: 'admin',
-      joinDate: '2024-12-01',
-      lastActive: '2025-06-29'
-    },
-    {
-      id: '3',
-      username: 'Mike Johnson',
-      email: 'mike@example.com',
-      status: 'suspended',
-      role: 'user',
-      joinDate: '2025-03-20',
-      lastActive: '2025-06-15'
-    },
-    {
-      id: '4',
-      username: 'Sarah Wilson',
-      email: 'sarah@example.com',
-      status: 'pending',
-      role: 'user',
-      joinDate: '2025-06-28',
-      lastActive: '2025-06-28'
-    }
-  ];
+  React.useEffect(() => {
+    setLoading(true);
+    setError(null);
+    getAllUsers()
+      .then((data) => {
+        setUsers(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to fetch users');
+        setLoading(false);
+      });
+  }, []);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -114,6 +92,11 @@ const ManageUsers: React.FC = () => {
         </div>
 
         {/* Users Table */}
+        {loading ? (
+          <div className="text-center text-xsm-light-gray py-8">Loading users...</div>
+        ) : error ? (
+          <div className="text-center text-red-400 py-8">{error}</div>
+        ) : (
         <div className="bg-xsm-dark-gray rounded-xl border border-xsm-medium-gray overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-xsm-medium-gray">
@@ -193,6 +176,7 @@ const ManageUsers: React.FC = () => {
             </table>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
