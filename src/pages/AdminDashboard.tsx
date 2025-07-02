@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Activity, Users, ShoppingBag, Settings, Bell, Search, MessageSquare } from 'lucide-react';
 import ManageUsers from '@/components/admin/ManageUsers';
 import ReviewListings from '@/components/admin/ReviewListings';
 import ReviewChats from '@/components/admin/ReviewChats';
+import { getDashboardStats, getRecentActivities } from '@/services/admin';
 
 interface AdminDashboardProps {
   setCurrentPage: (page: string) => void;
@@ -10,19 +11,46 @@ interface AdminDashboardProps {
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
   const [activeView, setActiveView] = useState<string>('dashboard');
+  const [stats, setStats] = useState([
+    { title: 'Total Users', value: '-', icon: Users },
+    { title: 'Active Listings', value: '-', icon: ShoppingBag },
+    { title: 'Total Chats', value: '-', icon: Activity },
+  ]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [recentError, setRecentError] = useState<string | null>(null);
 
-  const stats = [
-    { title: 'Total Users', value: '1,234', icon: Users, change: '+12%' },
-    { title: 'Active Listings', value: '856', icon: ShoppingBag, change: '+23%' },
-    { title: 'Daily Activity', value: '92%', icon: Activity, change: '+5%' },
-  ];
-
-  const recentActivities = [
-    { user: 'John Doe', action: 'Created new listing', time: '2 minutes ago' },
-    { user: 'Jane Smith', action: 'Updated profile', time: '5 minutes ago' },
-    { user: 'Mike Johnson', action: 'Reported a listing', time: '10 minutes ago' },
-    { user: 'Sarah Wilson', action: 'New registration', time: '15 minutes ago' },
-  ];
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    getDashboardStats()
+      .then((data) => {
+        setStats([
+          { title: 'Total Users', value: data.totalUsers, icon: Users },
+          { title: 'Active Listings', value: data.totalListings, icon: ShoppingBag },
+          { title: 'Total Chats', value: data.totalChats, icon: Activity },
+        ]);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to fetch dashboard stats');
+        setLoading(false);
+      });
+    // Fetch recent activities
+    setRecentLoading(true);
+    setRecentError(null);
+    getRecentActivities()
+      .then((data) => {
+        setRecentActivities(data);
+        setRecentLoading(false);
+      })
+      .catch((err) => {
+        setRecentError(err.message || 'Failed to fetch recent activities');
+        setRecentLoading(false);
+      });
+  }, []);
 
   const renderContent = () => {
     switch (activeView) {
@@ -37,35 +65,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
           <>
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {stats.map((stat, index) => (
-                <div key={index} className="bg-xsm-dark-gray p-6 rounded-xl border border-xsm-medium-gray">
-                  <div className="flex items-center justify-between mb-4">
-                    <stat.icon className="h-8 w-8 text-xsm-yellow" />
-                    <span className="text-green-400">{stat.change}</span>
+              {loading ? (
+                <div className="col-span-3 text-center text-xsm-light-gray py-8">Loading statistics...</div>
+              ) : error ? (
+                <div className="col-span-3 text-center text-red-400 py-8">{error}</div>
+              ) : (
+                stats.map((stat, index) => (
+                  <div key={index} className="bg-xsm-dark-gray p-6 rounded-xl border border-xsm-medium-gray">
+                    <div className="flex items-center justify-between mb-4">
+                      <stat.icon className="h-8 w-8 text-xsm-yellow" />
+                    </div>
+                    <h3 className="text-lg text-xsm-light-gray mb-2">{stat.title}</h3>
+                    <p className="text-2xl font-bold">{stat.value}</p>
                   </div>
-                  <h3 className="text-lg text-xsm-light-gray mb-2">{stat.title}</h3>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* Recent Activity */}
             <div className="bg-xsm-dark-gray rounded-xl border border-xsm-medium-gray p-6">
               <h2 className="text-xl font-bold mb-6 text-xsm-yellow">Recent Activity</h2>
-              <div className="space-y-4">
-                {recentActivities.map((activity, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 hover:bg-xsm-medium-gray/50 rounded-lg transition-colors"
-                  >
-                    <div>
-                      <p className="font-medium">{activity.user}</p>
-                      <p className="text-sm text-xsm-light-gray">{activity.action}</p>
+              {recentLoading ? (
+                <div className="text-center text-xsm-light-gray py-8">Loading recent activity...</div>
+              ) : recentError ? (
+                <div className="text-center text-red-400 py-8">{recentError}</div>
+              ) : (
+                <div className="space-y-4">
+                  {recentActivities.map((activity, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 hover:bg-xsm-medium-gray/50 rounded-lg transition-colors"
+                    >
+                      <div>
+                        <p className="font-medium">{activity.user}</p>
+                        <p className="text-sm text-xsm-light-gray">{activity.action}</p>
+                      </div>
+                      <span className="text-sm text-xsm-light-gray">{new Date(activity.time).toLocaleString()}</span>
                     </div>
-                    <span className="text-sm text-xsm-light-gray">{activity.time}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Quick Actions */}

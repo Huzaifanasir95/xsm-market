@@ -44,4 +44,50 @@ export const getAllChats = async () => {
   }
 
   return await response.json();
+};
+
+// Fetch dashboard statistics (admin only)
+export const getDashboardStats = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${API_URL}/admin/dashboard-stats`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to fetch dashboard stats: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+// Fetch recent activities (admin only)
+export const getRecentActivities = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${API_URL}/admin/recent-activities`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to fetch recent activities: ${response.statusText}`);
+  }
+
+  return await response.json();
 }; 

@@ -1,6 +1,7 @@
 const User = require('../models/UserSequelize');
 const { Op } = require('sequelize');
 const { Chat, ChatParticipant, Message } = require('../models');
+const Ad = require('../models/Ad');
 
 // Get all users for admin
 exports.getAllUsers = async (req, res) => {
@@ -180,10 +181,66 @@ exports.getAllChats = async (req, res) => {
   }
 };
 
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const totalUsers = await User.count();
+    const totalListings = await Ad.count();
+    const totalChats = await Chat.count();
+    res.status(200).json({
+      totalUsers,
+      totalListings,
+      totalChats
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+exports.getRecentActivities = async (req, res) => {
+  try {
+    const users = await User.findAll({ order: [['createdAt', 'DESC']], limit: 5 });
+    const ads = await Ad.findAll({ order: [['createdAt', 'DESC']], limit: 5 });
+    const chats = await Chat.findAll({ order: [['createdAt', 'DESC']], limit: 5 });
+
+    // Map to unified activity format
+    const activities = [
+      ...users.map(u => ({
+        type: 'user',
+        user: u.username,
+        action: 'New registration',
+        time: u.createdAt
+      })),
+      ...ads.map(a => ({
+        type: 'listing',
+        user: a.sellerUsername || 'Unknown',
+        action: 'Created new listing',
+        time: a.createdAt
+      })),
+      ...chats.map(c => ({
+        type: 'chat',
+        user: c.id,
+        action: 'New chat started',
+        time: c.createdAt
+      }))
+    ];
+
+    // Sort by time descending and take top 10
+    activities.sort((a, b) => new Date(b.time) - new Date(a.time));
+    const recent = activities.slice(0, 10);
+    res.status(200).json(recent);
+  } catch (error) {
+    console.error('Error fetching recent activities:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers: exports.getAllUsers,
   getUserById: exports.getUserById,
   updateUserStatus: exports.updateUserStatus,
   deleteUser: exports.deleteUser,
-  getAllChats: exports.getAllChats
+  getAllChats: exports.getAllChats,
+  getDashboardStats: exports.getDashboardStats,
+  getRecentActivities: exports.getRecentActivities
 };
