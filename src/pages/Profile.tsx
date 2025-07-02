@@ -74,7 +74,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
     fullName: (user as ExtendedUser)?.fullName || '',
-    joinDate: (user as ExtendedUser)?.joinDate || '2025-01-15', // Keep the date format as is
+    joinDate: user?.createdAt || (user as ExtendedUser)?.joinDate || '',
     rating: 4.8,
     totalSales: 12,
     totalPurchases: 5,
@@ -97,7 +97,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         email: user.email,
         fullName: (user as any).fullName || '',
         profilePicture: user.profilePicture || '',
-        joinDate: (user as any)?.joinDate || prev.joinDate
+        joinDate: user.createdAt || (user as any)?.joinDate || prev.joinDate
       }));
     }
   }, [user]);

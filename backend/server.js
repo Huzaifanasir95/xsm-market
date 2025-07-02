@@ -10,6 +10,7 @@ const userRoutes = require('./routes/user');
 const adRoutes = require('./routes/ads');
 const chatRoutes = require('./routes/chat');
 const adminRoutes = require('./routes/admin');
+const path = require('path');
 
 // Load environment variables
 dotenv.config();
@@ -47,6 +48,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);

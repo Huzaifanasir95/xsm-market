@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, ChevronDown } from 'lucide-react';
-import { createAd } from '../services/ads';
+import { createAd, uploadAdImage } from '../services/ads';
 
 interface SellChannelProps {
   setCurrentPage?: (page: string) => void;
@@ -85,6 +85,12 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         platform = 'tiktok';
       }
 
+      // Upload images and get URLs
+      let screenshotUrls: string[] = [];
+      if (files.length > 0) {
+        screenshotUrls = await Promise.all(files.map(file => uploadAdImage(file)));
+      }
+
       // Prepare ad data with explicit null handling for ENUM fields
       const adData = {
         title: formData.title || `${platform.charAt(0).toUpperCase() + platform.slice(1)} Channel`,
@@ -99,7 +105,7 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         isMonetized: Boolean(formData.isMonetized),
         incomeDetails: formData.incomeDetails || '',
         promotionDetails: formData.promotionDetails || '',
-        screenshots: files.map(file => file.name), // This would need proper file upload handling
+        screenshots: screenshotUrls, // Use uploaded URLs
         tags: [] // Add empty tags array
       };
 

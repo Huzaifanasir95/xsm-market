@@ -11,6 +11,7 @@ export interface User {
   authProvider?: string;
   isEmailVerified?: boolean;
   isAdmin?: boolean;
+  createdAt?: string;
 }
 
 export interface AuthContextType {
