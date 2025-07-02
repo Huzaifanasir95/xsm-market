@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Activity, Users, ShoppingBag, Settings, Bell, Search } from 'lucide-react';
+import { Activity, Users, ShoppingBag, Settings, Bell, Search, MessageSquare } from 'lucide-react';
 import ManageUsers from '@/components/admin/ManageUsers';
 import ReviewListings from '@/components/admin/ReviewListings';
+import ReviewChats from '@/components/admin/ReviewChats';
 
 interface AdminDashboardProps {
   setCurrentPage: (page: string) => void;
@@ -29,6 +30,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
         return <ManageUsers />;
       case 'review-listings':
         return <ReviewListings />;
+      case 'review-chats':
+        return <ReviewChats />;
       default:
         return (
           <>
@@ -69,14 +72,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
             <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               { [
                 { name: 'Manage Users', view: 'manage-users' },
-                { name: 'Review Listings', view: 'review-listings' }
+                { name: 'Review Listings', view: 'review-listings' },
+                { name: 'Review Chats', view: 'review-chats', icon: MessageSquare }
               ].map((action, index) => (
                 <button
                   key={index}
                   onClick={() => setActiveView(action.view)}
-                  className="p-4 bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg hover:bg-xsm-medium-gray transition-colors text-left"
+                  className="p-4 bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg hover:bg-xsm-medium-gray transition-colors text-left flex items-center gap-2"
                 >
-                  {action.name}
+                  {action.icon && <action.icon className="h-5 w-5 text-xsm-yellow" />}
+                  <span>{action.name}</span>
                 </button>
               ))}
             </div>
