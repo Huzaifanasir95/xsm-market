@@ -26,6 +26,14 @@ interface ChannelCardProps {
   onShowMore: (channel: ChannelData) => void;
 }
 
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
+const getImageUrl = (url?: string) => {
+  if (url && url.startsWith('/uploads')) {
+    return BACKEND_URL + url;
+  }
+  return url || '/placeholder.svg';
+};
+
 const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -46,18 +54,18 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
         <div className="w-full h-48 bg-xsm-medium-gray rounded-lg flex items-center justify-center overflow-hidden">
           {(Array.isArray(channel.screenshots) && channel.screenshots.length > 0) ? (
             <img
-              src={channel.screenshots[0]}
+              src={getImageUrl(channel.screenshots[0])}
               alt={channel.name}
               className="w-full h-full object-cover"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.onerror = null;
-                target.src = channel.thumbnail || '/placeholder.svg';
+                target.src = getImageUrl(channel.thumbnail);
               }}
             />
           ) : channel.thumbnail ? (
             <img
-              src={channel.thumbnail}
+              src={getImageUrl(channel.thumbnail)}
               alt={channel.name}
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -81,13 +89,6 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
               VERIFIED
             </span>
           )}
-        </div>
-
-        {/* Category */}
-        <div className="absolute top-2 right-2">
-          <span className="bg-xsm-black/80 text-xsm-yellow px-2 py-1 rounded text-xs font-medium">
-            {channel.category}
-          </span>
         </div>
       </div>
 

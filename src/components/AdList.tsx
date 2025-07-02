@@ -52,6 +52,14 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
     sortOrder: 'DESC'
   });
 
+  const BACKEND_URL = import.meta.env.VITE_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
+  const getImageUrl = (url?: string) => {
+    if (url && url.startsWith('/uploads')) {
+      return BACKEND_URL + url;
+    }
+    return url || '/placeholder.svg';
+  };
+
   useEffect(() => {
     const fetchAds = async () => {
       try {
@@ -201,9 +209,9 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
               <div className="w-full h-full overflow-hidden">
                 <img 
                   src={
-                    (Array.isArray(ad.screenshots) && ad.screenshots.length > 0 && ad.screenshots[0])
-                      || ad.thumbnail
-                      || '/placeholder.svg'
+                    (Array.isArray(ad.screenshots) && ad.screenshots.length > 0)
+                      ? getImageUrl(ad.screenshots[0])
+                      : getImageUrl(ad.thumbnail)
                   }
                   alt={ad.title}
                   className="w-full h-full object-cover transition-all duration-500 ease-in-out group-hover:scale-105 group-hover/image:scale-110"
