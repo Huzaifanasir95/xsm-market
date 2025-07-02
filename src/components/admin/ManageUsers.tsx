@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getAllUsers } from '@/services/admin';
+import { getAllUsers, changeUserRole, deleteUser as deleteUserApi } from '@/services/admin';
 
 interface UserData {
   id: string;
@@ -60,6 +60,30 @@ const ManageUsers: React.FC = () => {
     }
   };
 
+  // Handle change role
+  const handleChangeRole = async (userId: string, currentRole: 'user' | 'admin') => {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    try {
+      await changeUserRole(userId, newRole);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      alert('User role updated successfully!');
+    } catch (err: any) {
+      alert(err.message || 'Failed to update user role');
+    }
+  };
+
+  // Handle delete user
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    try {
+      await deleteUserApi(userId);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      alert('User deleted successfully!');
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete user');
+    }
+  };
+
   return (
     <div className="p-6 bg-xsm-black min-h-screen">
       <div className="mb-8">
@@ -85,8 +109,6 @@ const ManageUsers: React.FC = () => {
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
-              <option value="pending">Pending</option>
             </select>
           </div>
         </div>
@@ -146,24 +168,7 @@ const ManageUsers: React.FC = () => {
                           <MoreVertical className="h-5 w-5 text-xsm-light-gray" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit User
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Mail className="w-4 h-4 mr-2" />
-                            Send Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Shield className="w-4 h-4 mr-2" />
-                            Change Role
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Ban className="w-4 h-4 mr-2" />
-                            Suspend User
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-500 hover:text-red-400 cursor-pointer">
+                          <DropdownMenuItem className="text-red-500 hover:text-red-400 cursor-pointer" onClick={() => handleDeleteUser(user.id)}>
                             <Trash className="w-4 h-4 mr-2" />
                             Delete User
                           </DropdownMenuItem>
