@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Upload, ChevronDown, Search, RefreshCw } from 'lucide-react';
 import { createAd } from '../services/ads';
 import { extractProfileData, detectPlatform, formatFollowerCount } from '../services/socialMedia';
+import { useToast } from "@/components/ui/use-toast";
 
 interface SellChannelProps {
   setCurrentPage?: (page: string) => void;
@@ -47,6 +48,7 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
   const [extractedData, setExtractedData] = useState(null); // Store extracted data
   const [showContentTypeDropdown, setShowContentTypeDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const { toast } = useToast();
   const [files, setFiles] = useState<File[]>([]);
   const contentTypeDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -76,7 +78,11 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
   // Auto-extract profile data from URL
   const handleExtractProfile = async () => {
     if (!formData.channelUrl.trim()) {
-      alert('Please enter a social media URL first');
+      toast({
+        variant: "destructive",
+        title: "Missing URL",
+        description: "Please enter a social media URL first",
+      });
       return;
     }
 
@@ -96,11 +102,18 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         profilePicture: profileData.profilePicture || prev.profilePicture
       }));
 
-      alert(`✅ Profile data extracted successfully!\n\nTitle: ${profileData.title}\nPlatform: ${profileData.platform}\nFollowers/Subscribers: ${formatFollowerCount(profileData.followers || profileData.subscribers || 0)}`);
+      toast({
+        title: "Profile Data Extracted Successfully! ✅",
+        description: `Title: ${profileData.title}\nPlatform: ${profileData.platform}\nFollowers: ${formatFollowerCount(profileData.followers || profileData.subscribers || 0)}`,
+      });
       
     } catch (error) {
       console.error('Profile extraction error:', error);
-      alert(`❌ Failed to extract profile data: ${error.message}\n\nPlease fill in the information manually.`);
+      toast({
+        variant: "destructive",
+        title: "Extraction Failed",
+        description: `Failed to extract profile data: ${error.message}. Please fill in the information manually.`,
+      });
     } finally {
       setIsExtracting(false);
     }
@@ -145,7 +158,11 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
 
       const result = await createAd(adData);
       console.log('Ad creation result:', result);
-      alert('🎉 Listing created successfully and is now live on the marketplace! Redirecting to homepage...');
+      
+      toast({
+        title: "Listing Created Successfully! 🎉",
+        description: "Your listing is now live on the marketplace! Redirecting to homepage...",
+      });
       
       // Reset form
       setFormData({
@@ -173,7 +190,11 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         }
       }, 1500);
     } catch (error: any) {
-      alert(error.message || 'Failed to create listing. Please try again.');
+      toast({
+        variant: "destructive",
+        title: "Failed to Create Listing",
+        description: error.message || 'Something went wrong. Please try again.',
+      });
     } finally {
       setIsSubmitting(false);
     }

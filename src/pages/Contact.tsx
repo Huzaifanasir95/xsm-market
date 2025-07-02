@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageCircle, Clock } from 'lucide-react';
+import { useToast } from "@/components/ui/use-toast";
 
 // API URL configuration
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -18,6 +19,7 @@ const Contact: React.FC<ContactProps> = ({ setCurrentPage }) => {
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const categories = [
     'General Inquiry',
@@ -38,7 +40,22 @@ const Contact: React.FC<ContactProps> = ({ setCurrentPage }) => {
   const handleSubmit = async () => {
     // Validate form
     if (!formData.name || !formData.email || !formData.subject || !formData.category || !formData.message) {
-      alert('Please fill in all required fields.');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please fill in all required fields.",
+      });
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+      });
       return;
     }
 
@@ -56,7 +73,10 @@ const Contact: React.FC<ContactProps> = ({ setCurrentPage }) => {
       const result = await response.json();
 
       if (result.success) {
-        alert('Message sent successfully! We\'ll get back to you within 24 hours.');
+        toast({
+          title: "Message Sent Successfully! ✅",
+          description: "We'll get back to you within 24 hours. Thank you for contacting us!",
+        });
         
         // Reset form
         setFormData({
@@ -67,11 +87,19 @@ const Contact: React.FC<ContactProps> = ({ setCurrentPage }) => {
           message: '',
         });
       } else {
-        alert(result.message || 'Failed to send message. Please try again.');
+        toast({
+          variant: "destructive",
+          title: "Failed to Send Message",
+          description: result.message || 'Something went wrong. Please try again.',
+        });
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('An error occurred while sending your message. Please try again later.');
+      toast({
+        variant: "destructive",
+        title: "Connection Error",
+        description: "Unable to send message. Please check your connection and try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
