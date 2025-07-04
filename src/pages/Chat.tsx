@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Flag, User, Shield, MessageCircle, Search } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
-import { io, Socket } from 'socket.io-client';
 import { API_URL } from '@/services/auth';
 
 interface Message {
@@ -15,7 +14,6 @@ interface Message {
   sender: {
     id: string;
     username: string;
-    fullName?: string;
   };
 }
 
@@ -28,7 +26,6 @@ interface ChatData {
   otherParticipants: Array<{
     id: string;
     username: string;
-    fullName?: string;
     email: string;
   }>;
   ad?: {
@@ -46,33 +43,62 @@ const Chat: React.FC = () => {
   const [chats, setChats] = useState<ChatData[]>([]);
   const [filteredChats, setFilteredChats] = useState<ChatData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [loading, setLoading] = useState(true);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [lastMessageId, setLastMessageId] = useState<number | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
-  // Initialize Socket.IO connection
+  // Remove Socket.IO and replace with polling-based real-time updates
   useEffect(() => {
-    if (isLoggedIn && user) {
-      const newSocket = io(API_URL.replace('/api', ''));
+    if (isLoggedIn && user && selectedChat) {
+      // Start polling for new messages every 2 seconds
+      const interval = setInterval(() => {
+        checkForNewMessages();
+      }, 2000);
       
-      newSocket.on('connect', () => {
-        newSocket.emit('user_connected', { userId: user.id });
-      });
-
-      newSocket.on('new_message', (message: Message) => {
-        setMessages(prev => [...prev, message]);
-        updateChatLastMessage(message);
-      });
-
-      setSocket(newSocket);
+      setPollingInterval(interval);
 
       return () => {
-        newSocket.close();
+        if (interval) clearInterval(interval);
       };
     }
-  }, [isLoggedIn, user]);
+  }, [isLoggedIn, user, selectedChat, lastMessageId]);
+
+  // Check for new messages
+  const checkForNewMessages = async () => {
+    if (!selectedChat || !user) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/chat/chats/${selectedChat.id}/messages?since=${lastMessageId || 0}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const newMessages = await response.json();
+        if (newMessages.length > 0) {
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(m => m.id));
+            const uniqueNewMessages = newMessages.filter((m: Message) => !existingIds.has(m.id));
+            return [...prev, ...uniqueNewMessages];
+          });
+          
+          // Update last message ID
+          const latestMessage = newMessages[newMessages.length - 1];
+          setLastMessageId(latestMessage.id);
+          
+          // Update chat list with latest message
+          updateChatLastMessage(latestMessage);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for new messages:', error);
+    }
+  };
 
   // Fetch chats when component mounts
   useEffect(() => {
@@ -102,13 +128,24 @@ const Chat: React.FC = () => {
     }
   }, [chats, searchQuery]);
 
-  // Join chat room when chat is selected
+  // Load messages when chat is selected
   useEffect(() => {
-    if (socket && selectedChat) {
-      socket.emit('join_chat', selectedChat.id);
+    if (selectedChat) {
       fetchMessages(selectedChat.id);
+      setLastMessageId(null); // Reset for new chat
     }
-  }, [socket, selectedChat]);
+  }, [selectedChat]);
+
+  // Refresh chat list periodically to show new chats
+  useEffect(() => {
+    if (isLoggedIn && user) {
+      const interval = setInterval(() => {
+        fetchChats();
+      }, 10000); // Refresh every 10 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [isLoggedIn, user]);
 
   const fetchChats = async () => {
     try {
@@ -140,6 +177,12 @@ const Chat: React.FC = () => {
       const data = await response.json();
       setMessages(data);
       
+      // Set the last message ID for polling
+      if (data.length > 0) {
+        const latestMessage = data[data.length - 1];
+        setLastMessageId(latestMessage.id);
+      }
+      
       // Mark messages as read
       await fetch(`${API_URL}/chat/chats/${chatId}/read`, {
         method: 'PUT',
@@ -153,7 +196,7 @@ const Chat: React.FC = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat || !socket || !user) return;
+    if (!newMessage.trim() || !selectedChat || !user) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -169,21 +212,21 @@ const Chat: React.FC = () => {
         })
       });
 
-      const message = await response.json();
-      
-      // Add to local messages
-      setMessages(prev => [...prev, message]);
-      
-      // Emit to socket for real-time delivery
-      socket.emit('send_message', {
-        ...message,
-        chatId: selectedChat.id
-      });
+      if (response.ok) {
+        const message = await response.json();
+        
+        // Add to local messages immediately
+        setMessages(prev => [...prev, message]);
+        setLastMessageId(message.id);
 
-      // Update chat list
-      updateChatLastMessage(message);
-      
-      setNewMessage('');
+        // Update chat list
+        updateChatLastMessage(message);
+        
+        setNewMessage('');
+        
+        // Force check for any other new messages
+        setTimeout(() => checkForNewMessages(), 500);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -230,7 +273,7 @@ const Chat: React.FC = () => {
     if (chat.type === 'ad_inquiry') {
       if (chat.otherParticipants.length > 0) {
         const otherUser = chat.otherParticipants[0];
-        return otherUser.fullName || otherUser.username;
+        return otherUser.username;
       }
       // Fallback to ad title if no participants
       if (chat.ad) {
@@ -240,7 +283,7 @@ const Chat: React.FC = () => {
     
     // For direct chats, show the other participant's name
     if (chat.otherParticipants.length > 0) {
-      return chat.otherParticipants[0].fullName || chat.otherParticipants[0].username;
+      return chat.otherParticipants[0].username;
     }
     
     // Use chat name if available
@@ -390,7 +433,7 @@ const Chat: React.FC = () => {
                           >
                             {message.senderId !== user?.id && (
                               <p className="text-xs font-medium mb-1 opacity-75">
-                                {message.sender?.fullName || message.sender?.username}
+                                {message.sender?.username}
                               </p>
                             )}
                             <p className="text-sm">{message.content}</p>

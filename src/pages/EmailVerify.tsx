@@ -11,9 +11,17 @@ interface EmailVerifyProps {
 const EmailVerify: React.FC<EmailVerifyProps> = ({ setCurrentPage, email }) => {
   const { setIsLoggedIn, setUser } = useAuth();
   const { toast } = useToast();
-  const [verificationEmail, setVerificationEmail] = useState(email || '');
+  
+  // Get email from props, localStorage, or empty string
+  const storedEmail = typeof window !== 'undefined' ? localStorage.getItem('pendingVerificationEmail') : null;
+  const [verificationEmail, setVerificationEmail] = useState(email || storedEmail || '');
 
   const handleVerificationSuccess = (token: string, user: any) => {
+    // Clear stored email after successful verification
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('pendingVerificationEmail');
+    }
+    
     setUser(user);
     setIsLoggedIn(true);
     

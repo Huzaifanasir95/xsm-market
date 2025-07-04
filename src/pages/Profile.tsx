@@ -12,12 +12,10 @@ interface ProfileProps {
 
 interface UpdateData {
   username?: string;
-  fullName?: string;
   profilePicture?: string;
 }
 
 interface ExtendedUser extends User {
-  fullName?: string;
   joinDate?: string;
   authProvider?: 'google' | 'email';
 }
@@ -38,14 +36,23 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const [editForm, setEditForm] = useState({
     username: '',
     email: '',
-    fullName: '',
     profilePicture: ''
   });
+  // Initialize password form with empty values and ensure it stays empty
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+
+  // Ensure password form stays empty (prevent auto-fill)
+  useEffect(() => {
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+  }, [user]); // Reset when user changes
   const [listedChannels] = useState([
     {
       id: '1',
@@ -73,7 +80,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const [profile, setProfile] = useState({
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
-    fullName: (user as ExtendedUser)?.fullName || '',
     joinDate: (user as ExtendedUser)?.joinDate || '2025-01-15', // Keep the date format as is
     rating: 4.8,
     totalSales: 12,
@@ -95,7 +101,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         ...prev,
         username: user.username,
         email: user.email,
-        fullName: (user as any).fullName || '',
         profilePicture: user.profilePicture || '',
         joinDate: (user as any)?.joinDate || prev.joinDate
       }));
@@ -269,10 +274,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         updateData.username = editForm.username;
       }
       
-      if (editForm.fullName !== (user as any).fullName) {
-        updateData.fullName = editForm.fullName;
-      }
-      
       if (editForm.profilePicture !== user.profilePicture) {
         updateData.profilePicture = editForm.profilePicture;
       }
@@ -287,13 +288,15 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         console.log('✅ Profile updated successfully:', updatedUser);
         
         // Update the user context with the new data
-        setUser(updatedUser);
+        setUser({
+          ...updatedUser,
+          id: String(updatedUser.id),
+        });
         
         // Update local profile state
         setProfile(prev => ({
           ...prev,
           username: updatedUser.username,
-          fullName: updatedUser.fullName || '',
           profilePicture: updatedUser.profilePicture || ''
         }));
         
@@ -301,7 +304,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         setEditForm(prev => ({
           ...prev,
           username: updatedUser.username,
-          fullName: updatedUser.fullName || '',
           profilePicture: updatedUser.profilePicture || ''
         }));
         
@@ -323,8 +325,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           errorMessage = 'Username must be between 3 and 50 characters.';
         } else if (error.message.includes('Username can only contain')) {
           errorMessage = 'Username can only contain letters, numbers, and underscores.';
-        } else if (error.message.includes('Full name must be less than')) {
-          errorMessage = 'Full name must be less than 100 characters.';
         } else {
           errorMessage = error.message;
         }
@@ -379,9 +379,10 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         console.log('🔍 Backend user data:', backendUser);
         
         const isGoogleUser = backendUser?.authProvider === 'google';
-        console.log('🔍 Is Google user from backend:', isGoogleUser);
+        console.log('🔍 User type - Google:', isGoogleUser);
         
-        // For Google users, they don't need to enter current password
+        // For Google users, they don't need to enter current password (first time setting password)
+        // For email users, they need current password
         if (!isGoogleUser && !passwordForm.currentPassword) {
           alert('Please enter your current password!');
           setIsChangingPassword(false);
@@ -418,6 +419,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           errorMessage = 'Current password is incorrect.';
         } else if (error.message.includes('must be at least 6 characters')) {
           errorMessage = 'New password must be at least 6 characters long.';
+        } else if (error.message.includes('Google OAuth. Please use "Sign in with Google"')) {
+          errorMessage = 'This account was created with Google OAuth. Please use "Sign in with Google" instead. To set a password for email login, leave the current password field empty.';
         } else if (error.message.includes('Google account users don\'t have a current password')) {
           errorMessage = 'For Google accounts, leave current password empty to set a new password.';
         } else {
@@ -496,7 +499,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   {(isEditing ? editForm.profilePicture : profile.profilePicture) ? (
                     <img 
                       src={isEditing ? editForm.profilePicture : profile.profilePicture} 
-                      alt={profile.fullName}
+                      alt={profile.username}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -518,7 +521,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                 )}
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">
-                {profile.fullName || profile.username}
+                {profile.username}
               </h2>
               <p className="text-xsm-light-gray mb-1">@{profile.username}</p>
               <p className="text-xsm-light-gray mb-4">{profile.email}</p>
@@ -610,16 +613,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
 
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-white font-medium mb-2">Full Name</label>
-                  <input
-                    type="text"
-                    value={isEditing ? editForm.fullName : profile.fullName}
-                    onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-                    disabled={!isEditing}
-                    className={`xsm-input w-full ${!isEditing ? 'opacity-60' : ''}`}
-                  />
-                </div>
-                <div>
                   <label className="block text-white font-medium mb-2">Username</label>
                   <input
                     type="text"
@@ -630,7 +623,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     placeholder="Enter username (3-50 chars, letters, numbers, underscores only)"
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-white font-medium mb-2">Email</label>
                   <input
                     type="email"
@@ -687,6 +680,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                       className="xsm-input w-full"
                       placeholder="Enter current password"
+                      autoComplete="current-password"
+                      autoFocus={false}
                     />
                   </div>
                 )}
@@ -702,6 +697,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                       className="xsm-input w-full"
                       placeholder={(user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password'}
+                      autoComplete="new-password"
+                      autoFocus={false}
                     />
                   </div>
                   <div>
@@ -712,6 +709,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                       className="xsm-input w-full"
                       placeholder="Confirm password"
+                      autoComplete="new-password"
+                      autoFocus={false}
                     />
                   </div>
                 </div>

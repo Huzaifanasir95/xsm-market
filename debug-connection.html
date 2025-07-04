@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend-Backend Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        .log { font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>Frontend-Backend Connection Test</h1>
+    <p>This page tests the connection between the frontend and backend.</p>
+    
+    <div id="results"></div>
+    
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        const resultsDiv = document.getElementById('results');
+        
+        function addResult(testName, success, message, details = '') {
+            const div = document.createElement('div');
+            div.className = `test ${success ? 'success' : 'error'}`;
+            div.innerHTML = `
+                <h3>${testName}: ${success ? '✅ PASS' : '❌ FAIL'}</h3>
+                <p>${message}</p>
+                ${details ? `<pre class="log">${details}</pre>` : ''}
+            `;
+            resultsDiv.appendChild(div);
+        }
+        
+        async function testBasicConnectivity() {
+            try {
+                console.log('Testing basic connectivity...');
+                const response = await fetch(`${API_URL}/auth/google-signin`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': 'http://localhost:5173',
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                const success = response.ok;
+                const headers = Object.fromEntries(response.headers.entries());
+                
+                addResult(
+                    'Basic Connectivity (CORS Preflight)',
+                    success,
+                    success ? 'Backend is reachable and CORS is configured' : 'Cannot reach backend or CORS issue',
+                    `Status: ${response.status}\nHeaders: ${JSON.stringify(headers, null, 2)}`
+                );
+                
+                return success;
+            } catch (error) {
+                addResult(
+                    'Basic Connectivity',
+                    false,
+                    'Network error occurred',
+                    `Error: ${error.name}\nMessage: ${error.message}\nStack: ${error.stack}`
+                );
+                return false;
+            }
+        }
+        
+        async function testGoogleSigninEndpoint() {
+            try {
+                console.log('Testing Google sign-in endpoint...');
+                const response = await fetch(`${API_URL}/auth/google-signin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:5173'
+                    },
+                    body: JSON.stringify({ token: 'test-token-from-browser' })
+                });
+                
+                const data = await response.json();
+                const success = response.status === 400 && data.message && data.message.includes('Invalid token');
+                
+                addResult(
+                    'Google Sign-in Endpoint',
+                    success,
+                    success ? 'Endpoint is working correctly (rejects invalid tokens)' : 'Unexpected response from endpoint',
+                    `Status: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}`
+                );
+                
+                return success;
+            } catch (error) {
+                const isNetworkError = error.name === 'TypeError' && error.message.includes('fetch');
+                addResult(
+                    'Google Sign-in Endpoint',
+                    false,
+                    isNetworkError ? 'This is the "failed to fetch" error!' : 'Network error occurred',
+                    `Error: ${error.name}\nMessage: ${error.message}\nStack: ${error.stack}`
+                );
+                return false;
+            }
+        }
+        
+        async function testEnvironmentVariables() {
+            const testData = {
+                'Current URL': window.location.href,
+                'API URL': API_URL,
+                'User Agent': navigator.userAgent,
+                'Protocol': window.location.protocol,
+                'Online': navigator.onLine
+            };
+            
+            const allGood = window.location.protocol === 'http:' && navigator.onLine;
+            
+            addResult(
+                'Environment Check',
+                allGood,
+                allGood ? 'Environment looks good' : 'Potential environment issues detected',
+                Object.entries(testData).map(([key, value]) => `${key}: ${value}`).join('\n')
+            );
+            
+            return allGood;
+        }
+        
+        async function testSameOriginPolicy() {
+            try {
+                // Test if we can make a request to the same origin (should work)
+                const sameOriginResponse = await fetch('/test-same-origin');
+                // This will likely fail with 404, but that's ok - we just want to see if fetch works
+                
+                addResult(
+                    'Same Origin Policy Test',
+                    true,
+                    'Fetch API is working (even if endpoint doesn\'t exist)',
+                    `Status: ${sameOriginResponse.status} (404 is expected)`
+                );
+                return true;
+            } catch (error) {
+                addResult(
+                    'Same Origin Policy Test',
+                    false,
+                    'Fetch API itself might be blocked',
+                    `Error: ${error.name}\nMessage: ${error.message}`
+                );
+                return false;
+            }
+        }
+        
+        async function runAllTests() {
+            console.log('Starting all tests...');
+            
+            const envTest = await testEnvironmentVariables();
+            const sameOriginTest = await testSameOriginPolicy();
+            const basicTest = await testBasicConnectivity();
+            const googleTest = await testGoogleSigninEndpoint();
+            
+            const allPassed = envTest && sameOriginTest && basicTest && googleTest;
+            
+            addResult(
+                'Overall Result',
+                allPassed,
+                allPassed ? 'All tests passed! Frontend can connect to backend.' : 'Some tests failed - see details above.',
+                allPassed ? 
+                    'If you\'re still seeing "failed to fetch" in your main app, try:\n1. Hard refresh (Ctrl+F5)\n2. Clear browser cache\n3. Check browser console for specific errors' :
+                    'Check the failed tests above for specific issues to resolve.'
+            );
+        }
+        
+        // Run tests when page loads
+        window.addEventListener('load', runAllTests);
+    </script>
+</body>
+</html>

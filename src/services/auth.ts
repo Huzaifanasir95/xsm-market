@@ -1,5 +1,5 @@
 // API URL - automatically switches between development and production
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:5000/api');
 
 console.log('🌐 API_URL configured as:', API_URL);
 
@@ -43,6 +43,7 @@ export interface AuthResponse {
   message?: string;
   requiresVerification?: boolean;
   email?: string;
+  authProvider?: string;
 }
 
 // Token expiry check
@@ -224,6 +225,25 @@ export const login = async (email: string, password: string): Promise<AuthRespon
     });
 
     if (!response.ok) {
+      // Handle specific error cases that need special treatment
+      if (data.requiresVerification) {
+        // User needs email verification - return special response
+        return {
+          requiresVerification: true,
+          email: data.email,
+          message: data.message
+        };
+      }
+      
+      if (data.authProvider === 'google') {
+        // User trying to login with password but account is Google OAuth
+        return {
+          authProvider: 'google',
+          message: data.message
+        };
+      }
+      
+      // For all other errors, throw the error
       throw new Error(data.message || 'Failed to login');
     }
 
@@ -399,6 +419,10 @@ export const setCurrentUser = (user: User): void => {
 
 export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
   try {
+    console.log('🚀 Starting Google sign-in process...');
+    console.log('📡 API URL:', API_URL);
+    console.log('🔑 Token length:', tokenId.length);
+    
     const response = await fetch(`${API_URL}/auth/google-signin`, {
       method: 'POST',
       headers: {
@@ -406,18 +430,46 @@ export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
       },
       body: JSON.stringify({ token: tokenId }),
       credentials: 'include'
+    }).catch(networkError => {
+      console.error('❌ Network error during Google sign-in fetch:', networkError);
+      console.error('🔍 Error details:', {
+        name: networkError.name,
+        message: networkError.message,
+        stack: networkError.stack
+      });
+      
+      // Provide a more helpful error message
+      if (networkError.name === 'TypeError' && networkError.message.includes('fetch')) {
+        throw new Error('Failed to connect to the authentication server. Please check if the backend is running on ' + API_URL);
+      }
+      
+      throw networkError;
     });
 
-    const data = await response.json();
+    console.log('📡 Response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
+    const data = await response.json().catch(parseError => {
+      console.error('❌ Failed to parse response as JSON:', parseError);
+      throw new Error('Server returned invalid response format');
+    });
+
+    console.log('📋 Response data:', data);
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to sign in with Google');
+      const errorMessage = data.message || `HTTP ${response.status}: ${response.statusText}`;
+      console.error('❌ Backend rejected Google sign-in:', errorMessage);
+      throw new Error(errorMessage);
     }
 
     console.log('🔍 Google sign-in response:', data);
 
     // Store tokens with proper expiry management
     if (data.token) {
+      console.log('💾 Storing authentication tokens...');
       setTokenData({
         accessToken: data.token,
         refreshToken: data.refreshToken,
@@ -427,12 +479,15 @@ export const googleSignIn = async (tokenId: string): Promise<AuthResponse> => {
     
     // Store user data
     if (data.user) {
-      console.log('🔍 Storing Google user data:', data.user);
+      console.log('� Storing Google user data:', data.user);
       setCurrentUser(data.user);
     }
     
+    console.log('✅ Google sign-in completed successfully');
     return data;
   } catch (error) {
+    console.error('💥 Google sign-in failed:', error);
+    
     if (error instanceof Error) {
       throw error;
     } else {
