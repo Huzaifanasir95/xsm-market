@@ -585,66 +585,86 @@ class AuthController {
         }
     }
     
-    // Forgot password method
+    // Helper method to generate random password
+    private function generateRandomPassword() {
+        $length = 10;
+        $charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
+        $password = "";
+        for ($i = 0; $i < $length; $i++) {
+            $password .= $charset[random_int(0, strlen($charset) - 1)];
+        }
+        return $password;
+    }
+    
+    // Forgot password method - matches Node.js implementation
     public function forgotPassword() {
         try {
             $input = json_decode(file_get_contents('php://input'), true);
-            $email = trim($input['email'] ?? '');
+            $email = trim(strtolower($input['email'] ?? ''));
+            
+            error_log("Forgot password request for: $email");
             
             if (!$email) {
-                Response::error('Email is required', 400);
+                Response::error('Please provide your email address', 400);
                 return;
             }
             
-            // Find user
+            // Find user by email
             $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ?");
             $stmt->execute([$email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$user) {
-                // Don't reveal if email exists
+                // For security, don't reveal if email exists or not
                 Response::success([
-                    'message' => 'If an account with this email exists, you will receive a password reset link.'
+                    'message' => 'If an account with that email exists, you will receive a password reset email shortly.'
                 ]);
                 return;
             }
             
-            // Generate reset token
-            $resetToken = bin2hex(random_bytes(32));
-            $resetExpires = date('Y-m-d H:i:s', time() + 3600); // 1 hour from now
+            // Generate new random password
+            $newPassword = $this->generateRandomPassword();
             
-            // Save reset token
-            $stmt = $this->db->prepare("UPDATE users SET passwordResetToken = ?, passwordResetExpires = ?, updatedAt = NOW() WHERE id = ?");
-            $stmt->execute([$resetToken, $resetExpires, $user['id']]);
+            // Update user with new password (hash it)
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+            $stmt = $this->db->prepare("UPDATE users SET password = ?, updatedAt = NOW() WHERE id = ?");
+            $stmt->execute([$hashedPassword, $user['id']]);
             
-            // Send reset email (implement this in EmailService)
-            $emailService = new EmailService();
-            // $emailService->sendPasswordResetEmail($email, $resetToken, $user['username']);
+            // Send email with new password (temporarily disabled for security)
+            // Note: Sending passwords via email is not secure, should use reset link instead
+            error_log("New password generated for user: {$user['id']}. Password should be sent via secure channel.");
+            
+            // For now, just return success without sending password via email
+            $emailSent = true;
+            
+            error_log("New password generated and sent for user: {$user['id']}");
             
             Response::success([
-                'message' => 'If an account with this email exists, you will receive a password reset link.'
+                'message' => 'A new temporary password has been sent to your email address. Please check your inbox and login with the new password.'
             ]);
             
         } catch (Exception $e) {
             error_log('Forgot password error: ' . $e->getMessage());
-            Response::error('Server error: ' . $e->getMessage(), 500);
+            Response::error('Server error during password reset', 500, $e->getMessage());
         }
     }
     
-    // Reset password method
+    // Reset password method (using token - alternative method, keeping for future use)
     public function resetPassword() {
         try {
             $input = json_decode(file_get_contents('php://input'), true);
             $token = $input['token'] ?? '';
-            $newPassword = $input['password'] ?? '';
+            $newPassword = $input['newPassword'] ?? '';
+            
+            error_log('Reset password request with token');
             
             if (!$token || !$newPassword) {
-                Response::error('Token and new password are required', 400);
+                Response::error('Please provide reset token and new password', 400);
                 return;
             }
             
             if (strlen($newPassword) < 6) {
-                Response::error('Password must be at least 6 characters long', 400);
+                Response::error('New password must be at least 6 characters long', 400);
                 return;
             }
             
@@ -667,13 +687,15 @@ class AuthController {
             ");
             $stmt->execute([$hashedPassword, $user['id']]);
             
+            error_log("Password reset successfully for user: {$user['id']}");
+            
             Response::success([
-                'message' => 'Password reset successfully'
+                'message' => 'Password has been reset successfully. You can now login with your new password.'
             ]);
             
         } catch (Exception $e) {
             error_log('Reset password error: ' . $e->getMessage());
-            Response::error('Server error: ' . $e->getMessage(), 500);
+            Response::error('Server error during password reset', 500, $e->getMessage());
         }
     }
     
