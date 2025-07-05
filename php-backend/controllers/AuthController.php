@@ -356,6 +356,8 @@ class AuthController {
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 15); // Increased timeout
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+            curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/../cacert.pem'); // Use local CA bundle
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_USERAGENT, 'XSM-Market-Backend/1.0');
             curl_setopt($ch, CURLOPT_VERBOSE, false); // Set to true for more debugging

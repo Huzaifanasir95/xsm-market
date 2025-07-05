@@ -119,8 +119,15 @@ class AuthMiddleware {
     public static function requireAdmin() {
         $user = self::authenticate();
         
-        if (!$user['isAdmin']) {
-            Response::forbidden('Admin access required');
+        // Get admin email from environment
+        $adminEmail = getenv('admin_user');
+        
+        // Check if user is admin by email or isAdmin flag
+        $isAdminByEmail = $adminEmail && strtolower($user['email']) === strtolower($adminEmail);
+        $isAdminByFlag = !empty($user['isAdmin']);
+        
+        if (!$isAdminByEmail && !$isAdminByFlag) {
+            Response::error('Admin access required. Only authorized admin users can access this resource.', 403);
         }
         
         return $user;
