@@ -31,6 +31,37 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
       const response = await login(email, password);
       console.log('📡 Login response:', response);
       
+      // Handle special cases that don't have user data
+      if (response.requiresVerification) {
+        console.log('⚠️ Email verification required, navigating to OTP screen');
+        
+        // Store email for EmailVerify component
+        localStorage.setItem('pendingVerificationEmail', response.email || email);
+        
+        toast({
+          variant: "destructive",
+          title: "Email Verification Required",
+          description: "Please verify your email using the OTP sent to your inbox.",
+        });
+        
+        // Navigate directly to email-verify page for OTP verification
+        setCurrentPage('email-verify');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (response.authProvider === 'google') {
+        console.log('⚠️ Google OAuth account detected');
+        setError('This account was created with Google OAuth. Please use "Sign in with Google" instead.');
+        toast({
+          variant: "destructive",
+          title: "Account Created with Google",
+          description: "This account was created with Google OAuth. Please use 'Sign in with Google' instead.",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       if (response.user) {
         console.log('✅ Login successful, setting auth state...');
         setIsLoggedIn(true);
@@ -48,33 +79,24 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
       console.error('❌ Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to login';
       
-      // Check if it's a Google OAuth account error
-      if (errorMessage.includes('Google OAuth')) {
-        setError(errorMessage);
-        toast({
-          variant: "destructive",
-          title: "Account Created with Google",
-          description: "This account was created with Google OAuth. Please use 'Sign in with Google' instead.",
-        });
-      }
-      // Check if it's an email verification error
-      else if (errorMessage.includes('verify your email')) {
-        setError(errorMessage);
+      // Check if this is an email verification error
+      if (errorMessage.includes('verify your email')) {
+        // Store email for EmailVerify component
+        localStorage.setItem('pendingVerificationEmail', email);
+        
         toast({
           variant: "destructive",
           title: "Email Verification Required",
-          description: errorMessage + " Click the button below to verify your email.",
+          description: "Please verify your email using the OTP sent to your inbox.",
         });
         
-        // Add a verification button to the error display
-        setTimeout(() => {
-          setError(errorMessage + " Click 'Verify Email' below to verify now.");
-        }, 100);
+        // Navigate directly to email-verify page for OTP verification
+        setCurrentPage('email-verify');
       } else {
         setError(errorMessage);
         toast({
           variant: "destructive",
-          title: "Error",
+          title: "Login Failed",
           description: errorMessage,
         });
       }

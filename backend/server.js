@@ -56,6 +56,8 @@ app.use('/api/user', userRoutes);
 app.use('/api/ads', adRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/contact', require('./routes/contact'));
+app.use('/api/social-media', require('./routes/social-media-enhanced'));
 app.use('/api/debug', require('./routes/debug'));
 
 // Health check endpoint

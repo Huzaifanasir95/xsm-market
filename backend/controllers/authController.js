@@ -289,7 +289,6 @@ exports.verifyOTP = async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        fullName: user.fullName,
         email: user.email,
         profilePicture: user.profilePicture,
         isEmailVerified: user.isEmailVerified,

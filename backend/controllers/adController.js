@@ -20,6 +20,7 @@ exports.createAd = async (req, res) => {
       isMonetized,
       incomeDetails,
       promotionDetails,
+      thumbnail,
       screenshots,
       tags
     } = req.body;
@@ -66,6 +67,7 @@ exports.createAd = async (req, res) => {
       isMonetized: Boolean(isMonetized),
       incomeDetails,
       promotionDetails,
+      thumbnail: thumbnail || null,
       screenshots: screenshots || [],
       tags: tags || [],
       status: 'active' // All new ads start as active for immediate listing

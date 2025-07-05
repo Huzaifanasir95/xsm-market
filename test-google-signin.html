@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sign-in Test</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <h1>Google Sign-in Test</h1>
+    <p>This page tests the Google Sign-in integration with the PHP backend.</p>
+    
+    <div id="g_id_onload"
+         data-client_id="706026691678-kbn3pqlj9f5t7o8sri6lf5ucgi03btjb.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse">
+    </div>
+    <div class="g_id_signin" data-type="standard"></div>
+
+    <div id="output">
+        <h3>Test Results:</h3>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<p><strong>[${timestamp}]</strong> ${message}</p>`;
+            console.log(message);
+        }
+
+        function handleCredentialResponse(response) {
+            log('✅ Google sign-in successful! Token received.');
+            log('Token length: ' + response.credential.length);
+            
+            // Test the backend API
+            testBackendSignIn(response.credential);
+        }
+
+        async function testBackendSignIn(token) {
+            const API_URL = 'http://localhost:5000/api';
+            
+            try {
+                log('🔄 Sending token to backend...');
+                
+                const response = await fetch(`${API_URL}/auth/google-signin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token: token }),
+                    credentials: 'include'
+                });
+
+                log(`📡 Backend response status: ${response.status} ${response.statusText}`);
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('✅ Backend authentication successful!');
+                    log('User data: ' + JSON.stringify(data.user, null, 2));
+                } else {
+                    log('❌ Backend authentication failed!');
+                    log('Error: ' + data.message);
+                }
+                
+            } catch (error) {
+                log('💥 Network error occurred!');
+                log('Error details: ' + error.toString());
+                
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    log('🔍 This is the "failed to fetch" error!');
+                    log('Possible causes:');
+                    log('- CORS issues (but CORS seems to be working)');
+                    log('- Network connectivity problems');
+                    log('- Backend server not responding');
+                    log('- Mixed content (HTTP/HTTPS) issues');
+                }
+            }
+        }
+
+        // Test basic connectivity first
+        async function testConnectivity() {
+            const API_URL = 'http://localhost:5000/api';
+            
+            try {
+                log('🌐 Testing basic connectivity...');
+                const response = await fetch(`${API_URL}/auth/google-signin`, {
+                    method: 'OPTIONS'
+                });
+                log(`✅ Connectivity test: ${response.status} ${response.statusText}`);
+            } catch (error) {
+                log('❌ Connectivity test failed: ' + error.toString());
+            }
+        }
+
+        // Run connectivity test on page load
+        testConnectivity();
+    </script>
+</body>
+</html>

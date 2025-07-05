@@ -1,6 +1,10 @@
 
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageCircle, Clock } from 'lucide-react';
+import { useToast } from "@/components/ui/use-toast";
+
+// API URL configuration
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 interface ContactProps {
   setCurrentPage: (page: string) => void;
@@ -15,6 +19,7 @@ const Contact: React.FC<ContactProps> = ({ setCurrentPage }) => {
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const categories = [
     'General Inquiry',
@@ -33,22 +38,71 @@ const Contact: React.FC<ContactProps> = ({ setCurrentPage }) => {
   };
 
   const handleSubmit = async () => {
+    // Validate form
+    if (!formData.name || !formData.email || !formData.subject || !formData.category || !formData.message) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please fill in all required fields.",
+      });
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    alert('Message sent successfully! We\'ll get back to you within 24 hours.');
-    
-    // Reset form
-    setFormData({
-      name: '',
-      email: '',
-      subject: '',
-      category: '',
-      message: '',
-    });
-    setIsSubmitting(false);
+    try {
+      const response = await fetch(`${API_URL}/contact/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Message Sent Successfully! ✅",
+          description: "We'll get back to you within 24 hours. Thank you for contacting us!",
+        });
+        
+        // Reset form
+        setFormData({
+          name: '',
+          email: '',
+          subject: '',
+          category: '',
+          message: '',
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Failed to Send Message",
+          description: result.message || 'Something went wrong. Please try again.',
+        });
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        variant: "destructive",
+        title: "Connection Error",
+        description: "Unable to send message. Please check your connection and try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

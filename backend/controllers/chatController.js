@@ -15,7 +15,7 @@ const getUserChats = async (req, res) => {
           include: [{
             model: User,
             as: 'user',
-            attributes: ['id', 'username', 'fullName', 'email']
+            attributes: ['id', 'username', 'email']
           }]
         },
         {
@@ -26,7 +26,7 @@ const getUserChats = async (req, res) => {
           include: [{
             model: User,
             as: 'sender',
-            attributes: ['id', 'username', 'fullName']
+            attributes: ['id', 'username']
           }]
         },
         {
@@ -48,7 +48,7 @@ const getUserChats = async (req, res) => {
           include: [{
             model: User,
             as: 'user',
-            attributes: ['id', 'username', 'fullName', 'email']
+            attributes: ['id', 'username', 'email']
           }]
         });
 
@@ -134,7 +134,7 @@ const createOrGetChat = async (req, res) => {
           include: [{
             model: User,
             as: 'user',
-            attributes: ['id', 'username', 'fullName', 'email']
+            attributes: ['id', 'username', 'email']
           }]
         },
         {
@@ -175,7 +175,7 @@ const getChatMessages = async (req, res) => {
         {
           model: User,
           as: 'sender',
-          attributes: ['id', 'username', 'fullName']
+          attributes: ['id', 'username']
         },
         {
           model: Message,
@@ -183,7 +183,7 @@ const getChatMessages = async (req, res) => {
           include: [{
             model: User,
             as: 'sender',
-            attributes: ['id', 'username', 'fullName']
+            attributes: ['id', 'username']
           }],
           required: false
         }
@@ -249,7 +249,7 @@ const sendMessage = async (req, res) => {
         {
           model: User,
           as: 'sender',
-          attributes: ['id', 'username', 'fullName']
+          attributes: ['id', 'username']
         },
         {
           model: Message,
@@ -257,7 +257,7 @@ const sendMessage = async (req, res) => {
           include: [{
             model: User,
             as: 'sender',
-            attributes: ['id', 'username', 'fullName']
+            attributes: ['id', 'username']
           }],
           required: false
         }
@@ -320,7 +320,7 @@ const createAdInquiryChat = async (req, res) => {
       include: [{
         model: User,
         as: 'seller',
-        attributes: ['id', 'username', 'fullName']
+        attributes: ['id', 'username']
       }]
     });
 
@@ -329,7 +329,7 @@ const createAdInquiryChat = async (req, res) => {
     }
 
     const actualSellerId = sellerId || ad.userId;
-    const actualSellerName = sellerName || ad.seller?.fullName || ad.seller?.username || 'Unknown Seller';
+    const actualSellerName = sellerName || ad.seller?.username || 'Unknown Seller';
 
     if (actualSellerId === buyerId) {
       return res.status(400).json({ message: 'Cannot create chat with yourself' });
@@ -405,7 +405,7 @@ const createAdInquiryChat = async (req, res) => {
           include: [{
             model: User,
             as: 'user',
-            attributes: ['id', 'username', 'fullName', 'email']
+            attributes: ['id', 'username', 'email']
           }]
         },
         {
@@ -421,7 +421,7 @@ const createAdInquiryChat = async (req, res) => {
           include: [{
             model: User,
             as: 'sender',
-            attributes: ['id', 'username', 'fullName']
+            attributes: ['id', 'username']
           }]
         }
       ]

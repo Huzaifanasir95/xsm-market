@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Menu, X, User, PlusCircle, LogOut, Settings, Heart, Star, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { logout } from '@/services/auth';
+import { isCurrentUserAdmin } from '@/utils/adminConfig';
 import AuthWidget from './AuthWidget';
 import {
   Avatar,
@@ -41,8 +42,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
       { id: 'sell', label: 'Begin Selling', icon: PlusCircle }
     );
 
-    // Add Admin Dashboard button for logged in users
-    if (isLoggedIn) {
+    // Add Admin Dashboard button ONLY for the specific admin user
+    if (isLoggedIn && isCurrentUserAdmin(user)) {
       items.push(
         { id: 'admin-dashboard', label: 'Admin Dashboard', icon: Settings }
       );

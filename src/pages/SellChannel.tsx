@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+
+import { Upload, ChevronDown, Search, RefreshCw } from 'lucide-react';
+import { createAd } from '../services/ads';
+import { extractProfileData, detectPlatform, formatFollowerCount } from '../services/socialMedia';
+import { useToast } from "@/components/ui/use-toast";
+
 import { Upload, ChevronDown } from 'lucide-react';
 import { createAd, uploadAdImage } from '../services/ads';
+
 
 interface SellChannelProps {
   setCurrentPage?: (page: string) => void;
@@ -38,11 +45,15 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
     isMonetized: false,
     contentCategory: '',
     subscribers: '',
+    profilePicture: '', // Add profile picture field
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false); // Add extraction loading state
+  const [extractedData, setExtractedData] = useState(null); // Store extracted data
   const [showContentTypeDropdown, setShowContentTypeDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const { toast } = useToast();
   const [files, setFiles] = useState<File[]>([]);
   const contentTypeDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -67,6 +78,50 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
       ...prev,
       isMonetized: !prev.isMonetized
     }));
+  };
+
+  // Auto-extract profile data from URL
+  const handleExtractProfile = async () => {
+    if (!formData.channelUrl.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Missing URL",
+        description: "Please enter a social media URL first",
+      });
+      return;
+    }
+
+    setIsExtracting(true);
+    try {
+      const result = await extractProfileData(formData.channelUrl);
+      const profileData = result.data;
+      
+      setExtractedData(profileData);
+      
+      // Auto-fill the form with extracted data
+      setFormData(prev => ({
+        ...prev,
+        title: profileData.title || prev.title,
+        platform: profileData.platform || detectPlatform(formData.channelUrl) || prev.platform,
+        subscribers: profileData.followers || profileData.subscribers || prev.subscribers,
+        profilePicture: profileData.profilePicture || prev.profilePicture
+      }));
+
+      toast({
+        title: "Profile Data Extracted Successfully! ✅",
+        description: `Title: ${profileData.title}\nPlatform: ${profileData.platform}\nFollowers: ${formatFollowerCount(profileData.followers || profileData.subscribers || 0)}`,
+      });
+      
+    } catch (error) {
+      console.error('Profile extraction error:', error);
+      toast({
+        variant: "destructive",
+        title: "Extraction Failed",
+        description: `Failed to extract profile data: ${error.message}. Please fill in the information manually.`,
+      });
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -105,7 +160,9 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         isMonetized: Boolean(formData.isMonetized),
         incomeDetails: formData.incomeDetails || '',
         promotionDetails: formData.promotionDetails || '',
+
         screenshots: screenshotUrls, // Use uploaded URLs
+
         tags: [] // Add empty tags array
       };
 
@@ -113,7 +170,11 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
 
       const result = await createAd(adData);
       console.log('Ad creation result:', result);
-      alert('🎉 Listing created successfully and is now live on the marketplace! Redirecting to homepage...');
+      
+      toast({
+        title: "Listing Created Successfully! 🎉",
+        description: "Your listing is now live on the marketplace! Redirecting to homepage...",
+      });
       
       // Reset form
       setFormData({
@@ -129,6 +190,7 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         isMonetized: false,
         contentCategory: '',
         subscribers: '',
+        profilePicture: '',
       });
       setFiles([]);
 
@@ -140,7 +202,11 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         }
       }, 1500);
     } catch (error: any) {
-      alert(error.message || 'Failed to create listing. Please try again.');
+      toast({
+        variant: "destructive",
+        title: "Failed to Create Listing",
+        description: error.message || 'Something went wrong. Please try again.',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -182,16 +248,75 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
               />
             </div>
 
-            {/* URL Input */}
+            {/* Profile Picture Preview */}
+            {formData.profilePicture && (
+              <div>
+                <label className="block text-white font-medium mb-2">Profile Picture (Auto-extracted)</label>
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={formData.profilePicture} 
+                    alt="Profile" 
+                    className="w-16 h-16 rounded-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                  <div className="text-sm text-xsm-light-gray">
+                    Profile picture automatically extracted from your social media URL
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* URL Input with Auto-Extract */}
             <div>
-              <input
-                type="text"
-                name="channelUrl"
-                value={formData.channelUrl}
-                onChange={handleInputChange}
-                className="xsm-input w-full"
-                placeholder="Paste link to the account/channel/group/page for sale"
-              />
+              <label className="block text-white font-medium mb-2">
+                Social Media URL
+                <span className="text-sm text-xsm-light-gray ml-2">(Instagram, YouTube, TikTok, Twitter, Facebook)</span>
+              </label>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  name="channelUrl"
+                  value={formData.channelUrl}
+                  onChange={handleInputChange}
+                  className="xsm-input flex-1"
+                  placeholder="Paste your Instagram, YouTube, TikTok, Twitter, or Facebook URL here"
+                />
+                <button
+                  type="button"
+                  onClick={handleExtractProfile}
+                  disabled={isExtracting || !formData.channelUrl.trim()}
+                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
+                    isExtracting || !formData.channelUrl.trim()
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                      : 'bg-xsm-yellow text-black hover:bg-yellow-400'
+                  }`}
+                >
+                  {isExtracting ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Extracting...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      Auto-Fill
+                    </>
+                  )}
+                </button>
+              </div>
+              {extractedData && (
+                <div className="mt-3 p-3 bg-green-900/30 border border-green-500/50 rounded-lg">
+                  <p className="text-green-400 text-sm">
+                    ✅ Extracted: <strong>{extractedData.title}</strong> 
+                    {(extractedData.followers || extractedData.subscribers) && (
+                      <span> • {formatFollowerCount(extractedData.followers || extractedData.subscribers)} followers</span>
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Category Dropdown */}
