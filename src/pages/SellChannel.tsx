@@ -1,13 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-
 import { Upload, ChevronDown, Search, RefreshCw } from 'lucide-react';
 import { createAd } from '../services/ads';
 import { extractProfileData, detectPlatform, formatFollowerCount } from '../services/socialMedia';
 import { useToast } from "@/components/ui/use-toast";
-
-import { Upload, ChevronDown } from 'lucide-react';
-import { createAd, uploadAdImage } from '../services/ads';
-
 
 interface SellChannelProps {
   setCurrentPage?: (page: string) => void;
@@ -140,12 +135,6 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         platform = 'tiktok';
       }
 
-      // Upload images and get URLs
-      let screenshotUrls: string[] = [];
-      if (files.length > 0) {
-        screenshotUrls = await Promise.all(files.map(file => uploadAdImage(file)));
-      }
-
       // Prepare ad data with explicit null handling for ENUM fields
       const adData = {
         title: formData.title || `${platform.charAt(0).toUpperCase() + platform.slice(1)} Channel`,
@@ -160,9 +149,8 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         isMonetized: Boolean(formData.isMonetized),
         incomeDetails: formData.incomeDetails || '',
         promotionDetails: formData.promotionDetails || '',
-
-        screenshots: screenshotUrls, // Use uploaded URLs
-
+        thumbnail: formData.profilePicture || '', // Add the extracted profile picture as thumbnail
+        screenshots: files.map(file => file.name), // This would need proper file upload handling
         tags: [] // Add empty tags array
       };
 

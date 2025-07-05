@@ -27,7 +27,6 @@ interface ChannelData {
     rating: number;
     sales: number;
   };
-  screenshots?: string[];
 }
 
 interface ChannelModalProps {
@@ -229,52 +228,6 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
             <div className="grid md:grid-cols-2 gap-8">
               {/* Left Column - Channel Info */}
               <div className="space-y-6">
-                {/* Screenshot Gallery */}
-                {Array.isArray(channel.screenshots) && channel.screenshots.length > 0 ? (
-                  <div className="mb-6 flex flex-col items-center">
-                    <img
-                      src={channel.screenshots[0]}
-                      alt={channel.name}
-                      className="w-full max-w-md h-64 object-contain rounded-lg border border-xsm-medium-gray mb-2"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.onerror = null;
-                        target.src = channel.thumbnail || '/placeholder.svg';
-                      }}
-                    />
-                    {channel.screenshots.length > 1 && (
-                      <div className="flex space-x-2 mt-2">
-                        {channel.screenshots.map((url, idx) => (
-                          <img
-                            key={idx}
-                            src={url}
-                            alt={`Screenshot ${idx + 1}`}
-                            className="w-16 h-16 object-cover rounded border border-xsm-medium-gray cursor-pointer hover:opacity-80"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.onerror = null;
-                              target.src = channel.thumbnail || '/placeholder.svg';
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : channel.thumbnail ? (
-                  <div className="mb-6 flex flex-col items-center">
-                    <img
-                      src={channel.thumbnail}
-                      alt={channel.name}
-                      className="w-full max-w-md h-64 object-contain rounded-lg border border-xsm-medium-gray mb-2"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.onerror = null;
-                        target.src = '/placeholder.svg';
-                      }}
-                    />
-                  </div>
-                ) : null}
-
                 {/* Channel Header */}
                 <div className="text-center">
                   <div className="w-32 h-32 bg-white rounded-full mx-auto mb-4 flex items-center justify-center p-6">

@@ -23,7 +23,6 @@ router.get('/users/:userId', adminController.getUserById);
 router.put('/users/:userId/status', adminController.updateUserStatus);
 router.delete('/users/:userId', adminController.deleteUser);
 router.get('/chats', adminController.getAllChats);
-router.delete('/chats/:chatId', adminController.deleteChat);
 router.get('/dashboard-stats', adminController.getDashboardStats);
 router.get('/recent-activities', adminController.getRecentActivities);
 
