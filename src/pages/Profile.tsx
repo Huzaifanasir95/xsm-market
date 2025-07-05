@@ -4,7 +4,7 @@ import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
 import { useAuth } from '@/context/useAuth';
 import { User } from '@/context/AuthContext';
-import { updateProfile, changePassword, logout, API_URL } from '@/services/auth';
+import { updateProfile, changePassword, logout, API_URL, updateProfilePicture } from '@/services/auth';
 
 interface ProfileProps {
   setCurrentPage: (page: string) => void;
@@ -80,7 +80,10 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const [profile, setProfile] = useState({
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
-    joinDate: (user as ExtendedUser)?.joinDate || '2025-01-15', // Keep the date format as is
+
+    fullName: (user as ExtendedUser)?.fullName || '',
+    joinDate: user?.createdAt || (user as ExtendedUser)?.joinDate || '',
+
     rating: 4.8,
     totalSales: 12,
     totalPurchases: 5,
@@ -102,7 +105,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         username: user.username,
         email: user.email,
         profilePicture: user.profilePicture || '',
-        joinDate: (user as any)?.joinDate || prev.joinDate
+        joinDate: user.createdAt || (user as any)?.joinDate || prev.joinDate
       }));
     }
   }, [user]);
@@ -233,7 +236,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   }
 
   // Handle profile picture upload
-  const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePictureChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       // Check file size (limit to 5MB)
@@ -241,21 +244,31 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         alert('File size must be less than 5MB');
         return;
       }
-      
       // Check file type
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         return;
       }
-      
       // Convert to base64 for preview and storage
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const base64String = e.target?.result as string;
-        setEditForm(prev => ({
-          ...prev,
-          profilePicture: base64String
-        }));
+        try {
+          // Call backend to update profile picture
+          const updatedUser = await updateProfilePicture(base64String);
+          setUser(updatedUser);
+          setProfile(prev => ({
+            ...prev,
+            profilePicture: updatedUser.profilePicture || ''
+          }));
+          setEditForm(prev => ({
+            ...prev,
+            profilePicture: updatedUser.profilePicture || ''
+          }));
+          alert('Profile picture updated successfully!');
+        } catch (error) {
+          alert('Failed to update profile picture.');
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -455,7 +468,9 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   };
 
   const getRelativeTimeString = (dateString: string) => {
+    if (!dateString) return 'Join date unavailable';
     const joinDate = new Date(dateString);
+    if (isNaN(joinDate.getTime())) return 'Join date unavailable';
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - joinDate.getTime());
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -507,8 +522,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       <UserIcon className="w-12 h-12 text-xsm-black" />
                     </div>
                   )}
-                </div>
-                {isEditing && (
+                  {/* Always show profile picture upload button */}
                   <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
                     <Edit className="w-6 h-6 text-white" />
                     <input
@@ -518,7 +532,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                   </div>
-                )}
+                </div>
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">
                 {profile.username}

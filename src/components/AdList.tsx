@@ -24,6 +24,7 @@ interface Ad {
     profilePicture: string;
   };
   createdAt: string;
+  screenshots?: string[];
 }
 
 interface AdListProps {
@@ -50,6 +51,14 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
     sortBy: 'createdAt',
     sortOrder: 'DESC'
   });
+
+  const BACKEND_URL = import.meta.env.VITE_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
+  const getImageUrl = (url?: string) => {
+    if (url && url.startsWith('/uploads')) {
+      return BACKEND_URL + url;
+    }
+    return url || '/placeholder.svg';
+  };
 
   useEffect(() => {
     const fetchAds = async () => {
@@ -199,7 +208,11 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
             <div className="relative h-48 bg-gradient-to-br from-xsm-medium-gray to-xsm-dark-gray rounded-lg mb-4 overflow-hidden group/image">
               <div className="w-full h-full overflow-hidden">
                 <img 
-                  src={ad.thumbnail || '/placeholder.svg'} 
+                  src={
+                    (Array.isArray(ad.screenshots) && ad.screenshots.length > 0)
+                      ? getImageUrl(ad.screenshots[0])
+                      : getImageUrl(ad.thumbnail)
+                  }
                   alt={ad.title}
                   className="w-full h-full object-cover transition-all duration-500 ease-in-out group-hover:scale-105 group-hover/image:scale-110"
                   style={{ objectPosition: 'center' }}

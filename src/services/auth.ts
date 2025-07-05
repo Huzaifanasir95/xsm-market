@@ -675,3 +675,24 @@ export const createChannelListing = async (channelData: any): Promise<any> => {
     }
   }
 };
+
+// Add this function after updateProfile
+export const updateProfilePicture = async (profilePicture: string): Promise<User> => {
+  try {
+    const response = await authenticatedFetch(`${API_URL}/user/profile-picture`, {
+      method: 'PUT',
+      body: JSON.stringify({ profilePicture }),
+    });
+    const data = await handleFetchError(response);
+    if (data.user) {
+      localStorage.setItem('userData', JSON.stringify(data.user));
+    }
+    return data.user;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to update profile picture');
+    }
+  }
+};

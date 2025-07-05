@@ -191,3 +191,22 @@ export const getPlatformStats = async () => {
     throw error;
   }
 };
+
+// Upload ad image
+export const uploadAdImage = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch(`${API_URL}/ads/upload`, {
+    method: 'POST',
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to upload image: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.url;
+};

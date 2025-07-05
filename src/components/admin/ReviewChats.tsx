@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAllChats } from '@/services/admin';
+import { getAllChats, deleteChat } from '@/services/admin';
 
 interface Participant {
   id: string;
@@ -45,6 +45,19 @@ const ReviewChats: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
+  };
+
+  // Handle delete chat
+  const handleDeleteChat = async (chatId: string) => {
+    if (!window.confirm('Are you sure you want to delete this chat? This action cannot be undone.')) return;
+    try {
+      await deleteChat(chatId);
+      setChats(prev => prev.filter(c => c.id !== chatId));
+      if (selectedChat?.id === chatId) setSelectedChat(null);
+      alert('Chat deleted successfully!');
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete chat');
+    }
   };
 
   if (loading) {
@@ -145,11 +158,11 @@ const ReviewChats: React.FC = () => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex space-x-2">
-                      <button className="px-3 py-1 text-sm bg-xsm-yellow text-black rounded hover:bg-xsm-yellow/90">
+                      <button className="px-3 py-1 text-sm bg-xsm-yellow text-black rounded hover:bg-xsm-yellow/90" onClick={() => setSelectedChat(chat)}>
                         Review
                       </button>
-                      <button className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">
-                        Flag
+                      <button className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600" onClick={() => handleDeleteChat(chat.id)}>
+                        Delete
                       </button>
                     </div>
                   </td>
@@ -195,12 +208,6 @@ const ReviewChats: React.FC = () => {
               ))}
             </div>
             <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-xsm-medium-gray">
-              <button className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
-                Flag Chat
-              </button>
-              <button className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-                Mark as Reviewed
-              </button>
               <button 
                 onClick={() => setSelectedChat(null)}
                 className="px-4 py-2 bg-xsm-medium-gray text-white rounded hover:bg-xsm-medium-gray/80"
