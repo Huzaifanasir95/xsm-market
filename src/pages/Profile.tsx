@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, Star, Edit, LogOut, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
+import { User as UserIcon, Star, Edit, LogOut, Save, X, Shield, Award, TrendingUp, Camera } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
 import { useAuth } from '@/context/useAuth';
@@ -232,8 +232,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     );
   }
 
-  // Handle profile picture upload
-  const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle profile picture upload - immediately save to backend
+  const handleProfilePictureChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       // Check file size (limit to 5MB)
@@ -250,12 +250,40 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       
       // Convert to base64 for preview and storage
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const base64String = e.target?.result as string;
-        setEditForm(prev => ({
-          ...prev,
-          profilePicture: base64String
-        }));
+        
+        try {
+          // Immediately update the backend with new profile picture
+          console.log('🔄 Updating profile picture...');
+          const updatedUser = await updateProfile({ profilePicture: base64String });
+          
+          console.log('✅ Profile picture updated successfully:', updatedUser);
+          
+          // Update the user context with the new data
+          setUser({
+            ...updatedUser,
+            id: String(updatedUser.id),
+          });
+          
+          // Update local profile state
+          setProfile(prev => ({
+            ...prev,
+            profilePicture: updatedUser.profilePicture || ''
+          }));
+          
+          // Update the edit form to match the saved data
+          setEditForm(prev => ({
+            ...prev,
+            profilePicture: updatedUser.profilePicture || ''
+          }));
+          
+          alert('Profile picture updated successfully!');
+          
+        } catch (error) {
+          console.error('❌ Failed to update profile picture:', error);
+          alert('Failed to update profile picture. Please try again.');
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -267,15 +295,11 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     setIsUpdating(true);
     try {
       // Prepare the data to send to the API
-      const updateData: any = {};
+      const updateData: UpdateData = {};
       
-      // Only include fields that have changed
+      // Only include username if it has changed (profile picture is handled separately)
       if (editForm.username !== user.username) {
         updateData.username = editForm.username;
-      }
-      
-      if (editForm.profilePicture !== user.profilePicture) {
-        updateData.profilePicture = editForm.profilePicture;
       }
       
       // Only make API call if there are changes
@@ -297,14 +321,12 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         setProfile(prev => ({
           ...prev,
           username: updatedUser.username,
-          profilePicture: updatedUser.profilePicture || ''
         }));
         
         // Update the edit form to match the saved data
         setEditForm(prev => ({
           ...prev,
           username: updatedUser.username,
-          profilePicture: updatedUser.profilePicture || ''
         }));
         
         alert('Profile updated successfully!');
@@ -508,17 +530,17 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     </div>
                   )}
                 </div>
-                {isEditing && (
-                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
-                    <Edit className="w-6 h-6 text-white" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfilePictureChange}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                  </div>
-                )}
+                {/* Always visible edit icon for profile picture */}
+                <div className="absolute bottom-0 right-0 bg-xsm-yellow hover:bg-yellow-500 rounded-full p-1.5 cursor-pointer transition-colors group">
+                  <Camera className="w-4 h-4 text-xsm-black" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePictureChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    title="Change profile picture"
+                  />
+                </div>
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">
                 {profile.username}

@@ -9,6 +9,7 @@ import { login, register, googleSignIn } from '@/services/auth';
 import { User, Mail, Lock, X } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import OTPVerification from './OTPVerification';
+import ForgotPassword from './ForgotPassword';
 
 interface AuthWidgetProps {
   onClose: () => void;
@@ -29,6 +30,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [registrationEmail, setRegistrationEmail] = useState('');
   
   const { toast } = useToast();
@@ -248,6 +250,32 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
     onClose();
   };
 
+  if (showForgotPassword) {
+    return (
+      <div 
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+      >
+        <Card className="w-full max-w-sm mx-4 bg-xsm-dark-gray border-xsm-medium-gray relative animate-scaleIn max-h-[90vh] overflow-y-auto">
+          <button
+            onClick={onClose}
+            className="absolute top-2 right-2 text-gray-400 hover:text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <ForgotPassword 
+            onBack={() => setShowForgotPassword(false)}
+            onClose={onClose}
+          />
+        </Card>
+      </div>
+    );
+  }
+
   if (showOTPVerification) {
     return (
       <div 
@@ -394,10 +422,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => {
-                    onClose();
-                    // Handle forgot password navigation
-                  }}
+                  onClick={() => setShowForgotPassword(true)}
                   className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
                   disabled={isLoading}
                 >
