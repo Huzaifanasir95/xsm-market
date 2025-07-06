@@ -632,14 +632,20 @@ class AuthController {
             $stmt = $this->db->prepare("UPDATE users SET password = ?, updatedAt = NOW() WHERE id = ?");
             $stmt->execute([$hashedPassword, $user['id']]);
             
-            // Send email with new password (temporarily disabled for security)
-            // Note: Sending passwords via email is not secure, should use reset link instead
-            error_log("New password generated for user: {$user['id']}. Password should be sent via secure channel.");
+            // Send email with new temporary password
+            $emailService = new EmailService();
+            $emailResult = $emailService->sendTemporaryPasswordEmail($email, $newPassword, $user['username']);
             
-            // For now, just return success without sending password via email
-            $emailSent = true;
+            if (!$emailResult) {
+                error_log("Failed to send temporary password email to: $email");
+                // Still return success for security reasons (don't reveal if email exists)
+                Response::success([
+                    'message' => 'If an account with that email exists, you will receive a password reset email shortly.'
+                ]);
+                return;
+            }
             
-            error_log("New password generated and sent for user: {$user['id']}");
+            error_log("Temporary password generated and sent successfully for user: {$user['id']}");
             
             Response::success([
                 'message' => 'A new temporary password has been sent to your email address. Please check your inbox and login with the new password.'

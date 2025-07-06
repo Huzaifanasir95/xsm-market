@@ -103,6 +103,26 @@ class EmailService {
         }
     }
     
+    // Send temporary password email - new method for forgot password functionality
+    public function sendTemporaryPasswordEmail($email, $temporaryPassword, $username) {
+        try {
+            error_log("Attempting to send temporary password email to: $email");
+            
+            $subject = 'XSM Market - Temporary Password';
+            $htmlBody = $this->getTemporaryPasswordEmailTemplate($temporaryPassword, $username);
+            $textBody = "Hello $username,\n\nYour temporary password is: $temporaryPassword\n\nPlease use this password to log in to your account. You can change this password later in your profile settings.\n\nFor security reasons, we recommend changing this password as soon as possible.\n\nBest regards,\nXSM Market Team";
+            
+            $result = $this->sendEmail($email, $subject, $htmlBody, $textBody);
+            error_log("Temporary password email send result: " . ($result ? 'SUCCESS' : 'FAILED'));
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log('Failed to send temporary password email: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
     // Core email sending function - made public for use by other controllers
     public function sendEmail($to, $subject, $htmlBody, $textBody = '') {
         try {
@@ -417,6 +437,51 @@ class EmailService {
         <p style='color: #555; margin-bottom: 20px;'>This link expires in <strong>15 minutes</strong>.</p>
         
         <p style='color: #555; margin-bottom: 20px;'>If you didn't request this password reset, please ignore this email. Your password will remain unchanged.</p>
+        
+        <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+        
+        <p style='color: #888; font-size: 14px; margin: 0;'>
+            Best regards,<br>
+            The XSM Market Team
+        </p>
+    </div>
+</body>
+</html>";
+    }
+    
+    private function getTemporaryPasswordEmailTemplate($temporaryPassword, $username) {
+        return "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Temporary Password</title>
+</head>
+<body style='font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1);'>
+        <div style='text-align: center; margin-bottom: 30px;'>
+            <h1 style='color: #333; margin: 0;'>XSM Market</h1>
+            <p style='color: #666; margin: 5px 0 0 0;'>Social Media Marketplace</p>
+        </div>
+        
+        <h2 style='color: #ffc107; margin-bottom: 20px;'>Temporary Password</h2>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Hello <strong>$username</strong>,</p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>We've generated a temporary password for your XSM Market account as requested. You can use this password to log in to your account:</p>
+        
+        <div style='text-align: center; margin: 30px 0;'>
+            <div style='background-color: #ffc107; color: #212529; padding: 15px 30px; border-radius: 5px; font-size: 20px; font-weight: bold; letter-spacing: 2px; display: inline-block; font-family: monospace;'>
+                $temporaryPassword
+            </div>
+        </div>
+        
+        <div style='background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <p style='color: #856404; margin: 0; font-weight: bold;'>⚠️ Important Security Notice:</p>
+            <p style='color: #856404; margin: 10px 0 0 0;'>For your security, we strongly recommend changing this password immediately after logging in. You can update your password in your profile settings.</p>
+        </div>
+        
+        <p style='color: #555; margin-bottom: 20px;'>If you didn't request a password reset, please contact our support team immediately.</p>
         
         <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
         
