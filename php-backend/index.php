@@ -36,6 +36,7 @@ require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/UserController.php';
 require_once __DIR__ . '/controllers/AdController.php';
 require_once __DIR__ . '/controllers/ChatController.php';
+require_once __DIR__ . '/controllers/ChatUploadController.php';
 require_once __DIR__ . '/controllers/AdminController.php';
 
 // Error reporting for debugging (disable in production)
@@ -231,6 +232,16 @@ function handleChatRoutes($controller, $path, $method) {
             break;
         case preg_match('/^\/chat\/chats\/(\d+)\/read$/', $path, $matches) && $method === 'PUT':
             $controller->markMessagesAsRead($matches[1]);
+            break;
+        case preg_match('/^\/chat\/(\d+)\/upload$/', $path, $matches) && $method === 'POST':
+            $_GET['chatId'] = $matches[1];
+            $uploadController = new ChatUploadController();
+            $uploadController->uploadFile();
+            break;
+        case preg_match('/^\/chat\/chats\/(\d+)\/upload$/', $path, $matches) && $method === 'POST':
+            $_GET['chatId'] = $matches[1];
+            $uploadController = new ChatUploadController();
+            $uploadController->uploadFile();
             break;
         case $path === '/chat/ad-inquiry' && $method === 'POST':
             $controller->createAdInquiryChat();

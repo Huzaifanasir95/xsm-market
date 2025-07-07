@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Flag, User, Shield, MessageCircle, Search } from 'lucide-react';
+import { Send, Flag, User, Shield, MessageCircle, Search, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { API_URL } from '@/services/auth';
 
@@ -49,6 +49,8 @@ const Chat: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [lastMessageId, setLastMessageId] = useState<number | null>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [imageUploading, setImageUploading] = useState(false);
 
   // Remove Socket.IO and replace with polling-based real-time updates
   useEffect(() => {
@@ -229,6 +231,36 @@ const Chat: React.FC = () => {
       }
     } catch (error) {
       console.error('Error sending message:', error);
+    }
+  };
+
+  const handleSendImage = async (file: File) => {
+    if (!selectedChat || !user || !file) return;
+    setImageUploading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('messageType', 'image');
+      // Optionally add more fields if backend expects
+      const response = await fetch(`${API_URL}/chat/chats/${selectedChat.id}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      if (response.ok) {
+        const message = await response.json();
+        setMessages(prev => [...prev, message]);
+        setLastMessageId(message.id);
+        updateChatLastMessage(message);
+        setTimeout(() => checkForNewMessages(), 500);
+      }
+    } catch (error) {
+      console.error('Error sending image:', error);
+    } finally {
+      setImageUploading(false);
     }
   };
 
@@ -436,7 +468,16 @@ const Chat: React.FC = () => {
                                 {message.sender?.username}
                               </p>
                             )}
-                            <p className="text-sm">{message.content}</p>
+                            {message.messageType === 'image' && message.content ? (
+                              <img
+                                src={message.content}
+                                alt="Sent image"
+                                className="rounded-lg max-w-[200px] max-h-[200px] mb-2 border border-xsm-yellow"
+                                style={{ objectFit: 'cover' }}
+                              />
+                            ) : (
+                              <p className="text-sm">{message.content}</p>
+                            )}
                             <p
                               className={`text-xs mt-1 ${
                                 message.senderId === user?.id ? 'text-xsm-dark-gray' : 'text-gray-400'
@@ -454,6 +495,28 @@ const Chat: React.FC = () => {
                   {/* Message Input */}
                   <div className="p-4 border-t border-xsm-medium-gray bg-xsm-black">
                     <div className="flex space-x-2">
+                      {/* Image Button */}
+                      <button
+                        type="button"
+                        onClick={() => imageInputRef.current?.click()}
+                        className="p-2 text-gray-400 hover:text-xsm-yellow rounded-lg border border-xsm-yellow bg-xsm-dark-gray"
+                        title="Attach Image"
+                        disabled={imageUploading}
+                      >
+                        <ImageIcon className="w-5 h-5" />
+                      </button>
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleSendImage(e.target.files[0]);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
                       <input
                         type="text"
                         value={newMessage}

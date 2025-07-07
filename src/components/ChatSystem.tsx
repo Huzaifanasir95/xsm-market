@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { MessageSquare, Send, X, Users, Phone, Video, MoreVertical } from 'lucide-react';
+import { MessageSquare, Send, X, Users, Phone, Video, MoreVertical, Paperclip, Image, Camera, FileVideo } from 'lucide-react';
 
 interface User {
   id: string;
@@ -14,11 +14,15 @@ interface Message {
   content: string;
   senderId: string;
   chatId: number;
-  messageType: string;
+  messageType: 'text' | 'image' | 'video' | 'file';
   isRead: boolean;
   createdAt: string;
   sender: User;
   replyTo?: Message;
+  mediaUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  thumbnail?: string;
 }
 
 interface Chat {
@@ -50,8 +54,13 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, isOpen, onClose })
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -69,6 +78,19 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, isOpen, onClose })
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showAttachmentMenu && !(event.target as Element).closest('.attachment-menu')) {
+        setShowAttachmentMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAttachmentMenu]);
 
   const initializeSocket = () => {
     const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
@@ -237,6 +259,193 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, isOpen, onClose })
     ).sort((a, b) => new Date(b.lastMessageTime || 0).getTime() - new Date(a.lastMessageTime || 0).getTime()));
   };
 
+  const handleFileUpload = async (file: File, messageType: 'image' | 'video' | 'file') => {
+    if (!selectedChat) return;
+
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('messageType', messageType);
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/chat/chats/${selectedChat.id}/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      const message = await response.json();
+      
+      // Add to local messages
+      setMessages(prev => [...prev, message]);
+      
+      // Emit to socket for real-time delivery
+      if (socket) {
+        socket.emit('send_message', {
+          ...message,
+          chatId: selectedChat.id
+        });
+      }
+
+      // Update chat list
+      updateChatLastMessage(message);
+      
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      // TODO: Show error toast
+    } finally {
+      setIsUploading(false);
+      setShowAttachmentMenu(false);
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        alert('Image size must be less than 10MB');
+        return;
+      }
+      handleFileUpload(file, 'image');
+    }
+    e.target.value = '';
+  };
+
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 50 * 1024 * 1024) { // 50MB limit
+        alert('Video size must be less than 50MB');
+        return;
+      }
+      handleFileUpload(file, 'video');
+    }
+    e.target.value = '';
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 25 * 1024 * 1024) { // 25MB limit
+        alert('File size must be less than 25MB');
+        return;
+      }
+      handleFileUpload(file, 'file');
+    }
+    e.target.value = '';
+  };
+
+  const renderMessage = (message: Message) => {
+    const isOwn = message.senderId === currentUser.id;
+    
+    return (
+      <div
+        key={message.id}
+        className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+      >
+        <div
+          className={`max-w-xs lg:max-w-md ${
+            isOwn
+              ? 'bg-blue-500 text-white'
+              : 'bg-gray-200 text-gray-800'
+          } rounded-lg overflow-hidden`}
+        >
+          {!isOwn && (
+            <div className="px-4 pt-2">
+              <p className="text-xs font-medium opacity-75">
+                {message.sender?.fullName || message.sender?.username}
+              </p>
+            </div>
+          )}
+          
+          {message.messageType === 'image' && message.mediaUrl && (
+            <div className="relative">
+              <img
+                src={message.mediaUrl}
+                alt="Shared image"
+                className="w-full h-auto max-h-64 object-cover cursor-pointer"
+                onClick={() => window.open(message.mediaUrl, '_blank')}
+              />
+              {message.content && (
+                <div className="px-4 py-2">
+                  <p className="text-sm">{message.content}</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {message.messageType === 'video' && message.mediaUrl && (
+            <div className="relative">
+              <video
+                src={message.mediaUrl}
+                controls
+                className="w-full h-auto max-h-64"
+                preload="metadata"
+              />
+              {message.content && (
+                <div className="px-4 py-2">
+                  <p className="text-sm">{message.content}</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {message.messageType === 'file' && (
+            <div className="px-4 py-2">
+              <div className="flex items-center space-x-2">
+                <Paperclip className="w-4 h-4" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium truncate">
+                    {message.fileName || 'Unknown file'}
+                  </p>
+                  {message.fileSize && (
+                    <p className="text-xs opacity-75">
+                      {(message.fileSize / 1024 / 1024).toFixed(1)} MB
+                    </p>
+                  )}
+                </div>
+              </div>
+              {message.mediaUrl && (
+                <a
+                  href={message.mediaUrl}
+                  download={message.fileName}
+                  className={`text-sm underline mt-1 block ${
+                    isOwn ? 'text-blue-100' : 'text-blue-600'
+                  }`}
+                >
+                  Download
+                </a>
+              )}
+            </div>
+          )}
+          
+          {message.messageType === 'text' && (
+            <div className="px-4 py-2">
+              <p className="text-sm">{message.content}</p>
+            </div>
+          )}
+          
+          <div className="px-4 pb-2">
+            <p
+              className={`text-xs ${
+                isOwn ? 'text-blue-100' : 'text-gray-500'
+              }`}
+            >
+              {formatTime(message.createdAt)}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -352,34 +561,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, isOpen, onClose })
                 ) : messages.length === 0 ? (
                   <div className="text-center text-gray-500">No messages yet. Start the conversation!</div>
                 ) : (
-                  messages.map(message => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.senderId === currentUser.id ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          message.senderId === currentUser.id
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-200 text-gray-800'
-                        }`}
-                      >
-                        {message.senderId !== currentUser.id && (
-                          <p className="text-xs font-medium mb-1 opacity-75">
-                            {message.sender?.fullName || message.sender?.username}
-                          </p>
-                        )}
-                        <p className="text-sm">{message.content}</p>
-                        <p
-                          className={`text-xs mt-1 ${
-                            message.senderId === currentUser.id ? 'text-blue-100' : 'text-gray-500'
-                          }`}
-                        >
-                          {formatTime(message.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                  messages.map(message => renderMessage(message))
                 )}
                 
                 {typingUsers.length > 0 && (
@@ -392,12 +574,41 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, isOpen, onClose })
                   </div>
                 )}
                 
+                {isUploading && (
+                  <div className="flex justify-end">
+                    <div className="bg-blue-500 text-white px-4 py-2 rounded-lg">
+                      <p className="text-sm">Uploading file...</p>
+                    </div>
+                  </div>
+                )}
+                
                 <div ref={messagesEndRef} />
               </div>
 
               {/* Message Input */}
               <form onSubmit={sendMessage} className="p-4 border-t border-gray-200">
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 items-end">
+                  {/* Image Button */}
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="p-2 text-gray-500 hover:text-yellow-400 rounded-full hover:bg-gray-900 border border-yellow-400"
+                    disabled={isUploading}
+                    title="Send Image"
+                  >
+                    <Image className="w-5 h-5" />
+                  </button>
+                  {/* Video Button */}
+                  <button
+                    type="button"
+                    onClick={() => videoInputRef.current?.click()}
+                    className="p-2 text-gray-500 hover:text-yellow-400 rounded-full hover:bg-gray-900 border border-yellow-400"
+                    disabled={isUploading}
+                    title="Send Video"
+                  >
+                    <FileVideo className="w-5 h-5" />
+                  </button>
+                  {/* Message Input */}
                   <input
                     type="text"
                     value={newMessage}
@@ -405,17 +616,41 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, isOpen, onClose })
                       setNewMessage(e.target.value);
                       handleTyping();
                     }}
-                    placeholder="Type a message..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder={isUploading ? "Uploading..." : "Type a message..."}
+                    disabled={isUploading}
+                    className="flex-1 px-4 py-2 border border-yellow-400 bg-black text-yellow-300 rounded-full focus:outline-none focus:ring-2 focus:ring-yellow-400 disabled:opacity-50"
                   />
+                  {/* Send Button */}
                   <button
                     type="submit"
-                    disabled={!newMessage.trim()}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!newMessage.trim() || isUploading}
+                    className="px-4 py-2 bg-yellow-400 text-black rounded-full hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
+                {/* Hidden file inputs */}
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoSelect}
+                  className="hidden"
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="*/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
               </form>
             </>
           ) : (

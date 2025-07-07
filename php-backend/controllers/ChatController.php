@@ -119,20 +119,34 @@ class ChatController {
         $user = AuthMiddleware::authenticate();
         $senderId = $user['id'];
         
+        error_log("Attempting to send message to chat $chatId from user $senderId");
+        
         $input = json_decode(file_get_contents('php://input'), true);
         $content = trim($input['content'] ?? '');
         $messageType = $input['messageType'] ?? 'text';
         $replyToId = $input['replyToId'] ?? null;
         
-        if (empty($content)) {
+        error_log("Message data - Content: '$content', Type: $messageType");
+        
+        // Allow empty content for non-text messages (like images)
+        if (empty($content) && $messageType === 'text') {
+            error_log("Message content validation failed - empty content for text message");
             Response::error('Message content is required', 400);
         }
         
         try {
             // Verify user is participant in this chat
             $participant = ChatParticipant::findOne($chatId, $senderId);
-            if (!$participant || !$participant['isActive']) {
-                Response::error('Access denied', 403);
+            error_log("Participant query result: " . json_encode($participant));
+            
+            if (!$participant) {
+                error_log("No participant found for user $senderId in chat $chatId");
+                Response::error('Access denied - not a participant', 403);
+            }
+            
+            if (!$participant['isActive']) {
+                error_log("User $senderId is not active in chat $chatId");
+                Response::error('Access denied - not active', 403);
             }
             
             // Create message
@@ -144,15 +158,19 @@ class ChatController {
                 'replyToId' => $replyToId
             ]);
             
+            error_log("Created message with ID: $messageId");
+            
             // Update chat's last message
             Chat::updateLastMessage($chatId, $content);
             
             // Fetch complete message data
             $messageWithDetails = Message::findByIdWithDetails($messageId);
             
+            error_log("Sending message response: " . json_encode($messageWithDetails));
             Response::json($messageWithDetails, 201);
         } catch (Exception $e) {
             error_log('Error sending message: ' . $e->getMessage());
+            error_log('Stack trace: ' . $e->getTraceAsString());
             Response::error('Server error: ' . $e->getMessage(), 500);
         }
     }

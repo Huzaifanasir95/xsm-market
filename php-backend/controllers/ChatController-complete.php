@@ -312,19 +312,44 @@ class ChatController {
     public function sendMessage($chatId) {
         try {
             $user = $this->authMiddleware->authenticate();
-            $input = json_decode(file_get_contents('php://input'), true);
-            
-            $content = trim($input['content'] ?? '');
-            $messageType = $input['messageType'] ?? 'text';
-            $replyToId = isset($input['replyToId']) ? (int)$input['replyToId'] : null;
             $senderId = (int)$user['id'];
-            
-            if (empty($content)) {
-                http_response_code(400);
-                echo json_encode(['message' => 'Message content is required']);
-                return;
+            $replyToId = isset($_POST['replyToId']) ? (int)$_POST['replyToId'] : null;
+            $messageType = $_POST['messageType'] ?? 'text';
+            $content = '';
+            $imageUrl = null;
+
+            // Check if an image is uploaded
+            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = __DIR__ . '/../uploads/chat/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+                $fileTmp = $_FILES['image']['tmp_name'];
+                $fileName = uniqid('chatimg_') . '_' . basename($_FILES['image']['name']);
+                $filePath = $uploadDir . $fileName;
+                $publicPath = '/uploads/chat/' . $fileName;
+                if (move_uploaded_file($fileTmp, $filePath)) {
+                    $content = $publicPath;
+                    $messageType = 'image';
+                    $imageUrl = $publicPath;
+                } else {
+                    http_response_code(500);
+                    echo json_encode(['message' => 'Failed to upload image']);
+                    return;
+                }
+            } else {
+                // Fallback to JSON/text input
+                $input = json_decode(file_get_contents('php://input'), true);
+                $content = trim($input['content'] ?? '');
+                $messageType = $input['messageType'] ?? 'text';
+                $replyToId = isset($input['replyToId']) ? (int)$input['replyToId'] : null;
+                if (empty($content)) {
+                    http_response_code(400);
+                    echo json_encode(['message' => 'Message content is required']);
+                    return;
+                }
             }
-            
+
             // Verify user is participant in this chat
             $stmt = $this->db->prepare("
                 SELECT id FROM chat_participants 
@@ -336,7 +361,7 @@ class ChatController {
                 echo json_encode(['message' => 'Access denied']);
                 return;
             }
-            
+
             // Create message
             $stmt = $this->db->prepare("
                 INSERT INTO messages (content, senderId, chatId, messageType, replyToId, createdAt, updatedAt)
@@ -344,14 +369,14 @@ class ChatController {
             ");
             $stmt->execute([$content, $senderId, $chatId, $messageType, $replyToId]);
             $messageId = $this->db->lastInsertId();
-            
+
             // Update chat's last message
             $stmt = $this->db->prepare("
                 UPDATE chats SET lastMessage = ?, lastMessageTime = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([$content, $chatId]);
-            
+
             // Fetch complete message data
             $stmt = $this->db->prepare("
                 SELECT m.*, 
@@ -366,7 +391,7 @@ class ChatController {
             ");
             $stmt->execute([$messageId]);
             $messageData = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             $result = [
                 'id' => (int)$messageData['id'],
                 'content' => $messageData['content'],
@@ -381,7 +406,7 @@ class ChatController {
                     'username' => $messageData['sender_username']
                 ]
             ];
-            
+
             if ($messageData['reply_id']) {
                 $result['replyTo'] = [
                     'id' => (int)$messageData['reply_id'],
@@ -392,7 +417,7 @@ class ChatController {
                     ]
                 ];
             }
-            
+
             http_response_code(201);
             echo json_encode($result);
         } catch (Exception $e) {

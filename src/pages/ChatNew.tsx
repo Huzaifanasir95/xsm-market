@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Flag, User, Shield, MessageCircle } from 'lucide-react';
+import { Send, Flag, User, Shield, MessageCircle, Image, FileVideo } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { io, Socket } from 'socket.io-client';
 
@@ -9,6 +9,10 @@ interface Message {
   senderId: string;
   chatId: number;
   messageType: string;
+  mediaUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  thumbnail?: string;
   isRead: boolean;
   createdAt: string;
   sender: {
@@ -47,7 +51,11 @@ const Chat: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize Socket.IO connection
 
@@ -62,6 +70,15 @@ const Chat: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Cleanup image preview URL when component unmounts or image changes
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
   // Join chat room when chat is selected
   useEffect(() => {
@@ -113,40 +130,139 @@ const Chat: React.FC = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat || !socket || !user) return;
+    console.log('=== handleSendMessage START ===');
+    console.log('newMessage:', newMessage);
+    console.log('selectedImage:', selectedImage);
+    console.log('selectedChat:', selectedChat);
+    console.log('user:', user);
+    
+    // Check if we have either a message or an image
+    const hasMessage = newMessage.trim().length > 0;
+    const hasImage = selectedImage !== null;
+    
+    console.log('hasMessage:', hasMessage);
+    console.log('hasImage:', hasImage);
+    
+    if ((!hasMessage && !hasImage) || !selectedChat || !user) {
+      console.log('Early return - conditions not met');
+      console.log('hasMessage || hasImage:', hasMessage || hasImage);
+      console.log('selectedChat:', !!selectedChat);
+      console.log('user:', !!user);
+      return;
+    }
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/chat/chats/${selectedChat.id}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          content: newMessage.trim(),
-          messageType: 'text'
-        })
-      });
+      console.log('Token available:', !!token);
+      
+      // If there's an image, upload it first
+      if (hasImage && selectedImage) {
+        console.log('=== TAKING IMAGE UPLOAD PATH ===');
+        const formData = new FormData();
+        formData.append('file', selectedImage);
+        formData.append('messageType', 'image');
+        if (hasMessage) {
+          console.log('Adding text content to image message');
+          formData.append('content', newMessage.trim());
+        }
 
-      const message = await response.json();
-      
-      // Add to local messages
-      setMessages(prev => [...prev, message]);
-      
-      // Emit to socket for real-time delivery
-      socket.emit('send_message', {
-        ...message,
-        chatId: selectedChat.id
-      });
+        const uploadUrl = `/api/chat/chats/${selectedChat.id}/upload`;
+        console.log('Uploading image to:', uploadUrl);
+        console.log('FormData entries:');
+        for (const [key, value] of formData.entries()) {
+          console.log(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size}bytes)` : value);
+        }
 
-      // Update chat list
-      updateChatLastMessage(message);
-      
-      setNewMessage('');
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        console.log('Upload response status:', response.status);
+        console.log('Upload response headers:', Object.fromEntries(response.headers.entries()));
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Upload error response:', errorText);
+          throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+        }
+
+        const message = await response.json();
+        console.log('Upload success, message:', message);
+        
+        // Add to local messages
+        setMessages(prev => [...prev, message]);
+        
+        // Emit to socket for real-time delivery (if socket is available)
+        if (socket) {
+          socket.emit('send_message', {
+            ...message,
+            chatId: selectedChat.id
+          });
+        }
+
+        // Update chat list
+        updateChatLastMessage(message);
+        
+        // Clear form
+        setNewMessage('');
+        setSelectedImage(null);
+        setImagePreview(null);
+        if (imageInputRef.current) {
+          imageInputRef.current.value = '';
+        }
+      } else if (hasMessage) {
+        console.log('=== TAKING TEXT MESSAGE PATH ===');
+        // Send text message
+        const messageUrl = `/api/chat/chats/${selectedChat.id}/messages`;
+        console.log('Sending text message to:', messageUrl);
+        const response = await fetch(messageUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            content: newMessage.trim(),
+            messageType: 'text'
+          })
+        });
+
+        console.log('Message response status:', response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Message error response:', errorText);
+          throw new Error(`Message failed: ${response.status} - ${errorText}`);
+        }
+
+        const message = await response.json();
+        
+        // Add to local messages
+        setMessages(prev => [...prev, message]);
+        
+        // Emit to socket for real-time delivery (if socket is available)
+        if (socket) {
+          socket.emit('send_message', {
+            ...message,
+            chatId: selectedChat.id
+          });
+        }
+
+        // Update chat list
+        updateChatLastMessage(message);
+        
+        setNewMessage('');
+      }
     } catch (error) {
+      console.error('=== ERROR IN handleSendMessage ===');
       console.error('Error sending message:', error);
+      alert('Failed to send message: ' + error.message);
     }
+    console.log('=== handleSendMessage END ===');
   };
 
   const updateChatLastMessage = (message: Message) => {
@@ -159,6 +275,33 @@ const Chat: React.FC = () => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    console.log('Image selection event:', file);
+    if (file && file.type.startsWith('image/')) {
+      setSelectedImage(file);
+      console.log('Image selected:', file.name, file.size);
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+      console.log('Image preview URL created:', previewUrl);
+    } else {
+      console.log('Invalid file selected or no file selected');
+    }
+  };
+
+  const clearImageSelection = () => {
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = '';
+    }
   };
 
   const handleReport = () => {
@@ -327,7 +470,25 @@ const Chat: React.FC = () => {
                                 {message.sender?.fullName || message.sender?.username}
                               </p>
                             )}
-                            <p className="text-sm">{message.content}</p>
+                            
+                            {/* Render image if it's an image message */}
+                            {message.messageType === 'image' && message.mediaUrl && (
+                              <div className="mb-2">
+                                <img 
+                                  src={`/api${message.mediaUrl}`}
+                                  alt="Shared image"
+                                  className="max-w-full h-auto rounded-lg cursor-pointer"
+                                  onClick={() => window.open(`/api${message.mediaUrl}`, '_blank')}
+                                  style={{ maxHeight: '200px' }}
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Render text content if present */}
+                            {message.content && (
+                              <p className="text-sm">{message.content}</p>
+                            )}
+                            
                             <p
                               className={`text-xs mt-1 ${
                                 message.senderId === user?.id ? 'text-xsm-dark-gray' : 'text-gray-400'
@@ -344,22 +505,64 @@ const Chat: React.FC = () => {
 
                   {/* Message Input */}
                   <div className="p-4 border-t border-xsm-medium-gray bg-xsm-black">
+                    {/* Image Preview */}
+                    {imagePreview && (
+                      <div className="mb-3 p-3 bg-xsm-dark-gray rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-white">Image selected:</span>
+                          <button
+                            onClick={clearImageSelection}
+                            className="text-red-400 hover:text-red-300 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <img 
+                          src={imagePreview} 
+                          alt="Preview" 
+                          className="max-w-full h-auto rounded max-h-20"
+                        />
+                      </div>
+                    )}
+                    
                     <div className="flex space-x-2">
+                      {/* Image Button */}
+                      <button
+                        type="button"
+                        onClick={() => imageInputRef.current?.click()}
+                        className="p-2 text-gray-400 hover:text-xsm-yellow rounded-lg border border-xsm-yellow bg-xsm-dark-gray"
+                        title="Attach Image"
+                      >
+                        <Image className="w-5 h-5" />
+                      </button>
                       <input
                         type="text"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
                         placeholder="Type your message..."
                         className="flex-1 px-4 py-2 bg-xsm-dark-gray text-white rounded-lg border border-xsm-medium-gray focus:outline-none focus:border-xsm-yellow"
                       />
                       <button
                         onClick={handleSendMessage}
-                        disabled={!newMessage.trim()}
+                        disabled={!newMessage.trim() && !selectedImage}
                         className="px-4 py-2 bg-xsm-yellow text-xsm-black rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Send className="w-5 h-5" />
                       </button>
+                      {/* Hidden file inputs */}
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleImageSelect}
+                      />
                     </div>
                   </div>
                 </>
