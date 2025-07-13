@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Users, ShoppingBag, Settings, Bell, Search, MessageSquare } from 'lucide-react';
+import { Activity, Users, ShoppingBag, Settings, Bell, Search, MessageSquare, FileText } from 'lucide-react';
 import ManageUsers from '@/components/admin/ManageUsers';
 import ReviewListings from '@/components/admin/ReviewListings';
 import ReviewChats from '@/components/admin/ReviewChats';
+import ReviewDeals from '@/components/admin/ReviewDeals';
 import { getDashboardStats, getRecentActivities } from '@/services/admin';
 
 interface AdminDashboardProps {
@@ -60,6 +61,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
         return <ReviewListings />;
       case 'review-chats':
         return <ReviewChats />;
+      case 'review-deals':
+        return <ReviewDeals />;
       default:
         return (
           <>
@@ -112,7 +115,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
               { [
                 { name: 'Manage Users', view: 'manage-users' },
                 { name: 'Review Listings', view: 'review-listings' },
-                { name: 'Review Chats', view: 'review-chats', icon: MessageSquare }
+                { name: 'Review Chats', view: 'review-chats', icon: MessageSquare },
+                { name: 'Review Deals', view: 'review-deals', icon: FileText }
               ].map((action, index) => (
                 <button
                   key={index}

@@ -257,6 +257,10 @@ function handleAdminRoutes($controller, $path, $method) {
         if ($method === 'GET') $controller->getAdminEmail();
         else methodNotAllowed();
     }
+    elseif ($path === '/admin/deals') {
+        if ($method === 'GET') $controller->getAllDeals();
+        else methodNotAllowed();
+    }
     elseif ($path === '/admin/users' || $path === '/admin/users/') {
         if ($method === 'GET') $controller->getAllUsers();
         else methodNotAllowed();

@@ -70,6 +70,29 @@ export const getDashboardStats = async () => {
   return await response.json();
 };
 
+// Fetch all deals (admin only)
+export const getAllDeals = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${ADMIN_API_URL}/admin/deals`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to fetch deals: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
 // Fetch recent activities (admin only)
 export const getRecentActivities = async () => {
   const token = localStorage.getItem('token');

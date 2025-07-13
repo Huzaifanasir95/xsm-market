@@ -381,6 +381,83 @@ class AdminController {
         }
     }
     
+    // Get all deals for admin review
+    public function getAllDeals() {
+        try {
+            $this->isCurrentUserAdmin();
+            
+            $stmt = $this->db->prepare("
+                SELECT 
+                    d.*,
+                    buyer.username as buyer_username,
+                    buyer.email as buyer_email,
+                    seller.username as seller_username,
+                    seller.email as seller_email
+                FROM deals d
+                LEFT JOIN users buyer ON d.buyer_id = buyer.id
+                LEFT JOIN users seller ON d.seller_id = seller.id
+                ORDER BY d.created_at DESC
+            ");
+            $stmt->execute();
+            $deals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Transform data for frontend
+            $transformedDeals = array_map(function($deal) {
+                $status = 'Pending';
+                $progress = 0;
+                
+                // Determine deal status and progress
+                if ($deal['seller_agreed'] && $deal['transaction_fee_paid']) {
+                    $status = 'Completed';
+                    $progress = 100;
+                } elseif ($deal['transaction_fee_paid']) {
+                    $status = 'Fee Paid - Awaiting Seller';
+                    $progress = 75;
+                } elseif ($deal['seller_agreed']) {
+                    $status = 'Seller Agreed - Awaiting Payment';
+                    $progress = 50;
+                } else {
+                    $status = 'Pending Seller Agreement';
+                    $progress = 25;
+                }
+                
+                return [
+                    'id' => (int)$deal['id'],
+                    'channel_title' => $deal['channel_title'],
+                    'platform' => 'Social Media', // Default since platform info not in deals table
+                    'price' => (float)$deal['channel_price'],
+                    'buyer' => [
+                        'id' => (int)$deal['buyer_id'],
+                        'username' => $deal['buyer_username'],
+                        'email' => $deal['buyer_email']
+                    ],
+                    'seller' => [
+                        'id' => (int)$deal['seller_id'],
+                        'username' => $deal['seller_username'],
+                        'email' => $deal['seller_email']
+                    ],
+                    'status' => $status,
+                    'progress' => $progress,
+                    'seller_agreed' => (bool)$deal['seller_agreed'],
+                    'seller_agreed_at' => $deal['seller_agreed_at'],
+                    'transaction_fee_paid' => (bool)$deal['transaction_fee_paid'],
+                    'transaction_fee_paid_at' => $deal['transaction_fee_paid_at'],
+                    'transaction_fee_paid_by' => $deal['transaction_fee_paid_by'],
+                    'transaction_fee_payment_method' => $deal['transaction_fee_payment_method'],
+                    'created_at' => $deal['created_at'],
+                    'updated_at' => $deal['updated_at']
+                ];
+            }, $deals);
+            
+            http_response_code(200);
+            echo json_encode($transformedDeals);
+        } catch (Exception $e) {
+            error_log('Error fetching all deals for admin: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
+        }
+    }
+
     // Get admin email from .env file (public endpoint)
     public function getAdminEmail() {
         try {
