@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { X, Shield, DollarSign, CreditCard, Smartphone, Check } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 
+// API URL constant
+const API_URL = 'http://localhost:5000';
+
 interface PaymentMethod {
   id: string;
   name: string;
@@ -92,14 +95,45 @@ const DealCreationModal: React.FC<DealCreationModalProps> = ({
     try {
       setIsCreatingDeal(true);
       
-      // Generate a unique transaction ID for display
+      // Generate a unique transaction ID
       const transactionId = `XSM${Date.now()}${Math.floor(Math.random() * 1000)}`;
       
-      // Simulate deal creation process
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay to simulate processing
+      // Prepare deal data for API
+      const dealData = {
+        seller_id: sellerId,
+        channel_id: channelTitle.toLowerCase().replace(/\s+/g, '-'), // Create a channel ID from title
+        channel_title: channelTitle,
+        channel_price: channelPrice,
+        escrow_fee: escrowFee,
+        transaction_type: selectedTransactionType,
+        buyer_email: buyerEmail.trim(),
+        transaction_id: transactionId,
+        payment_methods: selectedPaymentMethods.map(id => {
+          const method = paymentMethods.find(p => p.id === id);
+          return {
+            id: method?.id,
+            name: method?.name,
+            category: method?.category
+          };
+        }).filter(m => m.id) // Remove any undefined methods
+      };
+
+      // Call the PHP API to create the deal
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/deals?action=create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(dealData)
+      });
+
+      const result = await response.json();
       
-      // Show success message instead of making API call
-      alert(`✅ Deal Created Successfully!
+      if (response.ok) {
+        // Success! Show deal created message
+        alert(`✅ Deal Created Successfully!
 
 Transaction ID: ${transactionId}
 Channel: ${channelTitle}
@@ -107,13 +141,17 @@ Amount: $${channelPrice}
 Escrow Fee: $${escrowFee.toFixed(2)}
 Email: ${buyerEmail}
 
-Your deal request has been created. The seller will be notified and you'll be contacted once they respond.
+Your deal has been saved to the database and the seller has been notified. 
+They will review your selected payment methods and respond accordingly.
 
-Note: This is a frontend demo. Backend integration will be added later.`);
+Deal Status: Waiting for seller review`);
 
-      // Reset and close modal
-      resetModal();
-      onClose();
+        // Reset and close modal
+        resetModal();
+        onClose();
+      } else {
+        throw new Error(result.message || 'Failed to create deal');
+      }
       
     } catch (error) {
       console.error('Error creating deal:', error);

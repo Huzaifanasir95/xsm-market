@@ -75,6 +75,10 @@ try {
         $chatController = new ChatController();
         handleChatRoutes($chatController, $path, $method);
     }
+    // Deals routes
+    elseif (strpos($path, '/deals') === 0) {
+        handleDealsRoutes($path, $method);
+    }
     // Admin routes
     elseif (strpos($path, '/admin') === 0) {
         $adminController = new AdminController();
@@ -295,5 +299,9 @@ function handleSocialMediaRoutes($path, $method) {
 
 function handleDebugRoutes($path, $method) {
     require_once __DIR__ . '/routes/debug.php';
+}
+
+function handleDealsRoutes($path, $method) {
+    require_once __DIR__ . '/routes/deals.php';
 }
 ?>

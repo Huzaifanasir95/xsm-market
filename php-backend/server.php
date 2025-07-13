@@ -60,6 +60,10 @@ try {
         $chatController = new ChatController();
         handleChatRoutes($chatController, $path, $method);
     }
+    // Deals routes
+    elseif (strpos($path, '/deals') === 0) {
+        handleDealsRoutes($path, $method);
+    }
     // Admin routes
     elseif (strpos($path, '/admin') === 0) {
         $adminController = new AdminController();
@@ -77,6 +81,7 @@ try {
                 'users' => '/user/*',
                 'ads' => '/ads/*',
                 'chat' => '/chat/*',
+                'deals' => '/deals/*',
                 'admin' => '/admin/*'
             ]
         ]);
@@ -289,5 +294,12 @@ function methodNotAllowed() {
 function routeNotFound() {
     http_response_code(404);
     echo json_encode(['message' => 'Route not found']);
+}
+
+function handleDealsRoutes($path, $method) {
+    // Make path and method available globally for the deals route
+    $GLOBALS['path'] = $path;
+    $GLOBALS['method'] = $method;
+    require_once __DIR__ . '/routes/deals.php';
 }
 ?>
