@@ -406,12 +406,15 @@ class AdminController {
                 $status = 'Pending';
                 $progress = 0;
                 
-                // Determine deal status and progress
-                if ($deal['seller_agreed'] && $deal['transaction_fee_paid']) {
-                    $status = 'Completed';
+                // Determine deal status and progress with new agent rights flow
+                if ($deal['seller_gave_rights']) {
+                    $status = 'Agent Access Confirmed';
                     $progress = 100;
+                } elseif ($deal['agent_email_sent']) {
+                    $status = 'Waiting for Agent Access';
+                    $progress = 85;
                 } elseif ($deal['transaction_fee_paid']) {
-                    $status = 'Fee Paid - Awaiting Seller';
+                    $status = 'Fee Paid - Sending Agent Email';
                     $progress = 75;
                 } elseif ($deal['seller_agreed']) {
                     $status = 'Seller Agreed - Awaiting Payment';
@@ -444,6 +447,10 @@ class AdminController {
                     'transaction_fee_paid_at' => $deal['transaction_fee_paid_at'],
                     'transaction_fee_paid_by' => $deal['transaction_fee_paid_by'],
                     'transaction_fee_payment_method' => $deal['transaction_fee_payment_method'],
+                    'agent_email_sent' => (bool)$deal['agent_email_sent'],
+                    'agent_email_sent_at' => $deal['agent_email_sent_at'],
+                    'seller_gave_rights' => (bool)$deal['seller_gave_rights'],
+                    'seller_gave_rights_at' => $deal['seller_gave_rights_at'],
                     'created_at' => $deal['created_at'],
                     'updated_at' => $deal['updated_at']
                 ];

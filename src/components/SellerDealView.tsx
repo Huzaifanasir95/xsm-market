@@ -33,6 +33,10 @@ interface Deal {
   transaction_fee_paid?: boolean;
   transaction_fee_paid_by?: string;
   transaction_fee_payment_method?: string;
+  agent_email_sent?: boolean;
+  agent_email_sent_at?: string | null;
+  seller_gave_rights?: boolean;
+  seller_gave_rights_at?: string | null;
 }
 
 interface SellerDealViewProps {
@@ -50,6 +54,7 @@ const SellerDealView: React.FC<SellerDealViewProps> = ({
 }) => {
   const [isAgreeing, setIsAgreeing] = useState(false);
   const [showFeePayment, setShowFeePayment] = useState(false);
+  const [isConfirmingRights, setIsConfirmingRights] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -59,6 +64,48 @@ const SellerDealView: React.FC<SellerDealViewProps> = ({
   };
 
   if (!isOpen || !deal) return null;
+
+  const handleConfirmRights = async () => {
+    try {
+      setIsConfirmingRights(true);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/deals/${deal.id}/confirm-rights`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        alert(`✅ Rights Confirmation Successful!
+
+You have confirmed that you've given account access to our agent.
+
+Transaction ID: ${deal.transaction_id}
+Channel: ${deal.channel_title}
+Status: Agent Access Confirmed
+
+Our agent will now verify the account and prepare for secure transfer. You will be notified once the verification is complete (typically 1-3 business days).
+
+Thank you for your cooperation in ensuring a secure transaction!`);
+
+        onDealUpdate();
+        onClose();
+      } else {
+        throw new Error(result.message || 'Failed to confirm rights');
+      }
+      
+    } catch (error) {
+      console.error('Error confirming rights:', error);
+      alert('Failed to confirm rights: ' + error.message);
+    } finally {
+      setIsConfirmingRights(false);
+    }
+  };
 
   const handleAgreeToTerms = async () => {
     try {
@@ -331,10 +378,30 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
               </button>
             )}
             
-            {deal.seller_agreed && deal.transaction_fee_paid && (
+            {deal.seller_agreed && deal.transaction_fee_paid && !deal.seller_gave_rights && (
+              <button
+                onClick={handleConfirmRights}
+                disabled={isConfirmingRights}
+                className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 font-semibold"
+              >
+                {isConfirmingRights ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Confirming...</span>
+                  </>
+                ) : (
+                  <>
+                    <Shield size={20} />
+                    <span>I Have Given The Rights</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {deal.seller_agreed && deal.transaction_fee_paid && deal.seller_gave_rights && (
               <div className="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg flex items-center justify-center space-x-2">
                 <CheckCircle size={20} />
-                <span>Fee Paid by {deal.transaction_fee_paid_by === 'seller' ? 'You' : 'Buyer'}</span>
+                <span>Rights Confirmed - Agent Verifying</span>
               </div>
             )}
           </div>
@@ -373,6 +440,51 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
               <p className="text-green-200 text-sm">
                 The transaction fee has been paid by {deal.transaction_fee_paid_by === 'seller' ? 'you' : 'the buyer'} 
                 via {deal.transaction_fee_payment_method}. The deal will now proceed to the next stage.
+              </p>
+            </div>
+          )}
+
+          {/* Agent Email and Rights Instructions */}
+          {deal.transaction_fee_paid && deal.agent_email_sent && !deal.seller_gave_rights && (
+            <div className="bg-blue-900 border border-blue-700 rounded-lg p-4">
+              <h4 className="text-blue-300 font-medium mb-3 flex items-center">
+                <Shield size={16} className="mr-2" />
+                Give Account Rights to Agent
+              </h4>
+              <div className="space-y-3">
+                <div className="bg-blue-800 rounded-lg p-3">
+                  <p className="text-blue-200 text-sm font-medium mb-1">📧 Agent Email:</p>
+                  <p className="text-blue-100 font-mono text-sm bg-blue-700 p-2 rounded">
+                    rebirthcar63@gmail.com
+                  </p>
+                </div>
+                <div className="text-blue-200 text-sm space-y-2">
+                  <p className="font-medium">Instructions:</p>
+                  <ol className="list-decimal list-inside space-y-1 ml-2">
+                    <li>Add the agent email as a manager/collaborator to your account</li>
+                    <li>Give permissions to view and manage the account</li>
+                    <li>DO NOT transfer ownership yet - our agent will handle that securely</li>
+                    <li>Click "I Have Given The Rights" button below once completed</li>
+                  </ol>
+                </div>
+                <div className="bg-yellow-800 border border-yellow-600 rounded-lg p-3">
+                  <p className="text-yellow-200 text-xs">
+                    ⚠️ Important: Only give manager/collaborator access, NOT ownership. Our agent will handle the ownership transfer process securely.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rights Confirmation Status */}
+          {deal.seller_gave_rights && (
+            <div className="bg-green-900 border border-green-700 rounded-lg p-4">
+              <h4 className="text-green-300 font-medium mb-2 flex items-center">
+                <CheckCircle size={16} className="mr-2" />
+                Rights Confirmed
+              </h4>
+              <p className="text-green-200 text-sm">
+                You have confirmed giving account access to our agent. The agent is now verifying the account and will proceed with the secure transfer process. You will be updated once verification is complete.
               </p>
             </div>
           )}

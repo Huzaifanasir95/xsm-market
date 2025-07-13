@@ -550,15 +550,78 @@ try {
             $action_description = "Transaction fee paid via $payment_method by $payer_type";
             $stmt->execute([$deal_id, $currentUser['userId'], $action_description]);
             
+            // After fee payment, send agent email to seller via chat
+            try {
+                // Get admin email from environment
+                $admin_email = $_ENV['admin_email'] ?? 'rebirthcar63@gmail.com';
+                
+                // Find the chat for this deal (based on seller and channel)
+                $stmt = $pdo->prepare("
+                    SELECT c.id as chat_id FROM chats c
+                    INNER JOIN chat_participants cp1 ON c.id = cp1.chatId
+                    INNER JOIN chat_participants cp2 ON c.id = cp2.chatId
+                    WHERE c.type = 'ad_inquiry'
+                    AND cp1.userId = ? AND cp1.isActive = 1
+                    AND cp2.userId = ? AND cp2.isActive = 1
+                    AND cp1.chatId = cp2.chatId
+                    LIMIT 1
+                ");
+                $stmt->execute([$deal['buyer_id'], $deal['seller_id']]);
+                $chat = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($chat) {
+                    // Send automatic message with agent email
+                    $message_content = "🎉 Great news! The transaction fee has been paid and your deal is now proceeding to the next step.\n\n📧 **Agent Email for Account Rights**: {$admin_email}\n\nPlease add this email as a manager/collaborator to your account so our agent can verify everything and facilitate the secure transfer. Once you've given rights to this email, please confirm below.\n\n⚠️ **Important**: Only give manager/collaborator access, NOT ownership. Our agent will handle the ownership transfer securely.";
+                    
+                    // Insert system message
+                    $stmt = $pdo->prepare("
+                        INSERT INTO messages (chatId, senderId, content, messageType, isRead, createdAt, updatedAt)
+                        VALUES (?, 1, ?, 'system', 0, NOW(), NOW())
+                    ");
+                    $stmt->execute([$chat['chat_id'], $message_content]);
+                    
+                    // Update chat last message
+                    $stmt = $pdo->prepare("
+                        UPDATE chats SET lastMessage = ?, lastMessageTime = NOW(), updatedAt = NOW()
+                        WHERE id = ?
+                    ");
+                    $stmt->execute(['System: Agent email provided for account access', $chat['chat_id']]);
+                }
+                
+                // Update deal with agent email sent status
+                $stmt = $pdo->prepare("
+                    UPDATE deals 
+                    SET agent_email_sent = TRUE,
+                        agent_email_sent_at = NOW(),
+                        deal_status = 'agent_access_pending',
+                        updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->execute([$deal_id]);
+                
+                // Add history record for agent email sent
+                $stmt = $pdo->prepare("
+                    INSERT INTO deal_history (deal_id, action_type, action_by, action_description)
+                    VALUES (?, 'agent_email_sent', 1, ?)
+                ");
+                $agent_email_description = "Agent email ({$admin_email}) sent to seller for account access";
+                $stmt->execute([$deal_id, $agent_email_description]);
+                
+            } catch (Exception $e) {
+                error_log('Error sending agent email: ' . $e->getMessage());
+                // Don't fail the payment if agent email fails
+            }
+            
             $pdo->commit();
             
             http_response_code(200);
             echo json_encode([
                 'success' => true, 
-                'message' => 'Transaction fee paid successfully',
-                'deal_status' => 'fee_paid',
+                'message' => 'Transaction fee paid successfully. Agent email has been sent to the seller.',
+                'deal_status' => 'agent_access_pending',
                 'payment_method' => $payment_method,
-                'paid_by' => $payer_type
+                'paid_by' => $payer_type,
+                'agent_email_sent' => true
             ]);
             exit;
             
@@ -567,6 +630,129 @@ try {
                 $pdo->rollBack();
             }
             error_log('Transaction fee payment error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+    // Handle POST /deals/{id}/confirm-rights - Seller confirms they gave rights to agent
+    elseif ($method === 'POST' && preg_match('/^\/deals\/(\d+)\/confirm-rights$/', $path, $matches)) {
+        $deal_id = $matches[1];
+        
+        $currentUser = getCurrentUser();
+        if (!$currentUser) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Authentication required']);
+            exit;
+        }
+        
+        try {
+            $pdo = Database::getConnection();
+            
+            // Get deal and verify seller access
+            $stmt = $pdo->prepare("
+                SELECT * FROM deals 
+                WHERE id = ? AND seller_id = ?
+            ");
+            $stmt->execute([$deal_id, $currentUser['userId']]);
+            $deal = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$deal) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Deal not found or access denied']);
+                exit;
+            }
+            
+            // Check if transaction fee is paid and agent email was sent
+            if (!$deal['transaction_fee_paid'] || !$deal['agent_email_sent']) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Transaction fee must be paid and agent email sent before confirming rights']);
+                exit;
+            }
+            
+            // Check if rights already confirmed
+            if ($deal['seller_gave_rights']) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Rights have already been confirmed']);
+                exit;
+            }
+            
+            $pdo->beginTransaction();
+            
+            // Update deal with rights confirmation
+            $stmt = $pdo->prepare("
+                UPDATE deals 
+                SET seller_gave_rights = TRUE,
+                    seller_gave_rights_at = NOW(),
+                    deal_status = 'agent_access_confirmed',
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$deal_id]);
+            
+            // Add history record
+            $stmt = $pdo->prepare("
+                INSERT INTO deal_history (deal_id, action_type, action_by, action_description)
+                VALUES (?, 'seller_gave_rights', ?, ?)
+            ");
+            $action_description = "Seller confirmed giving rights to agent";
+            $stmt->execute([$deal_id, $currentUser['userId'], $action_description]);
+            
+            // Send confirmation message to chat
+            try {
+                // Find the chat for this deal
+                $stmt = $pdo->prepare("
+                    SELECT c.id as chat_id FROM chats c
+                    INNER JOIN chat_participants cp1 ON c.id = cp1.chatId
+                    INNER JOIN chat_participants cp2 ON c.id = cp2.chatId
+                    WHERE c.type = 'ad_inquiry'
+                    AND cp1.userId = ? AND cp1.isActive = 1
+                    AND cp2.userId = ? AND cp2.isActive = 1
+                    AND cp1.chatId = cp2.chatId
+                    LIMIT 1
+                ");
+                $stmt->execute([$deal['buyer_id'], $deal['seller_id']]);
+                $chat = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($chat) {
+                    // Send automatic confirmation message
+                    $message_content = "✅ **Rights Confirmed!**\n\nThe seller has confirmed giving account access to our agent. The agent will now:\n\n1. Verify account access and authenticity\n2. Review account details and metrics\n3. Prepare for secure ownership transfer\n4. Notify both parties when ready to proceed\n\nThis process typically takes 1-3 business days. You will be updated once the verification is complete.";
+                    
+                    // Insert system message
+                    $stmt = $pdo->prepare("
+                        INSERT INTO messages (chatId, senderId, content, messageType, isRead, createdAt, updatedAt)
+                        VALUES (?, 1, ?, 'system', 0, NOW(), NOW())
+                    ");
+                    $stmt->execute([$chat['chat_id'], $message_content]);
+                    
+                    // Update chat last message
+                    $stmt = $pdo->prepare("
+                        UPDATE chats SET lastMessage = ?, lastMessageTime = NOW(), updatedAt = NOW()
+                        WHERE id = ?
+                    ");
+                    $stmt->execute(['System: Seller confirmed agent access rights', $chat['chat_id']]);
+                }
+            } catch (Exception $e) {
+                error_log('Error sending rights confirmation message: ' . $e->getMessage());
+                // Don't fail the confirmation if message fails
+            }
+            
+            $pdo->commit();
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Rights confirmation successful. The agent will now verify the account.',
+                'deal_status' => 'agent_access_confirmed',
+                'seller_gave_rights' => true
+            ]);
+            exit;
+            
+        } catch (Exception $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Rights confirmation error: ' . $e->getMessage());
             http_response_code(500);
             echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
             exit;

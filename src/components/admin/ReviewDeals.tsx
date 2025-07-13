@@ -25,6 +25,10 @@ interface Deal {
   transaction_fee_paid_at: string | null;
   transaction_fee_paid_by: string | null;
   transaction_fee_payment_method: string | null;
+  agent_email_sent: boolean;
+  agent_email_sent_at: string | null;
+  seller_gave_rights: boolean;
+  seller_gave_rights_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -330,6 +334,32 @@ const ReviewDeals: React.FC = () => {
                         {selectedDeal.transaction_fee_paid_by && (
                           <p className="text-sm text-gray-400">Paid by: {selectedDeal.transaction_fee_paid_by}</p>
                         )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedDeal.agent_email_sent && (
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="w-5 h-5 text-blue-400" />
+                      <div>
+                        <p className="text-white">Agent Email Sent</p>
+                        <p className="text-sm text-gray-400">
+                          {formatDate(selectedDeal.agent_email_sent_at)}
+                        </p>
+                        <p className="text-sm text-blue-300">Agent email provided to seller for account access</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedDeal.seller_gave_rights && (
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="w-5 h-5 text-green-400" />
+                      <div>
+                        <p className="text-white">Agent Access Confirmed</p>
+                        <p className="text-sm text-gray-400">
+                          {formatDate(selectedDeal.seller_gave_rights_at)}
+                        </p>
+                        <p className="text-sm text-green-300">Seller confirmed giving rights to agent</p>
                       </div>
                     </div>
                   )}

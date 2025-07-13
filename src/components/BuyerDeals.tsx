@@ -34,6 +34,10 @@ interface Deal {
   transaction_fee_paid_at?: string | null;
   transaction_fee_paid_by?: string;
   transaction_fee_payment_method?: string;
+  agent_email_sent?: boolean;
+  agent_email_sent_at?: string | null;
+  seller_gave_rights?: boolean;
+  seller_gave_rights_at?: string | null;
 }
 
 const BuyerDeals: React.FC = () => {
@@ -245,6 +249,16 @@ const BuyerDeals: React.FC = () => {
                       <span className="text-white">Transaction Fee</span>
                     </div>
                     <div className="flex items-center space-x-2">
+                      {deal.seller_gave_rights ? (
+                        <CheckCircle className="text-green-400" size={16} />
+                      ) : deal.agent_email_sent ? (
+                        <Clock className="text-blue-400" size={16} />
+                      ) : (
+                        <Clock className="text-gray-400" size={16} />
+                      )}
+                      <span className="text-white">Agent Access</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
                       <Clock className="text-gray-400" size={16} />
                       <span className="text-white">Channel Transfer</span>
                     </div>
@@ -279,6 +293,31 @@ const BuyerDeals: React.FC = () => {
                     <p className="text-green-200 text-sm mt-1">
                       Paid by {deal.transaction_fee_paid_by === 'buyer' ? 'you' : 'the seller'} 
                       via {deal.transaction_fee_payment_method}
+                    </p>
+                  </div>
+                )}
+
+                {/* Agent Access Status */}
+                {deal.agent_email_sent && !deal.seller_gave_rights && (
+                  <div className="bg-blue-900 border border-blue-700 rounded-lg p-4 mb-4">
+                    <div className="flex items-center space-x-2 text-blue-300">
+                      <Clock size={16} />
+                      <span className="font-medium">Waiting for Seller to Give Agent Access</span>
+                    </div>
+                    <p className="text-blue-200 text-sm mt-1">
+                      Our agent's email has been provided to the seller. They need to give account access so we can verify and facilitate the secure transfer.
+                    </p>
+                  </div>
+                )}
+
+                {deal.seller_gave_rights && (
+                  <div className="bg-green-900 border border-green-700 rounded-lg p-4 mb-4">
+                    <div className="flex items-center space-x-2 text-green-300">
+                      <CheckCircle size={16} />
+                      <span className="font-medium">Agent Access Confirmed</span>
+                    </div>
+                    <p className="text-green-200 text-sm mt-1">
+                      The seller has given our agent access to the account. Our team is now verifying the account details and preparing for secure transfer.
                     </p>
                   </div>
                 )}
