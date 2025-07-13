@@ -154,6 +154,10 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
         })
       });
 
+      if (!checkChatResponse.ok) {
+        throw new Error(`HTTP error! status: ${checkChatResponse.status}`);
+      }
+
       const checkResult = await checkChatResponse.json();
       
       if (checkResult.exists) {
@@ -180,16 +184,19 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
         })
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Chat creation failed:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const chat = await response.json();
       
-      if (response.ok) {
-        onClose(); // Close the modal first
-        // Navigate to chat page
-        if (onNavigateToChat) {
-          onNavigateToChat();
-        }
-      } else {
-        alert(chat.message || 'Failed to create chat');
+      // Chat created successfully
+      onClose(); // Close the modal first
+      // Navigate to chat page
+      if (onNavigateToChat) {
+        onNavigateToChat();
       }
     } catch (error) {
       console.error('Error creating chat:', error);

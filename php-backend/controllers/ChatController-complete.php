@@ -627,4 +627,45 @@ class ChatController {
             echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
         }
     }
+    
+    // Check if chat exists between users
+    public function checkExistingChat() {
+        try {
+            $user = $this->authMiddleware->authenticate();
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $sellerId = (int)($input['sellerId'] ?? 0);
+            $adId = (int)($input['adId'] ?? 0);
+            $buyerId = (int)$user['id'];
+            
+            if (!$sellerId || !$adId) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Seller ID and Ad ID are required']);
+                return;
+            }
+            
+            // Check if chat already exists between these specific users for this ad
+            $stmt = $this->db->prepare("
+                SELECT c.id FROM chats c
+                INNER JOIN chat_participants cp1 ON c.id = cp1.chatId
+                INNER JOIN chat_participants cp2 ON c.id = cp2.chatId
+                WHERE c.adId = ? AND c.type = 'ad_inquiry'
+                AND cp1.userId = ? AND cp1.isActive = 1
+                AND cp2.userId = ? AND cp2.isActive = 1
+                AND cp1.chatId = cp2.chatId
+            ");
+            $stmt->execute([$adId, $buyerId, $sellerId]);
+            $existingChat = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            http_response_code(200);
+            echo json_encode([
+                'exists' => (bool)$existingChat,
+                'chatId' => $existingChat ? (int)$existingChat['id'] : null
+            ]);
+        } catch (Exception $e) {
+            error_log('Error checking existing chat: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
+        }
+    }
 }

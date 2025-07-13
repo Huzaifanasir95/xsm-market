@@ -224,15 +224,7 @@ function handleChatRoutes($controller, $path, $method) {
     }
     elseif ($path === '/chat/check-existing') {
         if ($method === 'POST') {
-            // Check if chat exists between users
-            $input = json_decode(file_get_contents('php://input'), true);
-            $sellerId = (int)($input['sellerId'] ?? 0);
-            $adId = (int)($input['adId'] ?? 0);
-            $buyerId = (int)$_SESSION['user_id'] ?? 0; // This would need proper auth middleware
-            
-            // Implementation would go here - for now return basic response
-            http_response_code(200);
-            echo json_encode(['exists' => false]);
+            $controller->checkExistingChat();
         } else methodNotAllowed();
     }
     elseif (preg_match('/^\/chat\/chats\/(\d+)\/messages$/', $path, $matches)) {

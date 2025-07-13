@@ -80,3 +80,7 @@ INSERT IGNORE INTO deal_history (deal_id, action_type, action_by, action_descrip
 DESCRIBE deals;
 DESCRIBE deal_payment_methods;
 DESCRIBE deal_history;
+
+
+
+mysql -h localhost -u root -plocalpassword123 -D xsm_market_local -e "ALTER TABLE deals ADD COLUMN IF NOT EXISTS rights_given BOOLEAN DEFAULT FALSE; ALTER TABLE deals ADD COLUMN IF NOT EXISTS rights_given_at TIMESTAMP NULL; ALTER TABLE deals ADD COLUMN IF NOT EXISTS agent_email_shown BOOLEAN DEFAULT FALSE; ALTER TABLE deals ADD COLUMN IF NOT EXISTS agent_email_shown_at TIMESTAMP NULL;"
