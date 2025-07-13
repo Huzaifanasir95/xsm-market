@@ -15,10 +15,60 @@ class AdminController {
         $this->authMiddleware = new AuthMiddleware();
     }
     
+    // Helper method to check if current user is admin
+    private function isCurrentUserAdmin() {
+        // First authenticate the user
+        $currentUser = $this->authMiddleware->authenticate();
+        
+        // Load admin email from .env
+        $envFile = __DIR__ . '/../.env';
+        $adminEmail = null;
+        $adminUsername = null;
+        
+        if (file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (strpos($line, 'admin_email') === 0) {
+                    $parts = explode('=', $line, 2);
+                    if (count($parts) === 2) {
+                        $adminEmail = trim(trim($parts[1]), ' "\'');
+                    }
+                }
+                if (strpos($line, 'admin_username') === 0) {
+                    $parts = explode('=', $line, 2);
+                    if (count($parts) === 2) {
+                        $adminUsername = trim(trim($parts[1]), ' "\'');
+                    }
+                }
+            }
+        }
+        
+        // Check if current user matches admin email or username
+        $userEmail = strtolower($currentUser['email']);
+        $username = strtolower($currentUser['username']);
+        
+        $isAdmin = false;
+        if ($adminEmail && $userEmail === strtolower($adminEmail)) {
+            $isAdmin = true;
+        }
+        if ($adminUsername && $username === strtolower($adminUsername)) {
+            $isAdmin = true;
+        }
+        
+        if (!$isAdmin) {
+            http_response_code(403);
+            echo json_encode(['message' => 'Access denied. Admin privileges required.']);
+            exit;
+        }
+        
+        return $currentUser;
+    }
+    
     // Get all users for admin
     public function getAllUsers() {
         try {
-            $this->authMiddleware->requireAdmin();
+            $this->isCurrentUserAdmin();
             
             $stmt = $this->db->prepare("
                 SELECT id, username, email, profilePicture, isEmailVerified, authProvider, createdAt, updatedAt
@@ -158,7 +208,7 @@ class AdminController {
     // Get all chats for admin review
     public function getAllChats() {
         try {
-            $this->authMiddleware->requireAdmin();
+            $this->isCurrentUserAdmin();
             
             $stmt = $this->db->prepare("
                 SELECT c.*, GROUP_CONCAT(DISTINCT CONCAT(u.id, ':', u.username) SEPARATOR ',') as participants_data
@@ -228,7 +278,7 @@ class AdminController {
     // Get dashboard stats
     public function getDashboardStats() {
         try {
-            $this->authMiddleware->requireAdmin();
+            $this->isCurrentUserAdmin();
             
             $totalUsersStmt = $this->db->prepare("SELECT COUNT(*) as count FROM users");
             $totalUsersStmt->execute();
@@ -258,7 +308,7 @@ class AdminController {
     // Get recent activities
     public function getRecentActivities() {
         try {
-            $this->authMiddleware->requireAdmin();
+            $this->isCurrentUserAdmin();
             
             $activities = [];
             
@@ -328,6 +378,47 @@ class AdminController {
             error_log('Error fetching recent activities: ' . $e->getMessage());
             http_response_code(500);
             echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
+        }
+    }
+    
+    // Get admin email from .env file (public endpoint)
+    public function getAdminEmail() {
+        try {
+            // Load environment variables
+            $envFile = __DIR__ . '/../.env';
+            $adminEmail = null;
+            $adminUsername = null;
+            
+            if (file_exists($envFile)) {
+                $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if (strpos($line, 'admin_email') === 0) {
+                        $parts = explode('=', $line, 2);
+                        if (count($parts) === 2) {
+                            $adminEmail = trim(trim($parts[1]), ' "\'');
+                        }
+                    }
+                    if (strpos($line, 'admin_username') === 0) {
+                        $parts = explode('=', $line, 2);
+                        if (count($parts) === 2) {
+                            $adminUsername = trim(trim($parts[1]), ' "\'');
+                        }
+                    }
+                }
+            }
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true,
+                'adminEmail' => $adminEmail,
+                'adminUsername' => $adminUsername
+            ]);
+            
+        } catch (Exception $e) {
+            error_log('Get admin email error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Server error']);
         }
     }
 }

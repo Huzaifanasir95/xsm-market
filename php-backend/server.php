@@ -253,7 +253,11 @@ function handleChatRoutes($controller, $path, $method) {
 
 // Admin route handler
 function handleAdminRoutes($controller, $path, $method) {
-    if ($path === '/admin/users' || $path === '/admin/users/') {
+    if ($path === '/admin/email') {
+        if ($method === 'GET') $controller->getAdminEmail();
+        else methodNotAllowed();
+    }
+    elseif ($path === '/admin/users' || $path === '/admin/users/') {
         if ($method === 'GET') $controller->getAllUsers();
         else methodNotAllowed();
     }

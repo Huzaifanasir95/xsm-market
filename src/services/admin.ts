@@ -1,4 +1,5 @@
-import { API_URL } from './auth';
+// Use PHP backend directly without /api prefix
+const ADMIN_API_URL = 'http://localhost:5000';
 
 // Fetch all users (admin only)
 export const getAllUsers = async () => {
@@ -7,7 +8,7 @@ export const getAllUsers = async () => {
     throw new Error('Authentication required');
   }
 
-  const response = await fetch(`${API_URL}/admin/users`, {
+  const response = await fetch(`${ADMIN_API_URL}/admin/users`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -30,7 +31,7 @@ export const getAllChats = async () => {
     throw new Error('Authentication required');
   }
 
-  const response = await fetch(`${API_URL}/admin/chats`, {
+  const response = await fetch(`${ADMIN_API_URL}/admin/chats`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -53,7 +54,7 @@ export const getDashboardStats = async () => {
     throw new Error('Authentication required');
   }
 
-  const response = await fetch(`${API_URL}/admin/dashboard-stats`, {
+  const response = await fetch(`${ADMIN_API_URL}/admin/dashboard-stats`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -76,7 +77,7 @@ export const getRecentActivities = async () => {
     throw new Error('Authentication required');
   }
 
-  const response = await fetch(`${API_URL}/admin/recent-activities`, {
+  const response = await fetch(`${ADMIN_API_URL}/admin/recent-activities`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',

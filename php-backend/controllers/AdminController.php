@@ -271,5 +271,43 @@ class AdminController {
             Response::error('Server error: ' . $e->getMessage(), 500);
         }
     }
+    
+    // Get admin email from .env file (public endpoint)
+    public function getAdminEmail() {
+        try {
+            // Load environment variables
+            $envFile = __DIR__ . '/../.env';
+            $adminEmail = null;
+            $adminUsername = null;
+            
+            if (file_exists($envFile)) {
+                $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if (strpos($line, 'admin_email') === 0) {
+                        $parts = explode('=', $line, 2);
+                        if (count($parts) === 2) {
+                            $adminEmail = trim(trim($parts[1]), ' "\'');
+                        }
+                    }
+                    if (strpos($line, 'admin_username') === 0) {
+                        $parts = explode('=', $line, 2);
+                        if (count($parts) === 2) {
+                            $adminUsername = trim(trim($parts[1]), ' "\'');
+                        }
+                    }
+                }
+            }
+            
+            Response::success([
+                'adminEmail' => $adminEmail,
+                'adminUsername' => $adminUsername
+            ]);
+            
+        } catch (Exception $e) {
+            error_log('Get admin email error: ' . $e->getMessage());
+            Response::error('Server error', 500);
+        }
+    }
 }
 ?>

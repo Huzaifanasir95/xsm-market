@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu, X, User, PlusCircle, LogOut, Settings, Heart, Star, MessageSquare, FileText } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { logout } from '@/services/auth';
@@ -26,7 +26,22 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAuthWidget, setShowAuthWidget] = useState(false);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
   const { isLoggedIn, setIsLoggedIn, user } = useAuth();
+
+  // Check admin status when user changes
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (isLoggedIn && user?.email) {
+        const adminStatus = await isCurrentUserAdmin(user.email, user.username);
+        setIsUserAdmin(adminStatus);
+      } else {
+        setIsUserAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [isLoggedIn, user?.email, user?.username]);
 
   const handleLogout = () => {
     logout();
@@ -42,8 +57,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
       { id: 'sell', label: 'Begin Selling', icon: PlusCircle }
     );
 
-    // Add Admin Dashboard button ONLY for the specific admin user
-    if (isLoggedIn && isCurrentUserAdmin(user)) {
+    // Add Admin Dashboard button ONLY for the admin user
+    if (isLoggedIn && isUserAdmin) {
       items.push(
         { id: 'admin-dashboard', label: 'Admin Dashboard', icon: Settings }
       );

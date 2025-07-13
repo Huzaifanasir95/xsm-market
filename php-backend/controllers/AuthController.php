@@ -13,6 +13,8 @@ class AuthController {
         $this->db = $database->getConnection();
     }
     
+
+    
     // Helper function to generate unique username
     private function generateUniqueUsername($baseName) {
         if (!$baseName) {

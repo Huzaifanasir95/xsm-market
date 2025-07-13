@@ -257,6 +257,9 @@ function handleChatRoutes($controller, $path, $method) {
 
 function handleAdminRoutes($controller, $path, $method) {
     switch (true) {
+        case $path === '/admin/email' && $method === 'GET':
+            $controller->getAdminEmail();
+            break;
         case $path === '/admin/users' && $method === 'GET':
             $controller->getUsers();
             break;
