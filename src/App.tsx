@@ -23,6 +23,7 @@ import EmailVerify from './pages/EmailVerify';
 import ForgotPassword from './pages/ForgotPassword';
 import AdminDashboard from './pages/AdminDashboard';
 import Contact from './pages/Contact';
+import SellerDeals from './components/SellerDeals';
 
 // Inner component that has access to AuthContext
 const AppContent: React.FC = () => {
@@ -54,6 +55,8 @@ const AppContent: React.FC = () => {
         return <Chat />;
       case 'profile':
         return <Profile setCurrentPage={setCurrentPage} />;
+      case 'seller-deals':
+        return <SellerDeals />;
       case 'about':
         return <About />;
       case 'contact':

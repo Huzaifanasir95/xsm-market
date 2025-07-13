@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, User, PlusCircle, LogOut, Settings, Heart, Star, MessageSquare } from 'lucide-react';
+import { Menu, X, User, PlusCircle, LogOut, Settings, Heart, Star, MessageSquare, FileText } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { logout } from '@/services/auth';
 import { isCurrentUserAdmin } from '@/utils/adminConfig';
@@ -131,6 +131,10 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile</span>
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCurrentPage('seller-deals')} className="cursor-pointer">
+                      <FileText className="mr-2 h-4 w-4" />
+                      <span>Seller Deals</span>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Logout</span>
@@ -201,6 +205,28 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                       <span>{item.label}</span>
                     </button>
                   ))}
+                  
+                  <button
+                    onClick={() => {
+                      setCurrentPage('profile');
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
+                  >
+                    <User className="w-5 h-5" />
+                    <span>Profile</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setCurrentPage('seller-deals');
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
+                  >
+                    <FileText className="w-5 h-5" />
+                    <span>Seller Deals</span>
+                  </button>
                   
                   <button
                     onClick={() => {
