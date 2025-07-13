@@ -238,6 +238,21 @@ function handleChatRoutes($controller, $path, $method) {
         if ($method === 'PUT') $controller->markMessagesAsRead($chatId);
         else methodNotAllowed();
     }
+    elseif (preg_match('/^\/chat\/admin\/chats\/(\d+)\/messages$/', $path, $matches)) {
+        $chatId = $matches[1];
+        if ($method === 'POST') $controller->adminSendMessage($chatId);
+        else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/chat\/admin\/messages\/(\d+)$/', $path, $matches)) {
+        $messageId = $matches[1];
+        if ($method === 'DELETE') $controller->adminDeleteMessage($messageId);
+        else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/chat\/admin\/chats\/(\d+)$/', $path, $matches)) {
+        $chatId = $matches[1];
+        if ($method === 'DELETE') $controller->adminDeleteChat($chatId);
+        else methodNotAllowed();
+    }
     else {
         routeNotFound();
     }

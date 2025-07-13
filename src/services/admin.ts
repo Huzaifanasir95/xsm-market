@@ -115,3 +115,73 @@ export const getRecentActivities = async () => {
 
   return await response.json();
 }; 
+
+// Admin send message to chat
+export const adminSendMessage = async (chatId: string, content: string) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${ADMIN_API_URL}/chat/admin/chats/${chatId}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ content })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to send message: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+// Admin delete individual message
+export const adminDeleteMessage = async (messageId: string) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${ADMIN_API_URL}/chat/admin/messages/${messageId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to delete message: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+// Admin delete entire chat
+export const adminDeleteChat = async (chatId: string) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${ADMIN_API_URL}/chat/admin/chats/${chatId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to delete chat: ${response.statusText}`);
+  }
+
+  return await response.json();
+}; 

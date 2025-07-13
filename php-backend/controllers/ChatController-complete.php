@@ -668,4 +668,172 @@ class ChatController {
             echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
         }
     }
+    
+    // Admin send message to any chat
+    public function adminSendMessage($chatId) {
+        try {
+            $currentUser = $this->authMiddleware->authenticate();
+            
+            // Check if user is admin
+            $this->checkAdminAccess($currentUser);
+            
+            $input = json_decode(file_get_contents('php://input'), true);
+            $content = trim($input['content'] ?? '');
+            
+            if (empty($content)) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Message content is required']);
+                return;
+            }
+            
+            // Insert message with admin sender
+            $stmt = $this->db->prepare("
+                INSERT INTO messages (content, senderId, chatId, messageType, createdAt, updatedAt)
+                VALUES (?, ?, ?, 'text', NOW(), NOW())
+            ");
+            $stmt->execute([$content, $currentUser['id'], $chatId]);
+            $messageId = $this->db->lastInsertId();
+            
+            // Update chat's last message
+            $stmt = $this->db->prepare("
+                UPDATE chats SET lastMessage = ?, lastMessageTime = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$content, $chatId]);
+            
+            // Return the new message
+            $stmt = $this->db->prepare("
+                SELECT m.*, u.username as sender_username
+                FROM messages m
+                LEFT JOIN users u ON m.senderId = u.id
+                WHERE m.id = ?
+            ");
+            $stmt->execute([$messageId]);
+            $message = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            $result = [
+                'id' => (int)$message['id'],
+                'content' => $message['content'],
+                'sender' => 'Admin',
+                'timestamp' => $message['createdAt']
+            ];
+            
+            http_response_code(201);
+            echo json_encode($result);
+        } catch (Exception $e) {
+            error_log('Error sending admin message: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
+        }
+    }
+    
+    // Admin delete individual message
+    public function adminDeleteMessage($messageId) {
+        try {
+            $currentUser = $this->authMiddleware->authenticate();
+            
+            // Check if user is admin
+            $this->checkAdminAccess($currentUser);
+            
+            // Delete the message
+            $stmt = $this->db->prepare("DELETE FROM messages WHERE id = ?");
+            $stmt->execute([$messageId]);
+            
+            if ($stmt->rowCount() > 0) {
+                http_response_code(200);
+                echo json_encode(['message' => 'Message deleted successfully']);
+            } else {
+                http_response_code(404);
+                echo json_encode(['message' => 'Message not found']);
+            }
+        } catch (Exception $e) {
+            error_log('Error deleting message: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
+        }
+    }
+    
+    // Admin delete entire chat
+    public function adminDeleteChat($chatId) {
+        try {
+            $currentUser = $this->authMiddleware->authenticate();
+            
+            // Check if user is admin
+            $this->checkAdminAccess($currentUser);
+            
+            $this->db->beginTransaction();
+            
+            // Delete all messages in the chat
+            $stmt = $this->db->prepare("DELETE FROM messages WHERE chatId = ?");
+            $stmt->execute([$chatId]);
+            
+            // Delete chat participants
+            $stmt = $this->db->prepare("DELETE FROM chat_participants WHERE chatId = ?");
+            $stmt->execute([$chatId]);
+            
+            // Delete the chat
+            $stmt = $this->db->prepare("DELETE FROM chats WHERE id = ?");
+            $stmt->execute([$chatId]);
+            
+            $this->db->commit();
+            
+            if ($stmt->rowCount() > 0) {
+                http_response_code(200);
+                echo json_encode(['message' => 'Chat deleted successfully']);
+            } else {
+                http_response_code(404);
+                echo json_encode(['message' => 'Chat not found']);
+            }
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            error_log('Error deleting chat: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
+        }
+    }
+    
+    // Helper method to check admin access
+    private function checkAdminAccess($user) {
+        // Load admin email from .env
+        $envFile = __DIR__ . '/../.env';
+        $adminEmail = null;
+        $adminUsername = null;
+        
+        if (file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (strpos($line, 'admin_email') === 0) {
+                    $parts = explode('=', $line, 2);
+                    if (count($parts) === 2) {
+                        $adminEmail = trim(trim($parts[1]), ' "\'');
+                    }
+                }
+                if (strpos($line, 'admin_username') === 0) {
+                    $parts = explode('=', $line, 2);
+                    if (count($parts) === 2) {
+                        $adminUsername = trim(trim($parts[1]), ' "\'');
+                    }
+                }
+            }
+        }
+        
+        // Check if current user matches admin email or username
+        $userEmail = strtolower($user['email']);
+        $username = strtolower($user['username']);
+        
+        $isAdmin = false;
+        if ($adminEmail && $userEmail === strtolower($adminEmail)) {
+            $isAdmin = true;
+        }
+        if ($adminUsername && $username === strtolower($adminUsername)) {
+            $isAdmin = true;
+        }
+        
+        if (!$isAdmin) {
+            http_response_code(403);
+            echo json_encode(['message' => 'Access denied. Admin privileges required.']);
+            exit;
+        }
+    }
 }
