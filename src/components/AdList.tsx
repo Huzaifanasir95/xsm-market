@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAllAds } from '../services/ads';
 import { Star, Users, DollarSign, Shield, X, CreditCard, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
+import DealCreationModal from './DealCreationModal';
 
 interface Ad {
   id: number;
@@ -28,22 +29,16 @@ interface Ad {
 
 interface AdListProps {
   onShowMore: (ad: Ad) => void;
-  onNavigateToChat?: () => void;
+  onNavigateToChat?: (chatId: string) => void;
 }
 
 const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showPayment, setShowPayment] = useState(false);
+  const [showDealModal, setShowDealModal] = useState(false);
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
   const { user, isLoggedIn } = useAuth();
-  const [paymentData, setPaymentData] = useState({
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    name: '',
-  });
   const [filters, setFilters] = useState({
     platform: 'all',
     category: 'all',
@@ -112,21 +107,17 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
 
   const handlePurchase = (ad: Ad, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
+    if (!isLoggedIn) {
+      alert('Please log in to start a deal');
+      return;
+    }
     setSelectedAd(ad);
-    setShowPayment(true);
+    setShowDealModal(true);
   };
 
-  const handlePayment = () => {
-    // Placeholder for payment processing
-    alert('Payment processed! Admin will facilitate the channel transfer. You will be contacted within 24 hours.');
-    setShowPayment(false);
+  const handleCloseDealModal = () => {
+    setShowDealModal(false);
     setSelectedAd(null);
-    setPaymentData({
-      cardNumber: '',
-      expiryDate: '',
-      cvv: '',
-      name: '',
-    });
   };
 
   const getPlatformIcon = (platform: string) => {
@@ -304,96 +295,16 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
         ))}
       </div>
 
-      {/* Payment Modal */}
-      {showPayment && selectedAd && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-xsm-dark-gray rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-xsm-dark-gray border-b border-xsm-medium-gray p-6 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-xsm-yellow">Complete Payment</h2>
-              <button
-                onClick={() => {
-                  setShowPayment(false);
-                  setSelectedAd(null);
-                }}
-                className="text-white hover:text-xsm-yellow transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <div className="text-center mb-6">
-                <p className="text-white text-lg mb-2">Admin fee: {formatPrice(selectedAd.price * 0.075)}</p>
-                <p className="text-sm text-xsm-light-gray">
-                  This fee secures your purchase and initiates the transfer process
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-white font-medium mb-2">Cardholder Name</label>
-                  <input
-                    type="text"
-                    value={paymentData.name}
-                    onChange={(e) => setPaymentData({...paymentData, name: e.target.value})}
-                    className="xsm-input w-full"
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Card Number</label>
-                  <input
-                    type="text"
-                    value={paymentData.cardNumber}
-                    onChange={(e) => setPaymentData({...paymentData, cardNumber: e.target.value})}
-                    className="xsm-input w-full"
-                    placeholder="1234 5678 9012 3456"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-white font-medium mb-2">Expiry Date</label>
-                    <input
-                      type="text"
-                      value={paymentData.expiryDate}
-                      onChange={(e) => setPaymentData({...paymentData, expiryDate: e.target.value})}
-                      className="xsm-input w-full"
-                      placeholder="MM/YY"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white font-medium mb-2">CVV</label>
-                    <input
-                      type="text"
-                      value={paymentData.cvv}
-                      onChange={(e) => setPaymentData({...paymentData, cvv: e.target.value})}
-                      className="xsm-input w-full"
-                      placeholder="123"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex space-x-4 mt-6">
-                <button
-                  onClick={() => {
-                    setShowPayment(false);
-                    setSelectedAd(null);
-                  }}
-                  className="flex-1 xsm-button-secondary"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handlePayment}
-                  className="flex-1 xsm-button"
-                >
-                  Pay {formatPrice(selectedAd.price * 0.075)}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Deal Creation Modal */}
+      {showDealModal && selectedAd && (
+        <DealCreationModal
+          isOpen={showDealModal}
+          onClose={handleCloseDealModal}
+          channelPrice={selectedAd.price}
+          channelTitle={selectedAd.title}
+          sellerId={selectedAd.seller.id.toString()}
+          onNavigateToChat={onNavigateToChat}
+        />
       )}
     </div>
   );

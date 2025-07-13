@@ -16,7 +16,7 @@ require_once __DIR__ . '/config/database.php';
 
 // Load utilities and middleware
 require_once __DIR__ . '/utils/jwt.php';
-require_once __DIR__ . '/middleware/auth.php';
+require_once __DIR__ . '/middleware/AuthMiddleware.php';
 
 // Load controllers
 require_once __DIR__ . '/controllers/AuthController.php';

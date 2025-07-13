@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Star, Users, Eye, DollarSign, Shield, MessageCircle, CreditCard } from 'lucide-react';
 import { API_URL } from '@/services/auth';
 import { useAuth } from '@/context/useAuth';
+import DealCreationModal from './DealCreationModal';
 
 interface ChannelData {
   id: string;
@@ -92,14 +93,8 @@ const PlatformIcon = ({ platform }: { platform: ChannelData['platform'] }) => {
 
 const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, onNavigateToChat }) => {
   const { user, isLoggedIn } = useAuth();
-  const [showPayment, setShowPayment] = useState(false);
+  const [showDealModal, setShowDealModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [paymentData, setPaymentData] = useState({
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    name: '',
-  });
 
   if (!isOpen || !channel) return null;
 
@@ -120,14 +115,15 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
   const totalAmount = adminFee;
 
   const handlePurchase = () => {
-    setShowPayment(true);
+    if (!isLoggedIn) {
+      alert('Please log in to start a deal');
+      return;
+    }
+    setShowDealModal(true);
   };
 
-  const handlePayment = () => {
-    // Placeholder for payment processing
-    alert('Payment processed! Admin will facilitate the channel transfer. You will be contacted within 24 hours.');
-    setShowPayment(false);
-    onClose();
+  const handleCloseDealModal = () => {
+    setShowDealModal(false);
   };
 
   const handleContact = async () => {
@@ -204,15 +200,16 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
   };
 
   return (
-    <div 
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-    >
-      <div className="bg-xsm-dark-gray rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <>
+      <div 
+        className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+      >
+        <div className="bg-xsm-dark-gray rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-xsm-dark-gray border-b border-xsm-medium-gray p-6 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-xsm-yellow">Channel Details</h2>
           <button
@@ -224,8 +221,7 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
         </div>
 
         <div className="p-6">
-          {!showPayment ? (
-            <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-8">
               {/* Left Column - Channel Info */}
               <div className="space-y-6">
                 {/* Channel Header */}
@@ -444,81 +440,22 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
                 </div>
               </div>
             </div>
-          ) : (
-            /* Payment Form */
-            <div className="max-w-md mx-auto">
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-xsm-yellow mb-2">Complete Payment</h3>
-                <p className="text-white">Admin fee: {formatPrice(adminFee)}</p>
-                <p className="text-sm text-xsm-light-gray">
-                  This fee secures your purchase and initiates the transfer process
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-white font-medium mb-2">Cardholder Name</label>
-                  <input
-                    type="text"
-                    value={paymentData.name}
-                    onChange={(e) => setPaymentData({...paymentData, name: e.target.value})}
-                    className="xsm-input w-full"
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Card Number</label>
-                  <input
-                    type="text"
-                    value={paymentData.cardNumber}
-                    onChange={(e) => setPaymentData({...paymentData, cardNumber: e.target.value})}
-                    className="xsm-input w-full"
-                    placeholder="1234 5678 9012 3456"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-white font-medium mb-2">Expiry Date</label>
-                    <input
-                      type="text"
-                      value={paymentData.expiryDate}
-                      onChange={(e) => setPaymentData({...paymentData, expiryDate: e.target.value})}
-                      className="xsm-input w-full"
-                      placeholder="MM/YY"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white font-medium mb-2">CVV</label>
-                    <input
-                      type="text"
-                      value={paymentData.cvv}
-                      onChange={(e) => setPaymentData({...paymentData, cvv: e.target.value})}
-                      className="xsm-input w-full"
-                      placeholder="123"
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex space-x-4 mt-6">
-                  <button
-                    onClick={() => setShowPayment(false)}
-                    className="flex-1 xsm-button-secondary"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handlePayment}
-                    className="flex-1 xsm-button"
-                  >
-                    Pay {formatPrice(adminFee)}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Deal Creation Modal */}
+      {showDealModal && (
+        <DealCreationModal
+          isOpen={showDealModal}
+          onClose={handleCloseDealModal}
+          channelPrice={channel.price}
+          channelTitle={channel.name}
+          sellerId={channel.seller.id.toString()}
+          onNavigateToChat={onNavigateToChat}
+        />
+      )}
+    </>
   );
 };
 
