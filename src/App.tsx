@@ -24,6 +24,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import AdminDashboard from './pages/AdminDashboard';
 import Contact from './pages/Contact';
 import SellerDeals from './components/SellerDeals';
+import BuyerDeals from './components/BuyerDeals';
 
 // Inner component that has access to AuthContext
 const AppContent: React.FC = () => {
@@ -55,6 +56,8 @@ const AppContent: React.FC = () => {
         return <Chat />;
       case 'profile':
         return <Profile setCurrentPage={setCurrentPage} />;
+      case 'my-deals':
+        return <BuyerDeals />;
       case 'seller-deals':
         return <SellerDeals />;
       case 'about':

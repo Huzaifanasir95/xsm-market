@@ -131,6 +131,10 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile</span>
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCurrentPage('my-deals')} className="cursor-pointer">
+                      <FileText className="mr-2 h-4 w-4" />
+                      <span>My Deals</span>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setCurrentPage('seller-deals')} className="cursor-pointer">
                       <FileText className="mr-2 h-4 w-4" />
                       <span>Seller Deals</span>
@@ -215,6 +219,17 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   >
                     <User className="w-5 h-5" />
                     <span>Profile</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setCurrentPage('my-deals');
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
+                  >
+                    <FileText className="w-5 h-5" />
+                    <span>My Deals</span>
                   </button>
                   
                   <button

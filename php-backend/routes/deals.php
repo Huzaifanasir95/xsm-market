@@ -367,6 +367,211 @@ try {
             exit;
         }
     }
+    // Handle GET /deals/buyer - Get deals where current user is the buyer
+    elseif ($method === 'GET' && $path === '/deals/buyer') {
+        try {
+            $currentUser = getCurrentUser();
+            if (!$currentUser) {
+                http_response_code(401);
+                echo json_encode(['success' => false, 'message' => 'Authentication required']);
+                exit;
+            }
+            
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare("
+                SELECT d.*, 
+                       seller.username as seller_username, seller.email as seller_email_actual,
+                       dpm.payment_method_id, dpm.payment_method_name, dpm.payment_method_category
+                FROM deals d
+                LEFT JOIN users seller ON d.seller_id = seller.id
+                LEFT JOIN deal_payment_methods dpm ON d.id = dpm.deal_id
+                WHERE d.buyer_id = ?
+                ORDER BY d.created_at DESC
+            ");
+            
+            $stmt->execute([$currentUser['userId']]);
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Group payment methods by deal
+            $deals = [];
+            foreach ($results as $row) {
+                $deal_id = $row['id'];
+                if (!isset($deals[$deal_id])) {
+                    $deals[$deal_id] = [
+                        'id' => $row['id'],
+                        'transaction_id' => $row['transaction_id'],
+                        'buyer_id' => $row['buyer_id'],
+                        'seller_id' => $row['seller_id'],
+                        'channel_id' => $row['channel_id'],
+                        'channel_title' => $row['channel_title'],
+                        'channel_price' => $row['channel_price'],
+                        'escrow_fee' => $row['escrow_fee'],
+                        'transaction_type' => $row['transaction_type'],
+                        'buyer_payment_methods' => $row['buyer_payment_methods'],
+                        'seller_agreed' => $row['seller_agreed'],
+                        'seller_agreed_at' => $row['seller_agreed_at'],
+                        'buyer_agreed' => $row['buyer_agreed'],
+                        'buyer_agreed_at' => $row['buyer_agreed_at'],
+                        'deal_status' => $row['deal_status'],
+                        'transaction_fee_paid' => $row['transaction_fee_paid'],
+                        'transaction_fee_paid_at' => $row['transaction_fee_paid_at'],
+                        'transaction_fee_paid_by' => $row['transaction_fee_paid_by'],
+                        'transaction_fee_payment_method' => $row['transaction_fee_payment_method'],
+                        'created_at' => $row['created_at'],
+                        'updated_at' => $row['updated_at'],
+                        'seller_username' => $row['seller_username'],
+                        'payment_methods' => []
+                    ];
+                }
+                
+                if ($row['payment_method_id']) {
+                    $deals[$deal_id]['payment_methods'][] = [
+                        'id' => $row['payment_method_id'],
+                        'name' => $row['payment_method_name'],
+                        'category' => $row['payment_method_category']
+                    ];
+                }
+            }
+            
+            $deals = array_values($deals);
+            
+            http_response_code(200);
+            echo json_encode(['success' => true, 'deals' => $deals]);
+            exit;
+            
+        } catch (Exception $e) {
+            error_log('Get buyer deals error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+    // Handle POST /deals/{id}/pay-transaction-fee - Pay transaction fee
+    elseif ($method === 'POST' && preg_match('/^\/deals\/(\d+)\/pay-transaction-fee$/', $path, $matches)) {
+        $deal_id = $matches[1];
+        
+        $currentUser = getCurrentUser();
+        if (!$currentUser) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Authentication required']);
+            exit;
+        }
+        
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid JSON input']);
+            exit;
+        }
+        
+        if (!isset($input['payment_method']) || !isset($input['payer_type'])) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Missing payment_method or payer_type']);
+            exit;
+        }
+        
+        $payment_method = $input['payment_method']; // 'stripe' or 'crypto'
+        $payer_type = $input['payer_type']; // 'buyer' or 'seller'
+        
+        if (!in_array($payment_method, ['stripe', 'crypto'])) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid payment method']);
+            exit;
+        }
+        
+        if (!in_array($payer_type, ['buyer', 'seller'])) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid payer type']);
+            exit;
+        }
+        
+        try {
+            $pdo = Database::getConnection();
+            
+            // Verify this user is either buyer or seller for this deal
+            $stmt = $pdo->prepare("SELECT * FROM deals WHERE id = ? AND (buyer_id = ? OR seller_id = ?)");
+            $stmt->execute([$deal_id, $currentUser['userId'], $currentUser['userId']]);
+            $deal = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$deal) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Deal not found or access denied']);
+                exit;
+            }
+            
+            // Check if both parties have agreed to terms
+            if (!$deal['buyer_agreed'] || !$deal['seller_agreed']) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Both parties must agree to terms before payment']);
+                exit;
+            }
+            
+            // Check if transaction fee is already paid
+            if ($deal['transaction_fee_paid']) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Transaction fee has already been paid']);
+                exit;
+            }
+            
+            // Verify payer type matches current user role
+            $is_buyer = ($deal['buyer_id'] == $currentUser['userId']);
+            $is_seller = ($deal['seller_id'] == $currentUser['userId']);
+            
+            if (($payer_type === 'buyer' && !$is_buyer) || ($payer_type === 'seller' && !$is_seller)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Payer type does not match your role in this deal']);
+                exit;
+            }
+            
+            // TODO: Integrate with actual payment processors (Stripe/Crypto)
+            // For now, we'll simulate successful payment
+            
+            // Update deal with payment information
+            $pdo->beginTransaction();
+            
+            $stmt = $pdo->prepare("
+                UPDATE deals 
+                SET transaction_fee_paid = TRUE, 
+                    transaction_fee_paid_at = NOW(), 
+                    transaction_fee_paid_by = ?,
+                    transaction_fee_payment_method = ?,
+                    deal_status = 'fee_paid',
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$payer_type, $payment_method, $deal_id]);
+            
+            // Add history record
+            $stmt = $pdo->prepare("
+                INSERT INTO deal_history (deal_id, action_type, action_by, action_description)
+                VALUES (?, 'fee_paid', ?, ?)
+            ");
+            $action_description = "Transaction fee paid via $payment_method by $payer_type";
+            $stmt->execute([$deal_id, $currentUser['userId'], $action_description]);
+            
+            $pdo->commit();
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Transaction fee paid successfully',
+                'deal_status' => 'fee_paid',
+                'payment_method' => $payment_method,
+                'paid_by' => $payer_type
+            ]);
+            exit;
+            
+        } catch (Exception $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Transaction fee payment error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
     else {
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Deals endpoint not found: ' . $path]);

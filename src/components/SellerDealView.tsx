@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, Clock, User, CreditCard, DollarSign, Calendar } from 'lucide-react';
+import { X, CheckCircle, Clock, User, CreditCard, DollarSign, Calendar, FileText } from 'lucide-react';
+import TransactionFeePayment from './TransactionFeePayment';
 
 const API_URL = 'http://localhost:5000';
 
@@ -29,6 +30,9 @@ interface Deal {
   updated_at: string;
   buyer_username: string;
   payment_methods: PaymentMethod[];
+  transaction_fee_paid?: boolean;
+  transaction_fee_paid_by?: string;
+  transaction_fee_payment_method?: string;
 }
 
 interface SellerDealViewProps {
@@ -45,6 +49,14 @@ const SellerDealView: React.FC<SellerDealViewProps> = ({
   onDealUpdate
 }) => {
   const [isAgreeing, setIsAgreeing] = useState(false);
+  const [showFeePayment, setShowFeePayment] = useState(false);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
 
   if (!isOpen || !deal) return null;
 
@@ -309,10 +321,20 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
               </button>
             )}
             
-            {deal.seller_agreed && (
+            {deal.seller_agreed && !deal.transaction_fee_paid && (
+              <button
+                onClick={() => setShowFeePayment(true)}
+                className="flex-1 bg-xsm-yellow text-black py-3 px-6 rounded-lg hover:bg-yellow-500 transition-colors flex items-center justify-center space-x-2 font-semibold"
+              >
+                <DollarSign size={20} />
+                <span>Pay Transaction Fee</span>
+              </button>
+            )}
+            
+            {deal.seller_agreed && deal.transaction_fee_paid && (
               <div className="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg flex items-center justify-center space-x-2">
                 <CheckCircle size={20} />
-                <span>Terms Agreed</span>
+                <span>Fee Paid by {deal.transaction_fee_paid_by === 'seller' ? 'You' : 'Buyer'}</span>
               </div>
             )}
           </div>
@@ -326,8 +348,48 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
               </p>
             </div>
           )}
+
+          {/* Next Steps for Transaction Fee */}
+          {deal.seller_agreed && !deal.transaction_fee_paid && (
+            <div className="bg-xsm-yellow bg-opacity-10 border border-xsm-yellow rounded-lg p-4">
+              <h4 className="text-xsm-yellow font-medium mb-2 flex items-center">
+                <FileText size={16} className="mr-2" />
+                Next Step: Transaction Fee Payment
+              </h4>
+              <p className="text-yellow-200 text-sm">
+                Both you and the buyer can now pay the transaction fee ({formatCurrency(deal.escrow_fee)}) to proceed with the deal. 
+                Usually the buyer pays this fee, but if you've agreed otherwise or the buyer is unable to pay, you can pay it yourself.
+              </p>
+            </div>
+          )}
+
+          {/* Transaction Fee Paid Status */}
+          {deal.transaction_fee_paid && (
+            <div className="bg-green-900 border border-green-700 rounded-lg p-4">
+              <h4 className="text-green-300 font-medium mb-2 flex items-center">
+                <CheckCircle size={16} className="mr-2" />
+                Transaction Fee Paid
+              </h4>
+              <p className="text-green-200 text-sm">
+                The transaction fee has been paid by {deal.transaction_fee_paid_by === 'seller' ? 'you' : 'the buyer'} 
+                via {deal.transaction_fee_payment_method}. The deal will now proceed to the next stage.
+              </p>
+            </div>
+          )}
         </div>
       </div>
+      
+      {/* Transaction Fee Payment Modal */}
+      <TransactionFeePayment
+        isOpen={showFeePayment}
+        onClose={() => setShowFeePayment(false)}
+        deal={deal}
+        userType="seller"
+        onPaymentComplete={() => {
+          setShowFeePayment(false);
+          onDealUpdate();
+        }}
+      />
     </div>
   );
 };
