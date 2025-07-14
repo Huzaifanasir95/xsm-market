@@ -53,6 +53,10 @@ $method = $_SERVER['REQUEST_METHOD'];
 // Remove base path if needed (adjust for your hosting setup)
 $path = str_replace('/api', '', $path);
 
+// Debug logging
+error_log("Received request: $method $request_uri");
+error_log("Parsed path: $path");
+
 // Route handling
 try {
     // Authentication routes
@@ -172,6 +176,7 @@ function handleUserRoutes($controller, $path, $method) {
 }
 
 function handleAdRoutes($controller, $path, $method) {
+    error_log("Handling ad route: $method $path");
     switch (true) {
         case $path === '/ads' && $method === 'GET':
             $controller->getAllAds();
@@ -192,15 +197,18 @@ function handleAdRoutes($controller, $path, $method) {
             $controller->markAsSold($matches[1]);
             break;
         case $path === '/ads/my-ads' && $method === 'GET':
+            error_log("Matched /ads/my-ads route");
             $controller->getMyAds();
             break;
         case $path === '/ads/user/my-ads' && $method === 'GET':
+            error_log("Matched /ads/user/my-ads route");
             $controller->getMyAds();
             break;
         case $path === '/ads/search' && $method === 'GET':
             $controller->searchAds();
             break;
         default:
+            error_log("No matching ad route found for: $method $path");
             Response::error('Ad route not found', 404);
     }
 }

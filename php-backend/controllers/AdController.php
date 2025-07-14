@@ -48,7 +48,7 @@ class AdController {
     
     // Create new ad - exact match to Node.js implementation
     public function createAd() {
-        $user = AuthMiddleware::authenticate();
+        $user = AuthMiddleware::protect();
         
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -170,7 +170,7 @@ class AdController {
     
     // Update ad
     public function updateAd($adId) {
-        $user = AuthMiddleware::authenticate();
+        $user = AuthMiddleware::protect();
         
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -243,7 +243,7 @@ class AdController {
     
     // Delete ad
     public function deleteAd($adId) {
-        $user = AuthMiddleware::authenticate();
+        $user = AuthMiddleware::protect();
         
         try {
             $ad = Ad::findById($adId);
@@ -269,7 +269,7 @@ class AdController {
     
     // Mark ad as sold
     public function markAsSold($adId) {
-        $user = AuthMiddleware::authenticate();
+        $user = AuthMiddleware::protect();
         
         $input = json_decode(file_get_contents('php://input'), true);
         $buyerId = $input['buyerId'] ?? null;
@@ -302,7 +302,7 @@ class AdController {
     
     // Get user's ads
     public function getMyAds() {
-        $user = AuthMiddleware::authenticate();
+        $user = AuthMiddleware::protect();
         
         $page = intval($_GET['page'] ?? 1);
         $limit = intval($_GET['limit'] ?? 10);

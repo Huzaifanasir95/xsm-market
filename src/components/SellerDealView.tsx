@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, Clock, User, CreditCard, DollarSign, Calendar, FileText } from 'lucide-react';
+import { X, CheckCircle, Clock, User, CreditCard, DollarSign, Calendar, FileText, Shield, Timer } from 'lucide-react';
 import TransactionFeePayment from './TransactionFeePayment';
 
 const API_URL = 'http://localhost:5000';
@@ -37,6 +37,13 @@ interface Deal {
   agent_email_sent_at?: string | null;
   seller_gave_rights?: boolean;
   seller_gave_rights_at?: string | null;
+  // New agent rights fields
+  platform_type?: string;
+  rights_timer_started_at?: string | null;
+  rights_timer_expires_at?: string | null;
+  timer_completed?: boolean;
+  seller_made_primary_owner?: boolean;
+  seller_made_primary_owner_at?: string | null;
 }
 
 interface SellerDealViewProps {
@@ -53,14 +60,93 @@ const SellerDealView: React.FC<SellerDealViewProps> = ({
   onDealUpdate
 }) => {
   const [isAgreeing, setIsAgreeing] = useState(false);
-  const [showFeePayment, setShowFeePayment] = useState(false);
   const [isConfirmingRights, setIsConfirmingRights] = useState(false);
+  const [isConfirmingPrimaryOwner, setIsConfirmingPrimaryOwner] = useState(false);
+  const [showFeePayment, setShowFeePayment] = useState(false);
+  const [dealStatus, setDealStatus] = useState<any>(null);
+  const [timerInfo, setTimerInfo] = useState<any>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
+  };
+
+  const fetchDealStatus = async () => {
+    if (!deal?.id) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/deals/${deal.id}/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Deal status fetched:', result); // Debug logging
+        setDealStatus(result);
+        setTimerInfo(result);
+      } else {
+        console.error('Failed to fetch deal status:', response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching deal status:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && deal) {
+      fetchDealStatus();
+      // Refresh status every 30 seconds if deal is active
+      const interval = setInterval(fetchDealStatus, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isOpen, deal?.id]);
+
+  const handleConfirmPrimaryOwner = async () => {
+    try {
+      setIsConfirmingPrimaryOwner(true);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/deals/${deal.id}/confirm-primary-owner`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        const platformName = dealStatus?.platform_type ? dealStatus.platform_type.charAt(0).toUpperCase() + dealStatus.platform_type.slice(1) : 'Channel';
+        
+        alert(`🎉 Primary Owner Promotion Confirmed!
+
+You have successfully confirmed promoting our agent to Primary Owner of your ${platformName} channel.
+
+Transaction ID: ${deal.transaction_id}
+Channel: ${deal.channel_title}
+Status: Channel Transfer Complete!
+
+The deal is now in its final stages. Our agent will verify the primary ownership status and prepare the final account details for the buyer. Thank you for your cooperation!`);
+
+        onDealUpdate();
+        fetchDealStatus(); // Refresh status
+        onClose();
+      } else {
+        throw new Error(result.message || 'Failed to confirm primary owner promotion');
+      }
+      
+    } catch (error) {
+      console.error('Error confirming primary owner:', error);
+      alert('Failed to confirm primary owner promotion: ' + error.message);
+    } finally {
+      setIsConfirmingPrimaryOwner(false);
+    }
   };
 
   if (!isOpen || !deal) return null;
@@ -81,19 +167,40 @@ const SellerDealView: React.FC<SellerDealViewProps> = ({
       const result = await response.json();
       
       if (response.ok) {
-        alert(`✅ Rights Confirmation Successful!
+        let message = `✅ Rights Confirmation Successful!
 
 You have confirmed that you've given account access to our agent.
 
 Transaction ID: ${deal.transaction_id}
 Channel: ${deal.channel_title}
-Status: Agent Access Confirmed
+Status: Agent Access Confirmed`;
 
-Our agent will now verify the account and prepare for secure transfer. You will be notified once the verification is complete (typically 1-3 business days).
+        // Add platform-specific messaging
+        if (result.platform_type === 'youtube') {
+          message += `
 
-Thank you for your cooperation in ensuring a secure transaction!`);
+⏰ YouTube Channel Timer Started
+Due to YouTube's requirements, you must wait 7 days before promoting our agent to Primary Owner. 
+
+Timer started: Now
+Timer expires: ${result.timer_expires_formatted || 'In 7 days'}
+
+You will be able to promote the agent to Primary Owner after the timer expires. We'll notify you when it's time!`;
+        } else {
+          message += `
+
+✅ Ready for Primary Owner Promotion
+Since this is not a YouTube channel, you can immediately promote our agent to Primary Owner when ready.`;
+        }
+
+        message += `
+
+Our agent will now verify the account access. Thank you for your cooperation in ensuring a secure transaction!`;
+
+        alert(message);
 
         onDealUpdate();
+        fetchDealStatus(); // Refresh status to get timer info
         onClose();
       } else {
         throw new Error(result.message || 'Failed to confirm rights');
@@ -172,8 +279,27 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
     switch (status) {
       case 'pending': return 'Waiting for Your Review';
       case 'terms_agreed': return 'Terms Agreed - Awaiting Payment';
+      case 'agent_access_pending': return 'Awaiting Agent Access Confirmation';
+      case 'waiting_promotion_timer': return 'Waiting for YouTube Timer (7 days)';
+      case 'promotion_timer_complete': return 'Transfer Complete';
       case 'completed': return 'Deal Completed';
       default: return status;
+    }
+  };
+
+  const formatTimeRemaining = (seconds: number) => {
+    if (seconds <= 0) return '0 seconds';
+    
+    const days = Math.floor(seconds / (24 * 60 * 60));
+    const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((seconds % (60 * 60)) / 60);
+    
+    if (days > 0) {
+      return `${days} day${days > 1 ? 's' : ''}, ${hours} hour${hours > 1 ? 's' : ''}`;
+    } else if (hours > 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''}, ${minutes} minute${minutes > 1 ? 's' : ''}`;
+    } else {
+      return `${minutes} minute${minutes > 1 ? 's' : ''}`;
     }
   };
 
@@ -309,30 +435,63 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
                 )}
               </div>
               
-              <div className="flex items-center space-x-3 opacity-60">
-                <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs">3</span>
+              <div className={`flex items-center space-x-3 ${(dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) ? 'opacity-100' : 'opacity-60'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  (dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) ? 'bg-green-500' : 'bg-gray-600'
+                }`}>
+                  {(dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) ? <CheckCircle size={12} className="text-white" /> : <span className="text-white text-xs">3</span>}
                 </div>
-                <span className="text-white">Buyer pays escrow fee</span>
+                <span className="text-white">Transaction fee paid</span>
+              </div>
+              
+              <div className={`flex items-center space-x-3 ${(dealStatus?.seller_gave_rights ?? deal.seller_gave_rights) ? 'opacity-100' : 'opacity-60'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  (dealStatus?.seller_gave_rights ?? deal.seller_gave_rights) ? 'bg-green-500' : 'bg-gray-600'
+                }`}>
+                  {(dealStatus?.seller_gave_rights ?? deal.seller_gave_rights) ? <CheckCircle size={12} className="text-white" /> : <span className="text-white text-xs">4</span>}
+                </div>
+                <span className="text-white">Give agent manager access</span>
+              </div>
+
+              {/* YouTube Timer Step */}
+              {dealStatus?.platform_type === 'youtube' && (
+                <div className={`flex items-center space-x-3 ${dealStatus?.timer_completed ? 'opacity-100' : 'opacity-60'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                    dealStatus?.timer_completed ? 'bg-green-500' : dealStatus?.seller_gave_rights ? 'bg-yellow-500' : 'bg-gray-600'
+                  }`}>
+                    {dealStatus?.timer_completed ? <CheckCircle size={12} className="text-white" /> : 
+                     dealStatus?.seller_gave_rights ? <Timer size={12} className="text-white" /> : 
+                     <span className="text-white text-xs">5</span>}
+                  </div>
+                  <span className="text-white">Wait 7 days (YouTube requirement)</span>
+                  {dealStatus?.timer_remaining_seconds > 0 && (
+                    <span className="text-yellow-400 text-sm">
+                      ({formatTimeRemaining(dealStatus.timer_remaining_seconds)} remaining)
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              <div className={`flex items-center space-x-3 ${dealStatus?.seller_made_primary_owner ? 'opacity-100' : 'opacity-60'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  dealStatus?.seller_made_primary_owner ? 'bg-green-500' : 'bg-gray-600'
+                }`}>
+                  {dealStatus?.seller_made_primary_owner ? <CheckCircle size={12} className="text-white" /> : 
+                   <span className="text-white text-xs">{dealStatus?.platform_type === 'youtube' ? '6' : '5'}</span>}
+                </div>
+                <span className="text-white">Promote agent to primary owner</span>
               </div>
               
               <div className="flex items-center space-x-3 opacity-60">
                 <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs">4</span>
-                </div>
-                <span className="text-white">You transfer channel to escrow agent</span>
-              </div>
-              
-              <div className="flex items-center space-x-3 opacity-60">
-                <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs">5</span>
+                  <span className="text-white text-xs">{dealStatus?.platform_type === 'youtube' ? '7' : '6'}</span>
                 </div>
                 <span className="text-white">Buyer pays you via selected method</span>
               </div>
               
               <div className="flex items-center space-x-3 opacity-60">
                 <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs">6</span>
+                  <span className="text-white text-xs">{dealStatus?.platform_type === 'youtube' ? '8' : '7'}</span>
                 </div>
                 <span className="text-white">Channel transferred to buyer</span>
               </div>
@@ -368,7 +527,17 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
               </button>
             )}
             
-            {deal.seller_agreed && !deal.transaction_fee_paid && (
+            {/* Show transaction fee payment button for seller if not paid yet - Use dealStatus for real-time data */}
+            {(() => {
+              const showPayButton = deal.seller_agreed && !(dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid);
+              console.log('Pay Transaction Fee button - Show:', showPayButton, {
+                seller_agreed: deal.seller_agreed,
+                transaction_fee_paid_status: dealStatus?.transaction_fee_paid,
+                transaction_fee_paid_fallback: deal.transaction_fee_paid,
+                final_paid_value: (dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid)
+              });
+              return showPayButton;
+            })() && (
               <button
                 onClick={() => setShowFeePayment(true)}
                 className="flex-1 bg-xsm-yellow text-black py-3 px-6 rounded-lg hover:bg-yellow-500 transition-colors flex items-center justify-center space-x-2 font-semibold"
@@ -378,7 +547,20 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
               </button>
             )}
             
-            {deal.seller_agreed && deal.transaction_fee_paid && !deal.seller_gave_rights && (
+            {/* Show rights confirmation button once fee is paid - Use dealStatus for real-time data */}
+            {(() => {
+              const showRightsButton = deal.seller_agreed && (dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) && !(dealStatus?.seller_gave_rights ?? deal.seller_gave_rights);
+              console.log('I Have Given The Rights button - Show:', showRightsButton, {
+                seller_agreed: deal.seller_agreed,
+                transaction_fee_paid_status: dealStatus?.transaction_fee_paid,
+                transaction_fee_paid_fallback: deal.transaction_fee_paid,
+                seller_gave_rights_status: dealStatus?.seller_gave_rights,
+                seller_gave_rights_fallback: deal.seller_gave_rights,
+                final_paid_value: (dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid),
+                final_rights_value: (dealStatus?.seller_gave_rights ?? deal.seller_gave_rights)
+              });
+              return showRightsButton;
+            })() && (
               <button
                 onClick={handleConfirmRights}
                 disabled={isConfirmingRights}
@@ -398,10 +580,37 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
               </button>
             )}
 
-            {deal.seller_agreed && deal.transaction_fee_paid && deal.seller_gave_rights && (
+            {deal.seller_agreed && (dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) && (dealStatus?.seller_gave_rights ?? deal.seller_gave_rights) && !dealStatus?.seller_made_primary_owner && ((dealStatus?.platform_type !== 'youtube') || (dealStatus?.platform_type === 'youtube' && (dealStatus?.timer_expired || dealStatus?.timer_completed))) && (
+              <button
+                onClick={handleConfirmPrimaryOwner}
+                disabled={isConfirmingPrimaryOwner}
+                className="flex-1 bg-purple-600 text-white py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 font-semibold"
+              >
+                {isConfirmingPrimaryOwner ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Confirming...</span>
+                  </>
+                ) : (
+                  <>
+                    <Shield size={20} />
+                    <span>I Have Made The Primary Owner</span>
+                  </>
+                )}
+              </button>
+            )}
+            
+            {deal.seller_agreed && (dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) && (dealStatus?.seller_gave_rights ?? deal.seller_gave_rights) && dealStatus?.platform_type === 'youtube' && dealStatus?.timer_remaining_seconds > 0 && (
+              <div className="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg flex items-center justify-center space-x-2 opacity-75 cursor-not-allowed">
+                <Timer size={20} />
+                <span>Wait {Math.ceil((dealStatus.timer_remaining_seconds || 0) / (24 * 60 * 60))} More Days</span>
+              </div>
+            )}
+
+            {dealStatus?.seller_made_primary_owner && (
               <div className="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg flex items-center justify-center space-x-2">
                 <CheckCircle size={20} />
-                <span>Rights Confirmed - Agent Verifying</span>
+                <span>Transfer Complete - Deal Finalized</span>
               </div>
             )}
           </div>
@@ -417,35 +626,48 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
           )}
 
           {/* Next Steps for Transaction Fee */}
-          {deal.seller_agreed && !deal.transaction_fee_paid && (
+          {deal.seller_agreed && !(dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) && (
             <div className="bg-xsm-yellow bg-opacity-10 border border-xsm-yellow rounded-lg p-4">
               <h4 className="text-xsm-yellow font-medium mb-2 flex items-center">
                 <FileText size={16} className="mr-2" />
-                Next Step: Transaction Fee Payment
+                Transaction Fee Payment Required
               </h4>
-              <p className="text-yellow-200 text-sm">
-                Both you and the buyer can now pay the transaction fee ({formatCurrency(deal.escrow_fee)}) to proceed with the deal. 
-                Usually the buyer pays this fee, but if you've agreed otherwise or the buyer is unable to pay, you can pay it yourself.
+              <p className="text-yellow-200 text-sm mb-3">
+                The transaction fee ({formatCurrency(deal.escrow_fee)}) needs to be paid to proceed with the deal. 
+                Either you or the buyer can pay this fee to move forward.
               </p>
+              <div className="bg-yellow-800 rounded-lg p-3 space-y-2">
+                <p className="text-yellow-200 text-sm font-medium">💰 Payment Options:</p>
+                <ul className="text-yellow-200 text-xs space-y-1 ml-4">
+                  <li>• Buyer pays (most common)</li>
+                  <li>• You pay (if agreed upon)</li>
+                  <li>• Either party can proceed</li>
+                </ul>
+              </div>
+              <div className="mt-3 p-3 bg-yellow-800 rounded-lg">
+                <p className="text-yellow-200 text-xs">
+                  💡 Once either party pays the fee, the "I Have Given The Rights" button will appear automatically.
+                </p>
+              </div>
             </div>
           )}
 
           {/* Transaction Fee Paid Status */}
-          {deal.transaction_fee_paid && (
+          {(dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) && (
             <div className="bg-green-900 border border-green-700 rounded-lg p-4">
               <h4 className="text-green-300 font-medium mb-2 flex items-center">
                 <CheckCircle size={16} className="mr-2" />
                 Transaction Fee Paid
               </h4>
               <p className="text-green-200 text-sm">
-                The transaction fee has been paid by {deal.transaction_fee_paid_by === 'seller' ? 'you' : 'the buyer'} 
-                via {deal.transaction_fee_payment_method}. The deal will now proceed to the next stage.
+                The transaction fee has been paid by {(dealStatus?.transaction_fee_paid_by ?? deal.transaction_fee_paid_by) === 'seller' ? 'you' : 'the buyer'} 
+                via {(dealStatus?.transaction_fee_payment_method ?? deal.transaction_fee_payment_method)}. The deal will now proceed to the next stage.
               </p>
             </div>
           )}
 
           {/* Agent Email and Rights Instructions */}
-          {deal.transaction_fee_paid && deal.agent_email_sent && !deal.seller_gave_rights && (
+          {(dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) && (dealStatus?.agent_email_sent ?? deal.agent_email_sent) && !(dealStatus?.seller_gave_rights ?? deal.seller_gave_rights) && (
             <div className="bg-blue-900 border border-blue-700 rounded-lg p-4">
               <h4 className="text-blue-300 font-medium mb-3 flex items-center">
                 <Shield size={16} className="mr-2" />
@@ -477,7 +699,7 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
           )}
 
           {/* Rights Confirmation Status */}
-          {deal.seller_gave_rights && (
+          {(dealStatus?.seller_gave_rights ?? deal.seller_gave_rights) && (
             <div className="bg-green-900 border border-green-700 rounded-lg p-4">
               <h4 className="text-green-300 font-medium mb-2 flex items-center">
                 <CheckCircle size={16} className="mr-2" />
@@ -485,6 +707,86 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
               </h4>
               <p className="text-green-200 text-sm">
                 You have confirmed giving account access to our agent. The agent is now verifying the account and will proceed with the secure transfer process. You will be updated once verification is complete.
+              </p>
+            </div>
+          )}
+
+          {/* YouTube Timer Display */}
+          {dealStatus?.platform_type === 'youtube' && dealStatus?.seller_gave_rights && !dealStatus?.timer_completed && dealStatus?.timer_remaining_seconds > 0 && (
+            <div className="bg-yellow-900 border border-yellow-700 rounded-lg p-4">
+              <h4 className="text-yellow-300 font-medium mb-3 flex items-center">
+                <Timer size={16} className="mr-2" />
+                YouTube Primary Owner Timer
+              </h4>
+              <div className="space-y-3">
+                <p className="text-yellow-200 text-sm">
+                  YouTube requires a 7-day waiting period before you can promote our agent to Primary Owner.
+                </p>
+                <div className="bg-yellow-800 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-yellow-200 text-sm font-medium">Time Remaining:</span>
+                    <span className="text-yellow-100 font-bold">
+                      {formatTimeRemaining(dealStatus.timer_remaining_seconds)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-yellow-200 text-sm">Timer Expires:</span>
+                    <span className="text-yellow-100 text-sm font-mono">
+                      {dealStatus.timer_expires_formatted}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-yellow-200 text-xs">
+                  ⏰ You will be able to promote the agent to Primary Owner after this timer expires. We'll update the interface automatically when it's ready.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Timer Completed - Ready for Primary Owner */}
+          {dealStatus?.seller_gave_rights && ((dealStatus?.platform_type !== 'youtube') || (dealStatus?.platform_type === 'youtube' && (dealStatus?.timer_expired || dealStatus?.timer_completed))) && !dealStatus?.seller_made_primary_owner && (
+            <div className="bg-blue-900 border border-blue-700 rounded-lg p-4">
+              <h4 className="text-blue-300 font-medium mb-3 flex items-center">
+                <Shield size={16} className="mr-2" />
+                Ready for Primary Owner Promotion
+              </h4>
+              <div className="space-y-3">
+                {dealStatus?.platform_type === 'youtube' ? (
+                  <p className="text-blue-200 text-sm">
+                    ✅ The 7-day YouTube timer has completed! You can now promote our agent to Primary Owner of your channel.
+                  </p>
+                ) : (
+                  <p className="text-blue-200 text-sm">
+                    Since this is not a YouTube channel, you can promote our agent to Primary Owner immediately.
+                  </p>
+                )}
+                <div className="bg-blue-800 rounded-lg p-3">
+                  <p className="text-blue-200 text-sm font-medium mb-2">Instructions:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-blue-200 text-sm ml-2">
+                    <li>Go to your channel's management settings</li>
+                    <li>Find the permissions/collaborators section</li>
+                    <li>Promote our agent (rebirthcar63@gmail.com) to Primary Owner</li>
+                    <li>Click "I Have Made The Primary Owner" button below</li>
+                  </ol>
+                </div>
+                <div className="bg-yellow-800 border border-yellow-600 rounded-lg p-3">
+                  <p className="text-yellow-200 text-xs">
+                    ⚠️ Important: Only promote to Primary Owner after giving manager access first. This completes the secure transfer process.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Primary Owner Confirmation Complete */}
+          {dealStatus?.seller_made_primary_owner && (
+            <div className="bg-green-900 border border-green-700 rounded-lg p-4">
+              <h4 className="text-green-300 font-medium mb-2 flex items-center">
+                <CheckCircle size={16} className="mr-2" />
+                Primary Owner Transfer Complete!
+              </h4>
+              <p className="text-green-200 text-sm">
+                🎉 Congratulations! You have successfully transferred Primary Owner rights to our agent. The channel transfer is now complete and the deal is in its final stages.
               </p>
             </div>
           )}
@@ -498,8 +800,11 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
         deal={deal}
         userType="seller"
         onPaymentComplete={() => {
+          console.log('Payment completed, refreshing status...');
           setShowFeePayment(false);
           onDealUpdate();
+          // Add small delay to ensure backend has processed the payment
+          setTimeout(fetchDealStatus, 1000);
         }}
       />
     </div>

@@ -91,7 +91,10 @@ const SellerDeals: React.FC = () => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'terms_agreed': return 'bg-green-100 text-green-800';
-      case 'completed': return 'bg-blue-100 text-blue-800';
+      case 'agent_access_pending': return 'bg-blue-100 text-blue-800';
+      case 'waiting_promotion_timer': return 'bg-orange-100 text-orange-800';
+      case 'promotion_timer_complete': return 'bg-purple-100 text-purple-800';
+      case 'completed': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -100,6 +103,9 @@ const SellerDeals: React.FC = () => {
     switch (status) {
       case 'pending': return 'Awaiting Review';
       case 'terms_agreed': return 'Terms Agreed';
+      case 'agent_access_pending': return 'Awaiting Rights Confirmation';
+      case 'waiting_promotion_timer': return 'YouTube Timer Active';
+      case 'promotion_timer_complete': return 'Transfer Complete';
       case 'completed': return 'Completed';
       default: return status;
     }
