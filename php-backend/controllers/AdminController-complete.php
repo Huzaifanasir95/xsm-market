@@ -407,15 +407,23 @@ class AdminController {
                 $progress = 0;
                 
                 // Determine deal status and progress with new agent rights flow
-                if ($deal['seller_gave_rights']) {
-                    $status = 'Agent Access Confirmed';
+                if ($deal['seller_made_primary_owner']) {
+                    $status = 'Primary Owner Confirmed';
                     $progress = 100;
+                } elseif ($deal['seller_gave_rights']) {
+                    if ($deal['platform_type'] === 'youtube' && !$deal['timer_completed']) {
+                        $status = 'YouTube Timer Running';
+                        $progress = 90;
+                    } else {
+                        $status = 'Agent Access Confirmed';
+                        $progress = 85;
+                    }
                 } elseif ($deal['agent_email_sent']) {
                     $status = 'Waiting for Agent Access';
-                    $progress = 85;
+                    $progress = 75;
                 } elseif ($deal['transaction_fee_paid']) {
                     $status = 'Fee Paid - Sending Agent Email';
-                    $progress = 75;
+                    $progress = 65;
                 } elseif ($deal['seller_agreed']) {
                     $status = 'Seller Agreed - Awaiting Payment';
                     $progress = 50;
@@ -451,6 +459,10 @@ class AdminController {
                     'agent_email_sent_at' => $deal['agent_email_sent_at'],
                     'seller_gave_rights' => (bool)$deal['seller_gave_rights'],
                     'seller_gave_rights_at' => $deal['seller_gave_rights_at'],
+                    'seller_made_primary_owner' => (bool)$deal['seller_made_primary_owner'],
+                    'seller_made_primary_owner_at' => $deal['seller_made_primary_owner_at'],
+                    'platform_type' => $deal['platform_type'],
+                    'timer_completed' => (bool)$deal['timer_completed'],
                     'created_at' => $deal['created_at'],
                     'updated_at' => $deal['updated_at']
                 ];

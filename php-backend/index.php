@@ -258,6 +258,12 @@ function handleChatRoutes($controller, $path, $method) {
         case $path === '/chat/ad-inquiry' && $method === 'POST':
             $controller->createAdInquiryChat();
             break;
+        case $path === '/chat/admin-find-deal-chat' && $method === 'POST':
+            $controller->adminFindDealChat();
+            break;
+        case preg_match('/^\/chat\/admin\/chats\/(\d+)\/messages$/', $path, $matches) && $method === 'POST':
+            $controller->adminSendMessage($matches[1]);
+            break;
         default:
             Response::error('Chat route not found', 404);
     }

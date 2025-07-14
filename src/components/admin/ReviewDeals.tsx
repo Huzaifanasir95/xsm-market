@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, CheckCircle, DollarSign, User, Eye, Calendar, TrendingUp } from 'lucide-react';
-import { getAllDeals } from '@/services/admin';
+import { Clock, CheckCircle, DollarSign, User, Eye, Calendar, TrendingUp, Send } from 'lucide-react';
+import { getAllDeals, adminSendOwnershipConfirmation } from '@/services/admin';
+
+const API_URL = 'http://localhost:5000';
 
 interface Deal {
   id: number;
@@ -29,6 +31,10 @@ interface Deal {
   agent_email_sent_at: string | null;
   seller_gave_rights: boolean;
   seller_gave_rights_at: string | null;
+  seller_made_primary_owner: boolean;
+  seller_made_primary_owner_at: string | null;
+  platform_type: string | null;
+  timer_completed: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +44,7 @@ const ReviewDeals: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [sendingMessage, setSendingMessage] = useState<number | null>(null);
 
   useEffect(() => {
     fetchDeals();
@@ -53,6 +60,54 @@ const ReviewDeals: React.FC = () => {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const confirmPrimaryOwnerMade = async (dealId: number) => {
+    try {
+      setSendingMessage(dealId);
+      
+      const confirmed = window.confirm(
+        '🎯 CONFIRM PRIMARY OWNER PROMOTION\n\n' +
+        'Please confirm that the seller has successfully promoted our agent to PRIMARY OWNER of the channel.\n\n' +
+        '⚠️ Only proceed if:\n' +
+        '• Seller has promoted agent to Primary Owner (not just Owner)\n' +
+        '• Agent now has full administrative control\n' +
+        '• You have taken final screenshots\n' +
+        '• Ready to secure the account and notify buyer\n\n' +
+        'Note: You can do this at any time once the seller gives agent access - no need to wait for the 7-day timer.\n\n' +
+        'This will notify the buyer they can proceed with payment. Continue?'
+      );
+
+      if (!confirmed) {
+        setSendingMessage(null);
+        return;
+      }
+
+      // Find the deal data for buyer, seller, and channel info
+      const deal = deals.find(d => d.id === dealId);
+      if (!deal) {
+        throw new Error('Deal not found');
+      }
+
+      // Send ownership confirmation message via chat system
+      await adminSendOwnershipConfirmation(
+        deal.buyer.username,
+        deal.seller.username,
+        dealId,
+        deal.channel_title
+      );
+      
+      alert('✅ Primary owner status confirmed successfully! Ownership confirmation message sent to buyer and seller.');
+      
+      // Refresh deals
+      fetchDeals();
+      
+    } catch (error) {
+      console.error('Error confirming primary owner made:', error);
+      alert('Failed to confirm primary owner status: ' + error.message);
+    } finally {
+      setSendingMessage(null);
     }
   };
 
@@ -223,13 +278,31 @@ const ReviewDeals: React.FC = () => {
                     {new Date(deal.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => setSelectedDeal(deal)}
-                      className="text-xsm-yellow hover:text-yellow-400 transition-colors"
-                      title="View Details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setSelectedDeal(deal)}
+                        className="text-xsm-yellow hover:text-yellow-400 transition-colors"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      
+                      {/* Admin: "I HAVE MADE THE PRIMARY OWNER" Button */}
+                      {deal.seller_gave_rights && !deal.seller_made_primary_owner && (
+                        <button
+                          onClick={() => confirmPrimaryOwnerMade(deal.id)}
+                          disabled={sendingMessage === deal.id}
+                          className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                          title="Confirm Agent Has Been Made Primary Owner (Available anytime after agent access)"
+                        >
+                          {sendingMessage === deal.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          ) : (
+                            'I HAVE MADE THE PRIMARY OWNER'
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

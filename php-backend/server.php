@@ -243,6 +243,10 @@ function handleChatRoutes($controller, $path, $method) {
         if ($method === 'POST') $controller->adminSendMessage($chatId);
         else methodNotAllowed();
     }
+    elseif ($path === '/chat/admin/find-deal-chat') {
+        if ($method === 'POST') $controller->adminFindDealChat();
+        else methodNotAllowed();
+    }
     elseif (preg_match('/^\/chat\/admin\/messages\/(\d+)$/', $path, $matches)) {
         $messageId = $matches[1];
         if ($method === 'DELETE') $controller->adminDeleteMessage($messageId);

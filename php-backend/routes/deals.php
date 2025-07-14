@@ -2,6 +2,10 @@
 // Deals API Routes
 // Handle all deal-related API endpoints
 
+error_log("=== DEALS.PHP LOADED ===");
+error_log("Request path: " . ($path ?? 'undefined'));
+error_log("Request method: " . ($method ?? 'undefined'));
+
 // Include required dependencies
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../utils/jwt.php';
@@ -24,6 +28,47 @@ function getCurrentUser() {
         error_log('JWT verification failed: ' . $e->getMessage());
         return null;
     }
+}
+
+// Function to check if user has admin access
+function checkAdminAccess($user) {
+    // Load admin email from .env
+    $envFile = __DIR__ . '/../.env';
+    $adminEmail = null;
+    $adminUsername = null;
+    
+    if (file_exists($envFile)) {
+        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (strpos($line, 'admin_email') === 0) {
+                $parts = explode('=', $line, 2);
+                if (count($parts) === 2) {
+                    $adminEmail = trim(trim($parts[1]), ' "\'');
+                }
+            }
+            if (strpos($line, 'admin_username') === 0) {
+                $parts = explode('=', $line, 2);
+                if (count($parts) === 2) {
+                    $adminUsername = trim(trim($parts[1]), ' "\'');
+                }
+            }
+        }
+    }
+    
+    // Check if current user matches admin email or username
+    $userEmail = strtolower($user['email']);
+    $username = strtolower($user['username']);
+    
+    $isAdmin = false;
+    if ($adminEmail && $userEmail === strtolower($adminEmail)) {
+        $isAdmin = true;
+    }
+    if ($adminUsername && $username === strtolower($adminUsername)) {
+        $isAdmin = true;
+    }
+    
+    return $isAdmin;
 }
 
 // Function to create a new deal
@@ -978,6 +1023,282 @@ try {
             exit;
         }
     }
+    
+    // Handle POST /deals/{id}/mark-primary-owner-made - Admin confirms agent has been made primary owner
+    elseif ($method === 'POST' && preg_match('/^\/deals\/(\d+)\/mark-primary-owner-made$/', $path, $matches)) {
+        $deal_id = $matches[1];
+        
+        error_log("=== MARK PRIMARY OWNER MADE ENDPOINT CALLED ===");
+        error_log("Deal ID: " . $deal_id);
+        error_log("Request Path: " . $path);
+        error_log("Request Method: " . $method);
+        
+        $currentUser = getCurrentUser();
+        if (!$currentUser) {
+            error_log("Authentication failed - no current user");
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Authentication required']);
+            exit;
+        }
+        
+        error_log("Current user authenticated: " . json_encode($currentUser));
+        
+        // Check if user is admin using .env file
+        $isAdmin = checkAdminAccess($currentUser);
+        error_log("Admin check result: " . ($isAdmin ? 'true' : 'false'));
+        
+        if (!$isAdmin) {
+            error_log("Admin access denied for user: " . $currentUser['email']);
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Admin access required']);
+            exit;
+        }
+        
+        try {
+            $pdo = Database::getConnection();
+            $pdo->beginTransaction();
+            
+            // Get deal details
+            $stmt = $pdo->prepare("
+                SELECT d.*, 
+                       seller.username as seller_username,
+                       buyer.username as buyer_username
+                FROM deals d
+                LEFT JOIN users seller ON d.seller_id = seller.id
+                LEFT JOIN users buyer ON d.buyer_id = buyer.id
+                WHERE d.id = ?
+            ");
+            $stmt->execute([$deal_id]);
+            $deal = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$deal) {
+                throw new Exception('Deal not found');
+            }
+            
+            // Validate that seller has given rights and agent is not already marked as primary owner
+            if (!$deal['seller_gave_rights']) {
+                throw new Exception('Seller has not given agent access yet');
+            }
+            
+            if ($deal['seller_made_primary_owner']) {
+                throw new Exception('Agent is already marked as primary owner');
+            }
+            
+            // Update deal to mark that seller has made agent primary owner
+            $stmt = $pdo->prepare("
+                UPDATE deals 
+                SET seller_made_primary_owner = TRUE,
+                    seller_made_primary_owner_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$deal_id]);
+            
+            // Send ownership confirmation message to chat (same mechanism as rights confirmation)
+            try {
+                // Find the chat for this deal
+                $stmt = $pdo->prepare("
+                    SELECT c.id as chat_id FROM chats c
+                    INNER JOIN chat_participants cp1 ON c.id = cp1.chatId
+                    INNER JOIN chat_participants cp2 ON c.id = cp2.chatId
+                    WHERE c.type = 'ad_inquiry'
+                    AND cp1.userId = ? AND cp1.isActive = 1
+                    AND cp2.userId = ? AND cp2.isActive = 1
+                    AND cp1.chatId = cp2.chatId
+                    LIMIT 1
+                ");
+                $stmt->execute([$deal['buyer_id'], $deal['seller_id']]);
+                $chat = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($chat) {
+                    // Create ownership confirmation message
+                    $message_content = "🎉 **AGENT OWNERSHIP CONFIRMED** 🎉\n\n" .
+                        "Great news! Our agent has successfully been made the Primary Owner of the channel.\n\n" .
+                        "**Channel**: {$deal['channel_title']}\n" .
+                        "**Transaction ID**: #{$deal_id}\n" .
+                        "**Status**: Agent now has full control\n\n" .
+                        "📸 **Next Steps:**\n" .
+                        "1. Agent will take final screenshots of the account\n" .
+                        "2. Agent will remove all seller access and secure the account\n" .
+                        "3. Screenshots will be shared in this chat as proof\n" .
+                        "4. Buyer can then proceed with payment to seller\n\n" .
+                        "💰 **For the Buyer**: Once you see the screenshots confirming agent control, you can safely pay the seller via your agreed payment method and then click \"I HAVE PAID THE SELLER\" button in your deal interface.\n\n" .
+                        "🔒 **Security**: The account is now fully secured under our agent's control until final transfer to buyer.";
+                    
+                    // Insert system message
+                    $stmt = $pdo->prepare("
+                        INSERT INTO messages (chatId, senderId, content, messageType, isRead, createdAt, updatedAt)
+                        VALUES (?, 1, ?, 'system', 0, NOW(), NOW())
+                    ");
+                    $stmt->execute([$chat['chat_id'], $message_content]);
+                    
+                    // Update chat last message
+                    $stmt = $pdo->prepare("
+                        UPDATE chats SET lastMessage = ?, lastMessageTime = NOW(), updatedAt = NOW()
+                        WHERE id = ?
+                    ");
+                    $stmt->execute(['Admin: Agent ownership confirmed - ready for payment', $chat['chat_id']]);
+                }
+            } catch (Exception $e) {
+                error_log('Error sending ownership confirmation message: ' . $e->getMessage());
+                // Don't fail the confirmation if message fails
+            }
+            
+            $pdo->commit();
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Primary owner status confirmed successfully',
+                'deal_id' => $deal_id,
+                'transaction_id' => $deal['transaction_id']
+            ]);
+            
+        } catch (Exception $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Mark primary owner made error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+    
+    // Handle POST /deals/{id}/confirm-payment-to-seller - Buyer confirms they paid the seller
+    elseif ($method === 'POST' && preg_match('/^\/deals\/(\d+)\/confirm-payment-to-seller$/', $path, $matches)) {
+        $deal_id = $matches[1];
+        
+        $currentUser = getCurrentUser();
+        if (!$currentUser) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Authentication required']);
+            exit;
+        }
+        
+        try {
+            $pdo = Database::getConnection();
+            
+            // Get deal and verify buyer access
+            $stmt = $pdo->prepare("
+                SELECT * FROM deals 
+                WHERE id = ? AND buyer_id = ?
+            ");
+            $stmt->execute([$deal_id, $currentUser['userId']]);
+            $deal = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$deal) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Deal not found or access denied']);
+                exit;
+            }
+            
+            // Check if agent has been made primary owner
+            if (!$deal['seller_made_primary_owner']) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Agent must be made primary owner before confirming payment']);
+                exit;
+            }
+            
+            // Check if payment already confirmed
+            if ($deal['buyer_paid_seller']) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Payment to seller has already been confirmed']);
+                exit;
+            }
+            
+            $pdo->beginTransaction();
+            
+            // Update deal with payment confirmation
+            $stmt = $pdo->prepare("
+                UPDATE deals 
+                SET buyer_paid_seller = TRUE,
+                    buyer_paid_seller_at = NOW(),
+                    deal_status = 'buyer_paid_seller',
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$deal_id]);
+            
+            // Add history record
+            $stmt = $pdo->prepare("
+                INSERT INTO deal_history (deal_id, action_type, action_by, action_description)
+                VALUES (?, 'buyer_paid_seller', ?, ?)
+            ");
+            $action_description = "Buyer confirmed payment to seller";
+            $stmt->execute([$deal_id, $currentUser['userId'], $action_description]);
+            
+            // Send notification to chat about final transfer
+            try {
+                // Find the chat for this deal (based on seller and buyer)
+                $stmt = $pdo->prepare("
+                    SELECT c.id as chat_id FROM chats c
+                    INNER JOIN chat_participants cp1 ON c.id = cp1.chatId
+                    INNER JOIN chat_participants cp2 ON c.id = cp2.chatId
+                    WHERE cp1.userId = ? AND cp1.isActive = 1
+                    AND cp2.userId = ? AND cp2.isActive = 1
+                    AND cp1.chatId = cp2.chatId
+                    ORDER BY c.createdAt DESC
+                    LIMIT 1
+                ");
+                $stmt->execute([$deal['buyer_id'], $deal['seller_id']]);
+                $chat = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($chat) {
+                    // Send final transfer message
+                    $message_content = "🎉 **PAYMENT CONFIRMED - FINAL TRANSFER INITIATED** 🎉\n\n" .
+                        "The buyer has confirmed payment to the seller!\n\n" .
+                        "**Channel**: {$deal['channel_title']}\n" .
+                        "**Transaction ID**: #{$deal_id}\n" .
+                        "**Status**: Ready for Final Transfer\n\n" .
+                        "🔄 **Final Steps in Progress:**\n" .
+                        "1. ✅ Agent verified ownership\n" .
+                        "2. ✅ Buyer paid seller\n" .
+                        "3. 🔄 Agent preparing account transfer to buyer\n" .
+                        "4. ⏳ Buyer will receive final account credentials\n\n" .
+                        "📧 **For the Buyer**: You will receive the account login details shortly. Please check your email and this chat for updates.\n\n" .
+                        "✅ **Transaction Complete**: This deal will be marked as completed once the account transfer is finalized.";
+                    
+                    // Insert system message
+                    $stmt = $pdo->prepare("
+                        INSERT INTO messages (chatId, senderId, content, messageType, isRead, createdAt, updatedAt)
+                        VALUES (?, 1, ?, 'system', 0, NOW(), NOW())
+                    ");
+                    $stmt->execute([$chat['chat_id'], $message_content]);
+                    
+                    // Update chat's last message
+                    $stmt = $pdo->prepare("
+                        UPDATE chats SET lastMessage = 'Payment confirmed - Final transfer initiated', lastMessageTime = NOW()
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$chat['chat_id']]);
+                }
+            } catch (Exception $e) {
+                error_log('Error sending payment confirmation notification: ' . $e->getMessage());
+                // Don't fail the payment confirmation if chat notification fails
+            }
+            
+            $pdo->commit();
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Payment to seller confirmed successfully',
+                'transaction_id' => $deal['transaction_id'],
+                'deal_status' => 'buyer_paid_seller'
+            ]);
+            exit;
+            
+        } catch (Exception $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Payment confirmation error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
     // Handle GET /deals/{id}/status - Get deal status and timer information
     elseif ($method === 'GET' && preg_match('/^\/deals\/(\d+)\/status$/', $path, $matches)) {
         $deal_id = $matches[1];
@@ -1015,10 +1336,12 @@ try {
                 'transaction_fee_paid_by' => $deal['transaction_fee_paid_by'],
                 'seller_gave_rights' => (bool)$deal['seller_gave_rights'],
                 'seller_made_primary_owner' => (bool)$deal['seller_made_primary_owner'],
+                'buyer_paid_seller' => (bool)$deal['buyer_paid_seller'],
                 'timer_completed' => (bool)$deal['timer_completed'],
                 'rights_timer_started_at' => $deal['rights_timer_started_at'],
                 'rights_timer_expires_at' => $deal['rights_timer_expires_at'],
                 'seller_made_primary_owner_at' => $deal['seller_made_primary_owner_at'],
+                'buyer_paid_seller_at' => $deal['buyer_paid_seller_at'],
                 'is_seller' => $deal['seller_id'] == $currentUser['userId'],
                 'is_buyer' => $deal['buyer_id'] == $currentUser['userId']
             ];
@@ -1044,6 +1367,135 @@ try {
             
         } catch (Exception $e) {
             error_log('Deal status error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+    // Handle POST /deals/{id}/confirm-payment-to-seller - Buyer confirms they paid the seller
+    elseif ($method === 'POST' && preg_match('/^\/deals\/(\d+)\/confirm-payment-to-seller$/', $path, $matches)) {
+        $deal_id = $matches[1];
+        
+        $currentUser = getCurrentUser();
+        if (!$currentUser) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Authentication required']);
+            exit;
+        }
+        
+        try {
+            $pdo = Database::getConnection();
+            
+            // Get deal and verify buyer access
+            $stmt = $pdo->prepare("
+                SELECT * FROM deals 
+                WHERE id = ? AND buyer_id = ?
+            ");
+            $stmt->execute([$deal_id, $currentUser['userId']]);
+            $deal = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$deal) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Deal not found or access denied']);
+                exit;
+            }
+            
+            // Check if seller has made agent primary owner
+            if (!$deal['seller_made_primary_owner']) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Cannot confirm payment until agent ownership is confirmed']);
+                exit;
+            }
+            
+            // Check if payment already confirmed
+            if ($deal['buyer_paid_seller']) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Payment to seller has already been confirmed']);
+                exit;
+            }
+            
+            $pdo->beginTransaction();
+            
+            // Update deal with buyer payment confirmation
+            $stmt = $pdo->prepare("
+                UPDATE deals 
+                SET buyer_paid_seller = TRUE,
+                    buyer_paid_seller_at = NOW(),
+                    deal_status = 'payment_confirmed',
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$deal_id]);
+            
+            // Add history record
+            $stmt = $pdo->prepare("
+                INSERT INTO deal_history (deal_id, action_type, action_by, action_description)
+                VALUES (?, 'buyer_paid_seller', ?, ?)
+            ");
+            $action_description = "Buyer confirmed payment to seller via agreed payment method";
+            $stmt->execute([$deal_id, $currentUser['userId'], $action_description]);
+            
+            // Send notification message to chat
+            try {
+                // Find the chat for this deal (based on buyer and seller)
+                $stmt = $pdo->prepare("
+                    SELECT c.id as chat_id FROM chats c
+                    INNER JOIN chat_participants cp1 ON c.id = cp1.chatId
+                    INNER JOIN chat_participants cp2 ON c.id = cp2.chatId
+                    WHERE cp1.userId = ? AND cp1.isActive = 1
+                    AND cp2.userId = ? AND cp2.isActive = 1
+                    AND cp1.chatId = cp2.chatId
+                    ORDER BY c.createdAt DESC
+                    LIMIT 1
+                ");
+                $stmt->execute([$deal['buyer_id'], $deal['seller_id']]);
+                $chat = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($chat) {
+                    $message_content = "💰 **PAYMENT TO SELLER CONFIRMED** 💰\n\n" .
+                        "The buyer has confirmed that they have paid the seller via the agreed payment method.\n\n" .
+                        "**Channel**: {$deal['channel_title']}\n" .
+                        "**Transaction ID**: #{$deal_id}\n" .
+                        "**Amount**: \${$deal['channel_price']}\n" .
+                        "**Status**: Payment Confirmed\n\n" .
+                        "🎯 **Final Step**: Our agent will now proceed with the final account transfer to the buyer and complete the transaction.\n\n" .
+                        "✅ **Transaction Status**: Almost Complete!";
+                    
+                    // Insert system message
+                    $stmt = $pdo->prepare("
+                        INSERT INTO messages (chatId, senderId, content, messageType, isRead, createdAt, updatedAt)
+                        VALUES (?, 1, ?, 'system', 0, NOW(), NOW())
+                    ");
+                    $stmt->execute([$chat['chat_id'], $message_content]);
+                    
+                    // Update chat's last message
+                    $stmt = $pdo->prepare("
+                        UPDATE chats SET lastMessage = ?, lastMessageTime = NOW()
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$message_content, $chat['chat_id']]);
+                }
+            } catch (Exception $e) {
+                error_log('Error sending payment confirmation message: ' . $e->getMessage());
+                // Don't fail the confirmation if message fails
+            }
+            
+            $pdo->commit();
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Payment to seller confirmed successfully.',
+                'transaction_id' => $deal['transaction_id'],
+                'deal_status' => 'payment_confirmed'
+            ]);
+            exit;
+            
+        } catch (Exception $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Payment to seller confirmation error: ' . $e->getMessage());
             http_response_code(500);
             echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
             exit;

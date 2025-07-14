@@ -628,6 +628,54 @@ class ChatController {
         }
     }
     
+    // Admin find deal chat between buyer and seller
+    public function adminFindDealChat() {
+        try {
+            $currentUser = $this->authMiddleware->authenticate();
+            
+            // Check if user is admin
+            $this->checkAdminAccess($currentUser);
+            
+            $input = json_decode(file_get_contents('php://input'), true);
+            $buyerId = (int)($input['buyerId'] ?? 0);
+            $sellerId = (int)($input['sellerId'] ?? 0);
+            $dealId = (int)($input['dealId'] ?? 0);
+            
+            if (!$buyerId || !$sellerId) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Buyer ID and Seller ID are required']);
+                return;
+            }
+            
+            // Find chat between buyer and seller
+            $stmt = $this->db->prepare("
+                SELECT c.id as chatId FROM chats c
+                INNER JOIN chat_participants cp1 ON c.id = cp1.chatId
+                INNER JOIN chat_participants cp2 ON c.id = cp2.chatId
+                WHERE cp1.userId = ? AND cp1.isActive = 1
+                AND cp2.userId = ? AND cp2.isActive = 1
+                AND cp1.chatId = cp2.chatId
+                ORDER BY c.createdAt DESC
+                LIMIT 1
+            ");
+            $stmt->execute([$buyerId, $sellerId]);
+            $chat = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$chat) {
+                http_response_code(404);
+                echo json_encode(['message' => 'No chat found between buyer and seller']);
+                return;
+            }
+            
+            http_response_code(200);
+            echo json_encode(['chatId' => (int)$chat['chatId']]);
+        } catch (Exception $e) {
+            error_log('Error finding deal chat: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
+        }
+    }
+
     // Check if chat exists between users
     public function checkExistingChat() {
         try {

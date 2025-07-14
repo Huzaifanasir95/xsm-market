@@ -69,7 +69,8 @@ const Chat: React.FC = () => {
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    scrollToBottom();
+    // Use setTimeout to ensure DOM is updated before scrolling
+    setTimeout(scrollToBottom, 100);
   }, [messages]);
 
   // Cleanup image preview URL when component unmounts or image changes

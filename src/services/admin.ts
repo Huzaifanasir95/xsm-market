@@ -185,3 +185,48 @@ export const adminDeleteChat = async (chatId: string) => {
 
   return await response.json();
 }; 
+
+// Admin send ownership confirmation message for a deal
+export const adminSendOwnershipConfirmation = async (buyerUsername: string, sellerUsername: string, dealId: number, channelTitle: string) => {
+  try {
+    // Get all chats to find the one between buyer and seller
+    const chats = await getAllChats();
+    
+    // Find the chat between the buyer and seller
+    const dealChat = chats.find((chat: any) => {
+      const participantUsernames = chat.participants.map((p: any) => p.username);
+      return participantUsernames.includes(buyerUsername) && participantUsernames.includes(sellerUsername);
+    });
+    
+    if (!dealChat) {
+      throw new Error(`Could not find chat between ${buyerUsername} and ${sellerUsername}`);
+    }
+    
+    // Create ownership confirmation message
+    const message = `🎉 **AGENT OWNERSHIP CONFIRMED** 🎉
+
+Great news! Our agent has successfully been made the Primary Owner of the channel.
+
+**Channel**: ${channelTitle}
+**Transaction ID**: #${dealId}
+**Status**: Agent now has full control
+
+📸 **Next Steps:**
+1. Agent will take final screenshots of the account
+2. Agent will remove all seller access and secure the account
+3. Screenshots will be shared in this chat as proof
+4. Buyer can then proceed with payment to seller
+
+💰 **For the Buyer**: Once you see the screenshots confirming agent control, you can safely pay the seller via your agreed payment method and then click "I HAVE PAID THE SELLER" button in your deal interface.
+
+🔒 **Security**: The account is now fully secured under our agent's control until final transfer to buyer.`;
+    
+    // Send the message using the working admin chat system
+    await adminSendMessage(dealChat.id, message);
+    
+    return { success: true, chatId: dealChat.id };
+  } catch (error) {
+    console.error('Error sending ownership confirmation:', error);
+    throw error;
+  }
+};

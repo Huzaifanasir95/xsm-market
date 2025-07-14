@@ -61,7 +61,6 @@ const SellerDealView: React.FC<SellerDealViewProps> = ({
 }) => {
   const [isAgreeing, setIsAgreeing] = useState(false);
   const [isConfirmingRights, setIsConfirmingRights] = useState(false);
-  const [isConfirmingPrimaryOwner, setIsConfirmingPrimaryOwner] = useState(false);
   const [showFeePayment, setShowFeePayment] = useState(false);
   const [dealStatus, setDealStatus] = useState<any>(null);
   const [timerInfo, setTimerInfo] = useState<any>(null);
@@ -105,49 +104,6 @@ const SellerDealView: React.FC<SellerDealViewProps> = ({
       return () => clearInterval(interval);
     }
   }, [isOpen, deal?.id]);
-
-  const handleConfirmPrimaryOwner = async () => {
-    try {
-      setIsConfirmingPrimaryOwner(true);
-      
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/deals/${deal.id}/confirm-primary-owner`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      const result = await response.json();
-      
-      if (response.ok) {
-        const platformName = dealStatus?.platform_type ? dealStatus.platform_type.charAt(0).toUpperCase() + dealStatus.platform_type.slice(1) : 'Channel';
-        
-        alert(`🎉 Primary Owner Promotion Confirmed!
-
-You have successfully confirmed promoting our agent to Primary Owner of your ${platformName} channel.
-
-Transaction ID: ${deal.transaction_id}
-Channel: ${deal.channel_title}
-Status: Channel Transfer Complete!
-
-The deal is now in its final stages. Our agent will verify the primary ownership status and prepare the final account details for the buyer. Thank you for your cooperation!`);
-
-        onDealUpdate();
-        fetchDealStatus(); // Refresh status
-        onClose();
-      } else {
-        throw new Error(result.message || 'Failed to confirm primary owner promotion');
-      }
-      
-    } catch (error) {
-      console.error('Error confirming primary owner:', error);
-      alert('Failed to confirm primary owner promotion: ' + error.message);
-    } finally {
-      setIsConfirmingPrimaryOwner(false);
-    }
-  };
 
   if (!isOpen || !deal) return null;
 
@@ -579,31 +535,16 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
                 )}
               </button>
             )}
-
-            {deal.seller_agreed && (dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) && (dealStatus?.seller_gave_rights ?? deal.seller_gave_rights) && !dealStatus?.seller_made_primary_owner && ((dealStatus?.platform_type !== 'youtube') || (dealStatus?.platform_type === 'youtube' && (dealStatus?.timer_expired || dealStatus?.timer_completed))) && (
-              <button
-                onClick={handleConfirmPrimaryOwner}
-                disabled={isConfirmingPrimaryOwner}
-                className="flex-1 bg-purple-600 text-white py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 font-semibold"
-              >
-                {isConfirmingPrimaryOwner ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Confirming...</span>
-                  </>
-                ) : (
-                  <>
-                    <Shield size={20} />
-                    <span>I Have Made The Primary Owner</span>
-                  </>
-                )}
-              </button>
-            )}
             
-            {deal.seller_agreed && (dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) && (dealStatus?.seller_gave_rights ?? deal.seller_gave_rights) && dealStatus?.platform_type === 'youtube' && dealStatus?.timer_remaining_seconds > 0 && (
+            {/* Show timer status for all platforms - YouTube shows countdown, others show waiting for admin */}
+            {deal.seller_agreed && (dealStatus?.transaction_fee_paid ?? deal.transaction_fee_paid) && (dealStatus?.seller_gave_rights ?? deal.seller_gave_rights) && !dealStatus?.seller_made_primary_owner && (
               <div className="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg flex items-center justify-center space-x-2 opacity-75 cursor-not-allowed">
                 <Timer size={20} />
-                <span>Wait {Math.ceil((dealStatus.timer_remaining_seconds || 0) / (24 * 60 * 60))} More Days</span>
+                {dealStatus?.platform_type === 'youtube' && dealStatus?.timer_remaining_seconds > 0 ? (
+                  <span>Wait {Math.ceil((dealStatus.timer_remaining_seconds || 0) / (24 * 60 * 60))} More Days</span>
+                ) : (
+                  <span>Waiting for Admin to Promote Agent</span>
+                )}
               </div>
             )}
 
@@ -743,35 +684,35 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
             </div>
           )}
 
-          {/* Timer Completed - Ready for Primary Owner */}
+          {/* Timer Completed - Admin Will Handle Primary Owner */}
           {dealStatus?.seller_gave_rights && ((dealStatus?.platform_type !== 'youtube') || (dealStatus?.platform_type === 'youtube' && (dealStatus?.timer_expired || dealStatus?.timer_completed))) && !dealStatus?.seller_made_primary_owner && (
             <div className="bg-blue-900 border border-blue-700 rounded-lg p-4">
               <h4 className="text-blue-300 font-medium mb-3 flex items-center">
                 <Shield size={16} className="mr-2" />
-                Ready for Primary Owner Promotion
+                Ready for Admin to Promote Agent
               </h4>
               <div className="space-y-3">
                 {dealStatus?.platform_type === 'youtube' ? (
                   <p className="text-blue-200 text-sm">
-                    ✅ The 7-day YouTube timer has completed! You can now promote our agent to Primary Owner of your channel.
+                    ✅ The 7-day YouTube timer has completed! Our admin will now promote the agent to Primary Owner of your channel.
                   </p>
                 ) : (
                   <p className="text-blue-200 text-sm">
-                    Since this is not a YouTube channel, you can promote our agent to Primary Owner immediately.
+                    Since this is not a YouTube channel, our admin can promote the agent to Primary Owner immediately.
                   </p>
                 )}
                 <div className="bg-blue-800 rounded-lg p-3">
-                  <p className="text-blue-200 text-sm font-medium mb-2">Instructions:</p>
+                  <p className="text-blue-200 text-sm font-medium mb-2">What happens next:</p>
                   <ol className="list-decimal list-inside space-y-1 text-blue-200 text-sm ml-2">
-                    <li>Go to your channel's management settings</li>
-                    <li>Find the permissions/collaborators section</li>
-                    <li>Promote our agent (rebirthcar63@gmail.com) to Primary Owner</li>
-                    <li>Click "I Have Made The Primary Owner" button below</li>
+                    <li>Our admin will access your channel's management settings</li>
+                    <li>Agent will be promoted to Primary Owner</li>
+                    <li>You'll receive notification when the promotion is complete</li>
+                    <li>Deal will proceed to final buyer payment stage</li>
                   </ol>
                 </div>
                 <div className="bg-yellow-800 border border-yellow-600 rounded-lg p-3">
                   <p className="text-yellow-200 text-xs">
-                    ⚠️ Important: Only promote to Primary Owner after giving manager access first. This completes the secure transfer process.
+                    ⚠️ No action required from you. Our admin team will handle the Primary Owner promotion securely.
                   </p>
                 </div>
               </div>

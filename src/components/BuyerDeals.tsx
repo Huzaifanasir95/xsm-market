@@ -38,6 +38,12 @@ interface Deal {
   agent_email_sent_at?: string | null;
   seller_gave_rights?: boolean;
   seller_gave_rights_at?: string | null;
+  seller_made_primary_owner?: boolean;
+  seller_made_primary_owner_at?: string | null;
+  platform_type?: string;
+  timer_completed?: boolean;
+  buyer_paid_seller?: boolean;
+  buyer_paid_seller_at?: string | null;
 }
 
 const BuyerDeals: React.FC = () => {
@@ -45,6 +51,7 @@ const BuyerDeals: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [showFeePayment, setShowFeePayment] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState<number | null>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -153,6 +160,61 @@ const BuyerDeals: React.FC = () => {
     setShowFeePayment(false);
     setSelectedDeal(null);
     fetchDeals(); // Refresh deals
+  };
+
+  const handleConfirmPaymentToSeller = async (dealId: number) => {
+    try {
+      setConfirmingPayment(dealId);
+      
+      const confirmed = window.confirm(
+        '⚠️ Payment Confirmation\n\n' +
+        'Please confirm that you have paid the seller via your agreed payment method.\n\n' +
+        '🔐 IMPORTANT: Only confirm this after:\n' +
+        '• You have seen the agent ownership screenshots\n' +
+        '• You have successfully paid the seller\n' +
+        '• You are ready to receive the account\n\n' +
+        'This action cannot be undone. Proceed?'
+      );
+
+      if (!confirmed) {
+        setConfirmingPayment(null);
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/deals/${dealId}/confirm-payment-to-seller`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        alert(`✅ Payment Confirmation Successful!
+
+You have confirmed that you've paid the seller.
+
+Transaction ID: ${result.transaction_id || dealId}
+Status: Payment to Seller Confirmed
+
+Our agent will now proceed with the final account transfer to you. You should receive the account details shortly!
+
+Thank you for using our secure transaction service!`);
+
+        fetchDeals(); // Refresh deals
+      } else {
+        throw new Error(result.message || 'Failed to confirm payment to seller');
+      }
+      
+    } catch (error) {
+      console.error('Error confirming payment to seller:', error);
+      alert('Failed to confirm payment: ' + error.message);
+    } finally {
+      setConfirmingPayment(null);
+    }
   };
 
   if (loading) {
@@ -351,6 +413,34 @@ const BuyerDeals: React.FC = () => {
                       <DollarSign size={16} />
                       <span>Pay Transaction Fee</span>
                     </button>
+                  )}
+                  
+                  {/* Show "I Have Paid The Seller" button when agent has ownership and screenshots are expected */}
+                  {deal.seller_made_primary_owner && !deal.buyer_paid_seller && (
+                    <button
+                      onClick={() => handleConfirmPaymentToSeller(deal.id)}
+                      disabled={confirmingPayment === deal.id}
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {confirmingPayment === deal.id ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Confirming...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={16} />
+                          <span>I Have Paid The Seller</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  
+                  {deal.buyer_paid_seller && (
+                    <div className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 opacity-75">
+                      <CheckCircle size={16} />
+                      <span>Payment to Seller Confirmed</span>
+                    </div>
                   )}
                   
                   <button
