@@ -186,7 +186,30 @@ export const adminDeleteChat = async (chatId: string) => {
   return await response.json();
 }; 
 
-// Admin send ownership confirmation message for a deal
+// Admin confirms that agent has been made primary owner (official API call)
+export const markPrimaryOwnerMade = async (dealId: number) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${ADMIN_API_URL}/admin/deals/${dealId}/confirm-primary-owner`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to mark primary owner made: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+// Admin send ownership confirmation message for a deal (legacy function - kept for backward compatibility)
 export const adminSendOwnershipConfirmation = async (buyerUsername: string, sellerUsername: string, dealId: number, channelTitle: string) => {
   try {
     // Get all chats to find the one between buyer and seller

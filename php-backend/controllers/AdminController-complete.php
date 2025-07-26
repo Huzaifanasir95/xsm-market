@@ -517,4 +517,125 @@ class AdminController {
             echo json_encode(['success' => false, 'message' => 'Server error']);
         }
     }
+
+    // Admin confirms that agent has been made primary owner
+    public function confirmPrimaryOwnerMade($dealId) {
+        try {
+            $this->isCurrentUserAdmin();
+            
+            $this->db->beginTransaction();
+            
+            // Get deal details
+            $stmt = $this->db->prepare("
+                SELECT d.*, 
+                       seller.username as seller_username,
+                       buyer.username as buyer_username
+                FROM deals d
+                LEFT JOIN users seller ON d.seller_id = seller.id
+                LEFT JOIN users buyer ON d.buyer_id = buyer.id
+                WHERE d.id = ?
+            ");
+            $stmt->execute([$dealId]);
+            $deal = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$deal) {
+                throw new Exception('Deal not found');
+            }
+            
+            // Validate that seller has given rights and agent is not already marked as primary owner
+            if (!$deal['seller_gave_rights']) {
+                throw new Exception('Seller has not given agent access yet');
+            }
+            
+            if ($deal['seller_made_primary_owner']) {
+                throw new Exception('Agent is already marked as primary owner');
+            }
+            
+            // Update deal to mark that admin has confirmed primary owner status
+            $stmt = $this->db->prepare("
+                UPDATE deals 
+                SET seller_made_primary_owner = TRUE,
+                    seller_made_primary_owner_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$dealId]);
+            
+            // Add history record
+            $stmt = $this->db->prepare("
+                INSERT INTO deal_history (deal_id, action_type, action_by, action_description)
+                VALUES (?, 'seller_made_primary_owner', 1, ?)
+            ");
+            $action_description = "Admin confirmed that agent has been made primary owner of the channel";
+            $stmt->execute([$dealId, $action_description]);
+            
+            // Send ownership confirmation message to chat
+            try {
+                // Find the chat for this deal
+                $stmt = $this->db->prepare("
+                    SELECT c.id as chat_id FROM chats c
+                    INNER JOIN chat_participants cp1 ON c.id = cp1.chatId
+                    INNER JOIN chat_participants cp2 ON c.id = cp2.chatId
+                    WHERE c.type = 'ad_inquiry'
+                    AND cp1.userId = ? AND cp1.isActive = 1
+                    AND cp2.userId = ? AND cp2.isActive = 1
+                    AND cp1.chatId = cp2.chatId
+                    LIMIT 1
+                ");
+                $stmt->execute([$deal['buyer_id'], $deal['seller_id']]);
+                $chat = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($chat) {
+                    // Create ownership confirmation message
+                    $message_content = "🎉 **AGENT OWNERSHIP CONFIRMED** 🎉\n\n" .
+                        "Great news! Our agent has successfully been made the Primary Owner of the channel.\n\n" .
+                        "**Channel**: {$deal['channel_title']}\n" .
+                        "**Transaction ID**: #{$dealId}\n" .
+                        "**Status**: Agent now has full control\n\n" .
+                        "📸 **Next Steps:**\n" .
+                        "1. Agent will take final screenshots of the account\n" .
+                        "2. Agent will remove all seller access and secure the account\n" .
+                        "3. Screenshots will be shared in this chat as proof\n" .
+                        "4. Buyer can then proceed with payment to seller\n\n" .
+                        "💰 **For the Buyer**: Once you see the screenshots confirming agent control, you can safely pay the seller via your agreed payment method and then click \"I HAVE PAID THE SELLER\" button in your deal interface.\n\n" .
+                        "🔒 **Security**: The account is now fully secured under our agent's control until final transfer to buyer.";
+                    
+                    // Insert system message
+                    $stmt = $this->db->prepare("
+                        INSERT INTO messages (chatId, senderId, content, messageType, isRead, createdAt, updatedAt)
+                        VALUES (?, 1, ?, 'system', 0, NOW(), NOW())
+                    ");
+                    $stmt->execute([$chat['chat_id'], $message_content]);
+                    
+                    // Update chat last message
+                    $stmt = $this->db->prepare("
+                        UPDATE chats SET lastMessage = ?, lastMessageTime = NOW(), updatedAt = NOW()
+                        WHERE id = ?
+                    ");
+                    $stmt->execute(['Admin: Agent ownership confirmed - ready for payment', $chat['chat_id']]);
+                }
+            } catch (Exception $e) {
+                error_log('Error sending ownership confirmation message: ' . $e->getMessage());
+                // Don't fail the confirmation if message fails
+            }
+            
+            $this->db->commit();
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Primary owner status confirmed successfully',
+                'deal_id' => $dealId,
+                'transaction_id' => $deal['transaction_id']
+            ]);
+            
+        } catch (Exception $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log('Admin confirm primary owner error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
 }

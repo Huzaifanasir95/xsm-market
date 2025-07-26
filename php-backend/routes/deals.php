@@ -377,7 +377,11 @@ try {
                         'channel_price' => $row['channel_price'],
                         'escrow_fee' => $row['escrow_fee'],
                         'transaction_type' => $row['transaction_type'],
-                        'buyer_payment_methods' => $row['buyer_payment_methods'],
+                        'buyer_payment_methods' => !empty($row['buyer_payment_methods']) ? 
+                            (is_string($row['buyer_payment_methods']) ? 
+                                json_decode($row['buyer_payment_methods'], true) ?: explode(',', $row['buyer_payment_methods']) 
+                                : $row['buyer_payment_methods']) 
+                            : [],
                         'seller_agreed' => $row['seller_agreed'],
                         'seller_agreed_at' => $row['seller_agreed_at'],
                         'buyer_agreed' => $row['buyer_agreed'],
@@ -386,6 +390,8 @@ try {
                         'created_at' => $row['created_at'],
                         'updated_at' => $row['updated_at'],
                         'buyer_username' => $row['buyer_username'],
+                        'seller_name' => $row['seller_username'] ?? '',
+                        'seller_email' => $row['seller_email'] ?? '',
                         'payment_methods' => []
                     ];
                 }
@@ -452,7 +458,11 @@ try {
                         'channel_price' => $row['channel_price'],
                         'escrow_fee' => $row['escrow_fee'],
                         'transaction_type' => $row['transaction_type'],
-                        'buyer_payment_methods' => $row['buyer_payment_methods'],
+                        'buyer_payment_methods' => !empty($row['buyer_payment_methods']) ? 
+                            (is_string($row['buyer_payment_methods']) ? 
+                                json_decode($row['buyer_payment_methods'], true) ?: explode(',', $row['buyer_payment_methods']) 
+                                : $row['buyer_payment_methods']) 
+                            : [],
                         'seller_agreed' => $row['seller_agreed'],
                         'seller_agreed_at' => $row['seller_agreed_at'],
                         'buyer_agreed' => $row['buyer_agreed'],
@@ -462,9 +472,21 @@ try {
                         'transaction_fee_paid_at' => $row['transaction_fee_paid_at'],
                         'transaction_fee_paid_by' => $row['transaction_fee_paid_by'],
                         'transaction_fee_payment_method' => $row['transaction_fee_payment_method'],
+                        'agent_email_sent' => $row['agent_email_sent'],
+                        'agent_email_sent_at' => $row['agent_email_sent_at'],
+                        'seller_gave_rights' => $row['seller_gave_rights'],
+                        'seller_gave_rights_at' => $row['seller_gave_rights_at'],
+                        'seller_made_primary_owner' => $row['seller_made_primary_owner'],
+                        'seller_made_primary_owner_at' => $row['seller_made_primary_owner_at'],
+                        'buyer_paid_seller' => $row['buyer_paid_seller'],
+                        'buyer_paid_seller_at' => $row['buyer_paid_seller_at'],
+                        'platform_type' => $row['platform_type'],
+                        'timer_completed' => $row['timer_completed'],
                         'created_at' => $row['created_at'],
                         'updated_at' => $row['updated_at'],
                         'seller_username' => $row['seller_username'],
+                        'seller_name' => $row['seller_username'] ?? '',
+                        'seller_email' => $row['seller_email_actual'] ?? '',
                         'payment_methods' => []
                     ];
                 }
@@ -1284,6 +1306,142 @@ try {
             echo json_encode([
                 'success' => true, 
                 'message' => 'Payment to seller confirmed successfully',
+                'transaction_id' => $deal['transaction_id'],
+                'deal_status' => 'buyer_paid_seller'
+            ]);
+            exit;
+            
+        } catch (Exception $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Payment confirmation error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+    // Handle POST /deals/{id}/buyer-paid-seller - Alias for buyer confirms they paid the seller
+    elseif ($method === 'POST' && preg_match('/^\/deals\/(\d+)\/buyer-paid-seller$/', $path, $matches)) {
+        $deal_id = $matches[1];
+        
+        $currentUser = getCurrentUser();
+        if (!$currentUser) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Authentication required']);
+            exit;
+        }
+        
+        try {
+            $pdo = Database::getConnection();
+            
+            // Get deal and verify buyer access
+            $stmt = $pdo->prepare("
+                SELECT * FROM deals 
+                WHERE id = ? AND buyer_id = ?
+            ");
+            $stmt->execute([$deal_id, $currentUser['userId']]);
+            $deal = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$deal) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Deal not found or access denied']);
+                exit;
+            }
+            
+            // Check if agent has been made primary owner
+            if (!$deal['seller_made_primary_owner']) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Agent must be made primary owner before confirming payment']);
+                exit;
+            }
+            
+            // Check if payment already confirmed
+            if ($deal['buyer_paid_seller']) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Payment to seller has already been confirmed']);
+                exit;
+            }
+            
+            $pdo->beginTransaction();
+            
+            // Update deal with payment confirmation
+            $stmt = $pdo->prepare("
+                UPDATE deals 
+                SET buyer_paid_seller = TRUE,
+                    buyer_paid_seller_at = NOW(),
+                    deal_status = 'buyer_paid_seller',
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$deal_id]);
+            
+            // Add history record
+            $stmt = $pdo->prepare("
+                INSERT INTO deal_history (deal_id, action_type, action_by, action_description)
+                VALUES (?, 'buyer_paid_seller', ?, ?)
+            ");
+            $action_description = "Buyer confirmed payment to seller via payment interface";
+            $stmt->execute([$deal_id, $currentUser['userId'], $action_description]);
+            
+            // Send notification to chat about payment confirmation
+            try {
+                // Find the chat for this deal
+                $stmt = $pdo->prepare("
+                    SELECT c.id as chat_id FROM chats c
+                    INNER JOIN chat_participants cp1 ON c.id = cp1.chatId
+                    INNER JOIN chat_participants cp2 ON c.id = cp2.chatId
+                    WHERE cp1.userId = ? AND cp1.isActive = 1
+                    AND cp2.userId = ? AND cp2.isActive = 1
+                    AND cp1.chatId = cp2.chatId
+                    ORDER BY c.createdAt DESC
+                    LIMIT 1
+                ");
+                $stmt->execute([$deal['buyer_id'], $deal['seller_id']]);
+                $chat = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($chat) {
+                    // Send payment confirmation message
+                    $message_content = "💰 **BUYER PAYMENT CONFIRMED** 💰\n\n" .
+                        "The buyer has confirmed that they have paid the seller!\n\n" .
+                        "**Channel**: {$deal['channel_title']}\n" .
+                        "**Amount**: $" . number_format($deal['channel_price'], 2) . "\n" .
+                        "**Transaction ID**: #{$deal_id}\n\n" .
+                        "🎉 **Transaction Status**: Payment Complete!\n\n" .
+                        "📋 **What happens next:**\n" .
+                        "1. ✅ Agent has channel ownership\n" .
+                        "2. ✅ Buyer has paid seller\n" .
+                        "3. 🔄 Agent will finalize account transfer\n" .
+                        "4. 📧 Buyer will receive account credentials\n\n" .
+                        "🔒 **For the Seller**: You should have received payment via your agreed method.\n" .
+                        "📬 **For the Buyer**: Final account details will be provided shortly!\n\n" .
+                        "✅ Thank you for using our secure marketplace!";
+                    
+                    // Insert system message
+                    $stmt = $pdo->prepare("
+                        INSERT INTO messages (chatId, senderId, content, messageType, isRead, createdAt, updatedAt)
+                        VALUES (?, 1, ?, 'system', 0, NOW(), NOW())
+                    ");
+                    $stmt->execute([$chat['chat_id'], $message_content]);
+                    
+                    // Update chat's last message
+                    $stmt = $pdo->prepare("
+                        UPDATE chats SET lastMessage = 'Buyer confirmed payment to seller', lastMessageTime = NOW()
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$chat['chat_id']]);
+                }
+            } catch (Exception $e) {
+                error_log('Error sending payment confirmation notification: ' . $e->getMessage());
+                // Don't fail the payment confirmation if chat notification fails
+            }
+            
+            $pdo->commit();
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Payment confirmation successful',
                 'transaction_id' => $deal['transaction_id'],
                 'deal_status' => 'buyer_paid_seller'
             ]);

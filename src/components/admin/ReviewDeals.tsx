@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, DollarSign, User, Eye, Calendar, TrendingUp, Send } from 'lucide-react';
-import { getAllDeals, adminSendOwnershipConfirmation } from '@/services/admin';
+import { getAllDeals, markPrimaryOwnerMade } from '@/services/admin';
 
 const API_URL = 'http://localhost:5000';
 
@@ -69,14 +69,18 @@ const ReviewDeals: React.FC = () => {
       
       const confirmed = window.confirm(
         '🎯 CONFIRM PRIMARY OWNER PROMOTION\n\n' +
-        'Please confirm that the seller has successfully promoted our agent to PRIMARY OWNER of the channel.\n\n' +
-        '⚠️ Only proceed if:\n' +
-        '• Seller has promoted agent to Primary Owner (not just Owner)\n' +
+        'Please confirm that you (the admin) have successfully promoted our agent to PRIMARY OWNER of the channel.\n\n' +
+        '⚠️ Only click "Yes" if:\n' +
+        '• You have logged into the seller\'s account\n' +
+        '• You have promoted the agent to Primary Owner (not just Owner)\n' +
         '• Agent now has full administrative control\n' +
         '• You have taken final screenshots\n' +
         '• Ready to secure the account and notify buyer\n\n' +
-        'Note: You can do this at any time once the seller gives agent access - no need to wait for the 7-day timer.\n\n' +
-        'This will notify the buyer they can proceed with payment. Continue?'
+        'This action will:\n' +
+        '• Mark the deal as "Agent has Primary Owner status"\n' +
+        '• Send confirmation message to buyer and seller\n' +
+        '• Allow buyer to proceed with payment\n\n' +
+        'Continue?'
       );
 
       if (!confirmed) {
@@ -84,28 +88,21 @@ const ReviewDeals: React.FC = () => {
         return;
       }
 
-      // Find the deal data for buyer, seller, and channel info
-      const deal = deals.find(d => d.id === dealId);
-      if (!deal) {
-        throw new Error('Deal not found');
+      // Call the official API endpoint to mark primary owner made
+      const result = await markPrimaryOwnerMade(dealId);
+      
+      if (result.success) {
+        alert('✅ Primary owner status confirmed successfully!\n\nActions completed:\n• Deal marked as "Primary Owner Confirmed"\n• Ownership confirmation message sent to buyer and seller\n• Buyer can now proceed with payment');
+        
+        // Refresh deals to update the UI
+        fetchDeals();
+      } else {
+        throw new Error(result.message || 'Failed to confirm primary owner status');
       }
-
-      // Send ownership confirmation message via chat system
-      await adminSendOwnershipConfirmation(
-        deal.buyer.username,
-        deal.seller.username,
-        dealId,
-        deal.channel_title
-      );
-      
-      alert('✅ Primary owner status confirmed successfully! Ownership confirmation message sent to buyer and seller.');
-      
-      // Refresh deals
-      fetchDeals();
       
     } catch (error) {
       console.error('Error confirming primary owner made:', error);
-      alert('Failed to confirm primary owner status: ' + error.message);
+      alert('❌ Failed to confirm primary owner status.\n\nError: ' + error.message + '\n\nPlease try again or check the console for details.');
     } finally {
       setSendingMessage(null);
     }
@@ -293,7 +290,7 @@ const ReviewDeals: React.FC = () => {
                           onClick={() => confirmPrimaryOwnerMade(deal.id)}
                           disabled={sendingMessage === deal.id}
                           className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
-                          title="Confirm Agent Has Been Made Primary Owner (Available anytime after agent access)"
+                          title="Click when you (admin) have made the agent Primary Owner of the channel"
                         >
                           {sendingMessage === deal.id ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
