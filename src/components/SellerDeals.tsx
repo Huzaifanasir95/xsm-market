@@ -94,6 +94,9 @@ const SellerDeals: React.FC = () => {
       case 'agent_access_pending': return 'bg-blue-100 text-blue-800';
       case 'waiting_promotion_timer': return 'bg-orange-100 text-orange-800';
       case 'promotion_timer_complete': return 'bg-purple-100 text-purple-800';
+      case 'admin_ownership_confirmed': return 'bg-indigo-100 text-indigo-800';
+      case 'buyer_paid_seller': return 'bg-cyan-100 text-cyan-800';
+      case 'seller_confirmed_payment': return 'bg-emerald-100 text-emerald-800';
       case 'completed': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -106,6 +109,9 @@ const SellerDeals: React.FC = () => {
       case 'agent_access_pending': return 'Awaiting Rights Confirmation';
       case 'waiting_promotion_timer': return 'YouTube Timer Active';
       case 'promotion_timer_complete': return 'Transfer Complete';
+      case 'admin_ownership_confirmed': return 'Admin Confirmed Primary Owner';
+      case 'buyer_paid_seller': return 'Buyer Confirmed Payment';
+      case 'seller_confirmed_payment': return 'Payment Complete';
       case 'completed': return 'Completed';
       default: return status;
     }

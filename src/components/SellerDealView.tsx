@@ -44,6 +44,10 @@ interface Deal {
   timer_completed?: boolean;
   seller_made_primary_owner?: boolean;
   seller_made_primary_owner_at?: string | null;
+  buyer_paid_seller?: boolean;
+  buyer_paid_seller_at?: string | null;
+  seller_confirmed_payment?: boolean;
+  seller_confirmed_payment_at?: string | null;
 }
 
 interface SellerDealViewProps {
@@ -61,6 +65,7 @@ const SellerDealView: React.FC<SellerDealViewProps> = ({
 }) => {
   const [isAgreeing, setIsAgreeing] = useState(false);
   const [isConfirmingRights, setIsConfirmingRights] = useState(false);
+  const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
   const [showFeePayment, setShowFeePayment] = useState(false);
   const [dealStatus, setDealStatus] = useState<any>(null);
   const [timerInfo, setTimerInfo] = useState<any>(null);
@@ -170,6 +175,51 @@ Our agent will now verify the account access. Thank you for your cooperation in 
     }
   };
 
+  const handleConfirmPaymentReceived = async () => {
+    try {
+      setIsConfirmingPayment(true);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/deals/${deal.id}/seller-confirmed-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        alert(`✅ Payment Receipt Confirmed!
+
+You have successfully confirmed that you received payment from the buyer.
+
+Transaction ID: ${deal.transaction_id}
+Channel: ${deal.channel_title}
+Amount: $${deal.channel_price}
+
+🎉 Deal Status: Payment Complete!
+
+Both you and the buyer have now confirmed the payment. Our agent will complete the final account transfer and provide the buyer with final account credentials.
+
+Thank you for using our secure marketplace!`);
+
+        onDealUpdate();
+        fetchDealStatus(); // Refresh status
+        onClose();
+      } else {
+        throw new Error(result.message || 'Failed to confirm payment receipt');
+      }
+      
+    } catch (error) {
+      console.error('Error confirming payment receipt:', error);
+      alert('Failed to confirm payment receipt: ' + error.message);
+    } finally {
+      setIsConfirmingPayment(false);
+    }
+  };
+
   const handleAgreeToTerms = async () => {
     try {
       setIsAgreeing(true);
@@ -238,6 +288,9 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
       case 'agent_access_pending': return 'Awaiting Agent Access Confirmation';
       case 'waiting_promotion_timer': return 'Waiting for YouTube Timer (7 days)';
       case 'promotion_timer_complete': return 'Transfer Complete';
+      case 'admin_ownership_confirmed': return 'Admin Confirmed Primary Owner';
+      case 'buyer_paid_seller': return 'Buyer Confirmed Payment';
+      case 'seller_confirmed_payment': return 'Payment Complete - Deal Finalized';
       case 'completed': return 'Deal Completed';
       default: return status;
     }
@@ -548,10 +601,37 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
               </div>
             )}
 
-            {dealStatus?.seller_made_primary_owner && (
-              <div className="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg flex items-center justify-center space-x-2">
+            {dealStatus?.seller_made_primary_owner && !dealStatus?.buyer_paid_seller && (
+              <div className="flex-1 bg-yellow-600 text-white py-3 px-6 rounded-lg flex items-center justify-center space-x-2">
+                <Clock size={20} />
+                <span>Waiting for Buyer Payment</span>
+              </div>
+            )}
+
+            {dealStatus?.seller_made_primary_owner && dealStatus?.buyer_paid_seller && !dealStatus?.seller_confirmed_payment && (
+              <button
+                onClick={handleConfirmPaymentReceived}
+                disabled={isConfirmingPayment}
+                className="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 font-semibold"
+              >
+                {isConfirmingPayment ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Confirming...</span>
+                  </>
+                ) : (
+                  <>
+                    <DollarSign size={20} />
+                    <span>I Have Received The Payment</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {dealStatus?.seller_made_primary_owner && dealStatus?.buyer_paid_seller && dealStatus?.seller_confirmed_payment && (
+              <div className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg flex items-center justify-center space-x-2">
                 <CheckCircle size={20} />
-                <span>Transfer Complete - Deal Finalized</span>
+                <span>Deal Complete - Both Payments Confirmed</span>
               </div>
             )}
           </div>
@@ -729,6 +809,53 @@ Deal Status: Terms Agreed - Awaiting Escrow Payment`);
               <p className="text-green-200 text-sm">
                 🎉 Congratulations! You have successfully transferred Primary Owner rights to our agent. The channel transfer is now complete and the deal is in its final stages.
               </p>
+            </div>
+          )}
+
+          {/* Buyer Payment Confirmation Status */}
+          {dealStatus?.seller_made_primary_owner && dealStatus?.buyer_paid_seller && (
+            <div className="bg-blue-900 border border-blue-700 rounded-lg p-4">
+              <h4 className="text-blue-300 font-medium mb-2 flex items-center">
+                <DollarSign size={16} className="mr-2" />
+                Buyer Payment Confirmed
+              </h4>
+              <p className="text-blue-200 text-sm">
+                💰 The buyer has confirmed that they have paid you the agreed amount ($${dealStatus.channel_price || deal.channel_price}) for the channel transfer.
+                {dealStatus?.buyer_paid_seller_at && (
+                  <span className="block mt-2 text-blue-300 text-xs">
+                    Confirmed on: {new Date(dealStatus.buyer_paid_seller_at).toLocaleDateString()}
+                  </span>
+                )}
+              </p>
+              {!dealStatus?.seller_confirmed_payment && (
+                <div className="mt-3 p-3 bg-blue-800 rounded-lg">
+                  <p className="text-blue-200 text-sm font-medium">⏳ Action Required:</p>
+                  <p className="text-blue-200 text-xs">Please confirm once you have received the payment by clicking "I Have Received The Payment" button above.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Seller Payment Confirmation Complete */}
+          {dealStatus?.seller_confirmed_payment && (
+            <div className="bg-green-900 border border-green-700 rounded-lg p-4">
+              <h4 className="text-green-300 font-medium mb-2 flex items-center">
+                <CheckCircle size={16} className="mr-2" />
+                Payment Receipt Confirmed!
+              </h4>
+              <p className="text-green-200 text-sm">
+                ✅ You have confirmed receiving payment from the buyer. Both parties have now confirmed the payment completion.
+                {dealStatus?.seller_confirmed_payment_at && (
+                  <span className="block mt-2 text-green-300 text-xs">
+                    Confirmed on: {new Date(dealStatus.seller_confirmed_payment_at).toLocaleDateString()}
+                  </span>
+                )}
+              </p>
+              <div className="mt-3 p-3 bg-green-800 rounded-lg">
+                <p className="text-green-200 text-sm">
+                  🎊 The deal is now complete! Our agent will finalize the account transfer and provide the buyer with final account credentials.
+                </p>
+              </div>
             </div>
           )}
         </div>
