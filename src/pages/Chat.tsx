@@ -9,6 +9,7 @@ interface Message {
   senderId: string;
   chatId: number;
   messageType: string;
+  mediaUrl?: string;
   isRead: boolean;
   createdAt: string;
   sender: {
@@ -476,16 +477,16 @@ const Chat: React.FC = () => {
                                 {message.sender?.username}
                               </p>
                             )}
-                            {message.messageType === 'image' && message.content ? (
+                            {message.messageType === 'image' && (message.mediaUrl || message.content) ? (
                               <img
-                                src={message.content}
+                                src={message.mediaUrl ? `http://localhost:5000${message.mediaUrl}` : message.content}
                                 alt="Sent image"
                                 className="rounded-lg max-w-[200px] max-h-[200px] mb-2 border border-xsm-yellow"
                                 style={{ objectFit: 'cover' }}
                               />
-                            ) : (
+                            ) : message.content ? (
                               <p className="text-sm">{message.content}</p>
-                            )}
+                            ) : null}
                             <p
                               className={`text-xs mt-1 ${
                                 message.senderId === user?.id ? 'text-xsm-dark-gray' : 'text-gray-400'
