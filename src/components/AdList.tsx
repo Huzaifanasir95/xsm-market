@@ -16,6 +16,9 @@ interface Ad {
   isMonetized: boolean;
   views: number;
   thumbnail: string;
+  primary_image?: string;
+  additional_images?: any[];
+  screenshots?: any[];
   verified: boolean;
   premium: boolean;
   rating: number;
@@ -190,7 +193,12 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
             <div className="relative h-48 bg-gradient-to-br from-xsm-medium-gray to-xsm-dark-gray rounded-lg mb-4 overflow-hidden group/image">
               <div className="w-full h-full overflow-hidden">
                 <img 
-                  src={ad.thumbnail || '/placeholder.svg'} 
+                  src={
+                    ad.primary_image || 
+                    (ad.screenshots && ad.screenshots.length > 0 ? ad.screenshots[0].url || ad.screenshots[0] : null) || 
+                    ad.thumbnail || 
+                    '/placeholder.svg'
+                  } 
                   alt={ad.title}
                   className="w-full h-full object-cover transition-all duration-500 ease-in-out group-hover:scale-105 group-hover/image:scale-110"
                   style={{ objectPosition: 'center' }}

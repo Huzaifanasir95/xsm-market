@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, ChevronDown, Search, RefreshCw } from 'lucide-react';
+import { Upload, ChevronDown, Search, RefreshCw, X } from 'lucide-react';
 import { createAd } from '../services/ads';
 import { extractProfileData, detectPlatform, formatFollowerCount } from '../services/socialMedia';
+import { uploadScreenshots } from '../services/uploadService';
 import { useToast } from "@/components/ui/use-toast";
 
 interface SellChannelProps {
@@ -50,6 +51,8 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const { toast } = useToast();
   const [files, setFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const contentTypeDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -64,9 +67,66 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (selectedFiles) {
-      setFiles(Array.from(selectedFiles));
+      const fileArray = Array.from(selectedFiles);
+      processFiles(fileArray);
     }
   };
+
+  const processFiles = (fileArray: File[]) => {
+    // Filter for image files only
+    const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length !== fileArray.length) {
+      toast({
+        variant: "destructive",
+        title: "Invalid files",
+        description: "Only image files are allowed.",
+      });
+    }
+
+    setFiles(imageFiles);
+    
+    // Create preview URLs for the images
+    const previews = imageFiles.map(file => URL.createObjectURL(file));
+    setImagePreviews(previews);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    processFiles(droppedFiles);
+  };
+
+  const removeImage = (index: number) => {
+    // Clean up the URL object
+    URL.revokeObjectURL(imagePreviews[index]);
+    
+    // Remove the file and preview
+    const newFiles = files.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    
+    setFiles(newFiles);
+    setImagePreviews(newPreviews);
+  };
+
+  // Clean up preview URLs when component unmounts or files change
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [imagePreviews]);
 
   const toggleMonetization = () => {
     setFormData(prev => ({
@@ -135,6 +195,34 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         platform = 'tiktok';
       }
 
+      // Upload screenshots if any files are selected
+      let screenshotData: any[] = [];
+      let primaryImageData: string = '';
+      
+      if (files.length > 0) {
+        try {
+          console.log('🔄 Attempting to upload screenshots...');
+          const uploadResult = await uploadScreenshots(files);
+          if (uploadResult.screenshots) {
+            screenshotData = uploadResult.screenshots;
+            // Set the first image as primary image
+            if (screenshotData.length > 0) {
+              primaryImageData = screenshotData[0].data;
+            }
+            console.log('✅ Screenshots uploaded successfully:', screenshotData);
+          }
+        } catch (uploadError) {
+          console.error('❌ Error uploading screenshots:', uploadError);
+          toast({
+            variant: "destructive",
+            title: "Upload Error",
+            description: `Failed to upload screenshots: ${uploadError.message}. Creating ad without screenshots.`,
+          });
+          // Continue without screenshots instead of failing
+          screenshotData = [];
+        }
+      }
+
       // Prepare ad data with explicit null handling for ENUM fields
       const adData = {
         title: formData.title || `${platform.charAt(0).toUpperCase() + platform.slice(1)} Channel`,
@@ -150,7 +238,9 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         incomeDetails: formData.incomeDetails || '',
         promotionDetails: formData.promotionDetails || '',
         thumbnail: formData.profilePicture || '', // Add the extracted profile picture as thumbnail
-        screenshots: files.map(file => file.name), // This would need proper file upload handling
+        primary_image: primaryImageData, // Store the first uploaded image as primary
+        additional_images: screenshotData.slice(1), // Store remaining images as additional
+        screenshots: screenshotData, // Keep for backward compatibility
         tags: [] // Add empty tags array
       };
 
@@ -180,7 +270,11 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
         subscribers: '',
         profilePicture: '',
       });
+      
+      // Clean up image previews
+      imagePreviews.forEach(url => URL.revokeObjectURL(url));
       setFiles([]);
+      setImagePreviews([]);
 
       // Small delay before redirect to let user see the success message
       setTimeout(() => {
@@ -493,8 +587,20 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
               {/* Screenshot Upload */}
               <div className="mt-6">
                 <h3 className="text-base font-medium mb-2">Attach screenshots (proof of income, etc.):</h3>
-                <div className="border border-dashed border-xsm-medium-gray rounded p-6 text-center">
-                  <p className="text-xsm-medium-gray mb-2">Drop files here or click to upload</p>
+                <div 
+                  className={`border border-dashed rounded p-6 text-center transition-colors ${
+                    isDragOver 
+                      ? 'border-xsm-yellow bg-yellow-50' 
+                      : 'border-xsm-medium-gray hover:border-xsm-yellow'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <Upload className={`mx-auto mb-2 ${isDragOver ? 'text-xsm-yellow' : 'text-xsm-medium-gray'}`} size={24} />
+                  <p className={`mb-2 ${isDragOver ? 'text-xsm-yellow' : 'text-xsm-medium-gray'}`}>
+                    {isDragOver ? 'Drop files here' : 'Drop files here or click to upload'}
+                  </p>
                   <input
                     type="file"
                     multiple
@@ -507,12 +613,57 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
                     htmlFor="file-upload"
                     className="cursor-pointer"
                   >
-                    <span className="text-xsm-yellow underline">Browse files</span>
+                    <span className="text-xsm-yellow underline hover:text-yellow-600">Browse files</span>
                   </label>
+                  <p className="text-xs text-gray-500 mt-2">Max 5 images, 10MB each</p>
                 </div>
                 {files.length > 0 && (
-                  <div className="mt-4">
-                    <p>{files.length} file(s) selected</p>
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm font-medium text-gray-700">
+                        {files.length} image{files.length !== 1 ? 's' : ''} selected
+                      </p>
+                      <button
+                        onClick={() => {
+                          imagePreviews.forEach(url => URL.revokeObjectURL(url));
+                          setFiles([]);
+                          setImagePreviews([]);
+                        }}
+                        className="text-sm text-red-600 hover:text-red-800 underline"
+                        type="button"
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {imagePreviews.map((preview, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square">
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover rounded-lg border border-gray-200 shadow-sm"
+                            />
+                          </div>
+                          <button
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 shadow-lg"
+                            type="button"
+                            title="Remove image"
+                          >
+                            <X size={14} />
+                          </button>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent text-white text-xs p-2 rounded-b-lg">
+                            <div className="truncate">
+                              {files[index].name}
+                            </div>
+                            <div className="text-gray-300">
+                              {(files[index].size / 1024 / 1024).toFixed(1)} MB
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

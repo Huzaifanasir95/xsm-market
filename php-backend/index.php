@@ -37,6 +37,7 @@ require_once __DIR__ . '/controllers/UserController.php';
 require_once __DIR__ . '/controllers/AdController.php';
 require_once __DIR__ . '/controllers/ChatController.php';
 require_once __DIR__ . '/controllers/ChatUploadController.php';
+require_once __DIR__ . '/controllers/AdUploadController.php';
 require_once __DIR__ . '/controllers/AdminController.php';
 
 // Error reporting for debugging (disable in production)
@@ -206,6 +207,26 @@ function handleAdRoutes($controller, $path, $method) {
             break;
         case $path === '/ads/search' && $method === 'GET':
             $controller->searchAds();
+            break;
+        case $path === '/ads/upload/screenshots' && $method === 'POST':
+            error_log("Matched ad screenshot upload route");
+            $uploadController = new AdUploadController();
+            $uploadController->uploadScreenshots();
+            break;
+        case $path === '/ads/upload/thumbnail' && $method === 'POST':
+            error_log("Matched ad thumbnail upload route");
+            $uploadController = new AdUploadController();
+            $uploadController->uploadThumbnail();
+            break;
+        case $path === '/ads/upload/test' && $method === 'GET':
+            error_log("Test upload route hit");
+            http_response_code(200);
+            echo json_encode(['message' => 'Upload route working', 'timestamp' => date('Y-m-d H:i:s'), 'path' => $path, 'method' => $method]);
+            break;
+        case $path === '/test' && $method === 'GET':
+            error_log("Simple test route hit");
+            http_response_code(200);
+            echo json_encode(['message' => 'Backend is working', 'timestamp' => date('Y-m-d H:i:s')]);
             break;
         default:
             error_log("No matching ad route found for: $method $path");

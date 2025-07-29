@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Image Upload</title>
+</head>
+<body>
+    <h1>Test Image Upload</h1>
+    <form id="uploadForm">
+        <input type="file" id="fileInput" accept="image/*" multiple>
+        <button type="submit">Upload</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('uploadForm').onsubmit = async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+            
+            if (files.length === 0) {
+                document.getElementById('result').innerHTML = 'Please select files';
+                return;
+            }
+            
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('screenshots[]', files[i]);
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/ads/upload/screenshots', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Authorization': 'Bearer test-token'
+                    }
+                });
+                
+                const result = await response.text();
+                document.getElementById('result').innerHTML = `
+                    <h3>Response (${response.status}):</h3>
+                    <pre>${result}</pre>
+                `;
+                
+                if (response.ok) {
+                    const data = JSON.parse(result);
+                    if (data.urls) {
+                        data.urls.forEach(url => {
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.style.maxWidth = '200px';
+                            img.style.margin = '10px';
+                            document.getElementById('result').appendChild(img);
+                        });
+                    }
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = 'Error: ' + error.message;
+            }
+        };
+    </script>
+</body>
+</html>

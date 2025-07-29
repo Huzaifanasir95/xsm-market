@@ -22,6 +22,7 @@ require_once __DIR__ . '/middleware/AuthMiddleware.php';
 require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/UserController.php';
 require_once __DIR__ . '/controllers/AdController-complete.php';
+require_once __DIR__ . '/controllers/AdUploadController.php';
 require_once __DIR__ . '/controllers/ChatController-complete.php';
 require_once __DIR__ . '/controllers/AdminController-complete.php';
 
@@ -68,6 +69,20 @@ try {
     elseif (strpos($path, '/admin') === 0) {
         $adminController = new AdminController();
         handleAdminRoutes($adminController, $path, $method);
+    }
+    // Serve uploaded files
+    elseif (strpos($path, '/uploads/') === 0) {
+        $filePath = __DIR__ . $path;
+        if (file_exists($filePath) && is_file($filePath)) {
+            $mimeType = mime_content_type($filePath);
+            header('Content-Type: ' . $mimeType);
+            header('Content-Length: ' . filesize($filePath));
+            readfile($filePath);
+            exit;
+        } else {
+            http_response_code(404);
+            echo json_encode(['message' => 'File not found']);
+        }
     }
     // Health check
     elseif ($path === '/health' || $path === '/' || $path === '') {
@@ -205,6 +220,18 @@ function handleAdRoutes($controller, $path, $method) {
         $adId = $matches[1];
         if ($method === 'POST') $controller->contactSeller($adId);
         else methodNotAllowed();
+    }
+    elseif ($path === '/ads/upload/screenshots' && $method === 'POST') {
+        $uploadController = new AdUploadController();
+        $uploadController->uploadScreenshots();
+    }
+    elseif ($path === '/ads/upload/thumbnail' && $method === 'POST') {
+        $uploadController = new AdUploadController();
+        $uploadController->uploadThumbnail();
+    }
+    elseif ($path === '/ads/upload/test' && $method === 'GET') {
+        http_response_code(200);
+        echo json_encode(['message' => 'Upload route working', 'timestamp' => date('Y-m-d H:i:s')]);
     }
     else {
         routeNotFound();

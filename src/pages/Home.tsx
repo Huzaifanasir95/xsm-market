@@ -21,6 +21,9 @@ interface ChannelData {
   rating: number;
   views: number;
   thumbnail: string;
+  primary_image?: string;
+  additional_images?: any[];
+  screenshots?: any[];
   seller: {
     id: number;
     name: string;
@@ -114,13 +117,17 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
             price: ad.price || 0,
             monthlyIncome: ad.monthlyIncome || 0,
             description: ad.description || '',
-            verified: ad.User?.isVerified || false,
+            verified: ad.seller?.isVerified || false,
             premium: ad.isMonetized || false,
             rating: 4.5, // Default rating
-            views: Math.floor(Math.random() * 1000000) + 100000, // Mock views for now
-            thumbnail: `https://placehold.co/600x400/333/yellow?text=${ad.platform || 'Channel'}`,
+            views: ad.views || Math.floor(Math.random() * 1000000) + 100000,
+            thumbnail: ad.primary_image || (ad.screenshots && ad.screenshots.length > 0 ? ad.screenshots[0].url || ad.screenshots[0] : null) || ad.thumbnail || `https://placehold.co/600x400/333/yellow?text=${ad.platform || 'Channel'}`,
+            primary_image: ad.primary_image || null,
+            additional_images: ad.additional_images || [],
+            screenshots: ad.screenshots || [],
             seller: {
-              name: ad.User?.username || 'Anonymous',
+              id: ad.seller?.id || 0,
+              name: ad.seller?.username || 'Anonymous',
               rating: 4.5,
               sales: Math.floor(Math.random() * 20) + 1
             }

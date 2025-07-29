@@ -11,8 +11,9 @@ class Ad {
             'userId', 'title', 'description', 'channelUrl', 'platform', 'category', 
             'contentType', 'contentCategory', 'price', 'subscribers', 'monthlyIncome', 
             'isMonetized', 'incomeDetails', 'promotionDetails', 'status', 'verified', 
-            'premium', 'views', 'totalViews', 'rating', 'thumbnail', 'screenshots', 
-            'tags', 'socialBladeUrl', 'location', 'sellCondition', 'soldTo', 'soldAt'
+            'premium', 'views', 'totalViews', 'rating', 'thumbnail', 'primary_image',
+            'additional_images', 'screenshots', 'tags', 'socialBladeUrl', 'location', 
+            'sellCondition', 'soldTo', 'soldAt'
         ];
         
         $insertFields = [];
@@ -25,7 +26,7 @@ class Ad {
                 $insertValues[] = ':' . $field;
                 
                 // Handle JSON fields
-                if (in_array($field, ['screenshots', 'tags']) && is_array($data[$field])) {
+                if (in_array($field, ['screenshots', 'tags', 'additional_images']) && is_array($data[$field])) {
                     $params[':' . $field] = json_encode($data[$field]);
                 } 
                 // Handle boolean fields - convert to integer for MySQL
@@ -393,9 +394,15 @@ class Ad {
             $ad['screenshots'] = json_decode($ad['screenshots'], true);
         }
         
+        if (!empty($ad['additional_images'])) {
+            $ad['additional_images'] = json_decode($ad['additional_images'], true);
+        }
+        
         if (!empty($ad['tags'])) {
             $ad['tags'] = json_decode($ad['tags'], true);
         }
+        
+        // No need to modify URLs since we're using base64 data URIs now
     }
 }
 ?>
