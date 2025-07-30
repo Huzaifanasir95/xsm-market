@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Filter, MoreVertical, User, Shield, Ban, Mail, Edit, Trash } from 'lucide-react';
+import { Search, MoreVertical, User, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getAllUsers } from '@/services/admin';
@@ -90,7 +89,6 @@ const ManageUsers: React.FC = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-xsm-light-gray uppercase tracking-wider">User</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-xsm-light-gray uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-xsm-light-gray uppercase tracking-wider">Role</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-xsm-light-gray uppercase tracking-wider">Join Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-xsm-light-gray uppercase tracking-wider">Last Active</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-xsm-light-gray uppercase tracking-wider">Actions</th>
@@ -117,9 +115,6 @@ const ManageUsers: React.FC = () => {
                         {user.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white capitalize">
-                      {user.role}
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-xsm-light-gray">
                       {user.joinDate}
                     </td>
@@ -132,23 +127,6 @@ const ManageUsers: React.FC = () => {
                           <MoreVertical className="h-5 w-5 text-xsm-light-gray" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit User
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Mail className="w-4 h-4 mr-2" />
-                            Send Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Shield className="w-4 h-4 mr-2" />
-                            Change Role
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Ban className="w-4 h-4 mr-2" />
-                            Suspend User
-                          </DropdownMenuItem>
                           <DropdownMenuItem className="text-red-500 hover:text-red-400 cursor-pointer">
                             <Trash className="w-4 h-4 mr-2" />
                             Delete User
