@@ -11,6 +11,10 @@ interface PaymentMethod {
   category: string;
 }
 
+interface BuyerDealsProps {
+  setCurrentPage?: (page: string) => void;
+}
+
 interface Deal {
   id: number;
   transaction_id: string;
@@ -47,7 +51,7 @@ interface Deal {
   buyer_paid_seller_at?: string | null;
 }
 
-const BuyerDeals: React.FC = () => {
+const BuyerDeals: React.FC<BuyerDealsProps> = ({ setCurrentPage }) => {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
@@ -482,13 +486,15 @@ You will receive the final account details soon. Thank you for using our secure 
                   )}
                   
                   <button
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-500 transition-colors"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     onClick={() => {
-                      // TODO: Implement chat or contact seller functionality
-                      alert('Chat functionality will be implemented soon');
+                      // Navigate to chat page
+                      if (setCurrentPage) {
+                        setCurrentPage('chat');
+                      }
                     }}
                   >
-                    Contact Seller
+                    Open Chat
                   </button>
                 </div>
               </div>

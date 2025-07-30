@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, Star, Edit, LogOut, Save, X, Shield, Award, TrendingUp, Camera } from 'lucide-react';
+import { User as UserIcon, Edit, LogOut, Save, X, Shield, Camera } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
 import { useAuth } from '@/context/useAuth';
@@ -81,9 +81,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
     joinDate: (user as ExtendedUser)?.joinDate || '2025-01-15', // Keep the date format as is
-    rating: 4.8,
-    totalSales: 12,
-    totalPurchases: 5,
     verificationStatus: 'unverified' as 'unverified' | 'pending' | 'verified',
     profilePicture: user?.profilePicture || ''
   });
@@ -551,11 +548,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                 <Shield className="w-4 h-4 text-green-400" />
                 <span className="text-green-400 text-sm font-medium">{profile.verificationStatus}</span>
               </div>
-              <div className="flex items-center justify-center space-x-1 mb-4">
-                <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                <span className="text-white font-semibold">{profile.rating}</span>
-                <span className="text-xsm-light-gray">({profile.totalSales + profile.totalPurchases} transactions)</span>
-              </div>
               <div className="text-sm text-xsm-light-gray mb-4">
                 {getRelativeTimeString(profile.joinDate)}
               </div>
@@ -568,20 +560,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   ✓ Showing your real account data
                 </div>
               )}
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="xsm-card text-center">
-                <TrendingUp className="w-8 h-8 text-xsm-yellow mx-auto mb-2" />
-                <div className="text-2xl font-bold text-white">{profile.totalSales}</div>
-                <div className="text-sm text-xsm-light-gray">Sales</div>
-              </div>
-              <div className="xsm-card text-center">
-                <Award className="w-8 h-8 text-xsm-yellow mx-auto mb-2" />
-                <div className="text-2xl font-bold text-white">{profile.totalPurchases}</div>
-                <div className="text-sm text-xsm-light-gray">Purchases</div>
-              </div>
             </div>
           </div>
 

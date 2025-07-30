@@ -142,7 +142,7 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
     <div className="space-y-6">
       {/* Filter Tabs */}
       <div className="flex flex-wrap gap-2">
-        {['all', 'active', 'pending', 'sold', 'suspended'].map((status) => (
+        {['all', 'active', 'sold'].map((status) => (
           <button
             key={status}
             onClick={() => setFilter(status)}

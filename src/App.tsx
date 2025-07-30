@@ -57,7 +57,7 @@ const AppContent: React.FC = () => {
       case 'profile':
         return <Profile setCurrentPage={setCurrentPage} />;
       case 'my-deals':
-        return <BuyerDeals />;
+        return <BuyerDeals setCurrentPage={setCurrentPage} />;
       case 'seller-deals':
         return <SellerDeals />;
       case 'about':
