@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Users, ShoppingBag, Settings, Bell, Search, MessageSquare, FileText } from 'lucide-react';
+import { Activity, Users, ShoppingBag, Settings, Search, MessageSquare, FileText } from 'lucide-react';
 import ManageUsers from '@/components/admin/ManageUsers';
 import ReviewListings from '@/components/admin/ReviewListings';
 import ReviewChats from '@/components/admin/ReviewChats';
@@ -101,20 +101,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
           {activeView === 'dashboard' ? 'Admin Dashboard' : 'Admin Dashboard / ' + activeView.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
         </h1>
         <div className="flex items-center space-x-4">
-          {activeView === 'dashboard' && (
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search..."
-                className="bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg px-4 py-2 pl-10 focus:outline-none focus:border-xsm-yellow"
-              />
-              <Search className="absolute left-3 top-2.5 h-5 w-5 text-xsm-medium-gray" />
-            </div>
-          )}
-          <button className="relative p-2 hover:bg-xsm-medium-gray rounded-lg transition-colors">
-            <Bell className="h-6 w-6" />
-            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-          </button>
           {activeView !== 'dashboard' && (
             <button
               onClick={() => setActiveView('dashboard')}

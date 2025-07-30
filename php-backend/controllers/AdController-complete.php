@@ -184,7 +184,7 @@ class AdController {
                 SELECT 
                     a.id, a.title, a.description, a.channelUrl, a.platform, a.category,
                     a.contentType, a.contentCategory, a.price, a.subscribers, a.monthlyIncome,
-                    a.isMonetized, a.incomeDetails, a.promotionDetails, a.thumbnail,
+                    a.isMonetized, a.incomeDetails, a.promotionDetails, a.thumbnail, a.primary_image,
                     a.screenshots, a.tags, a.status, a.views, a.createdAt, a.updatedAt,
                     u.id as seller_id, u.username as seller_username, u.profilePicture as seller_profilePicture
                 FROM ads a
@@ -217,6 +217,7 @@ class AdController {
                     'incomeDetails' => $row['incomeDetails'],
                     'promotionDetails' => $row['promotionDetails'],
                     'thumbnail' => $row['thumbnail'],
+                    'primary_image' => $row['primary_image'],
                     'screenshots' => json_decode($row['screenshots'] ?: '[]', true),
                     'tags' => json_decode($row['tags'] ?: '[]', true),
                     'status' => $row['status'],

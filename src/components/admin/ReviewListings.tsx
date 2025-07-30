@@ -11,45 +11,12 @@ import { getAllAds } from '@/services/ads';
 import { adminDeleteAd } from '@/services/admin';
 import { API_URL } from '@/services/auth';
 
-// Helper function to get proper image URL
-const getImageUrl = (thumbnail: string | null, screenshots: any[] = []) => {
-  console.log('Processing image URL - thumbnail:', thumbnail, 'screenshots:', screenshots);
-  
-  // If we have a thumbnail, use it
-  if (thumbnail && typeof thumbnail === 'string') {
-    // If it's already a full URL, use as-is
-    if (thumbnail.startsWith('http')) {
-      console.log('Using full URL thumbnail:', thumbnail);
-      return thumbnail;
-    }
-    // If it's a relative path, prefix with backend URL
-    const baseUrl = API_URL.includes('/api') ? API_URL.replace('/api', '') : API_URL;
-    const imageUrl = `${baseUrl}/${thumbnail.replace(/^\//, '')}`;
-    console.log('Constructed thumbnail URL:', imageUrl);
-    return imageUrl;
-  }
-  
-  // If no thumbnail but we have screenshots, use the first one
-  if (screenshots && Array.isArray(screenshots) && screenshots.length > 0) {
-    const firstScreenshot = screenshots[0];
-    // Make sure the first screenshot is a string
-    if (typeof firstScreenshot === 'string') {
-      if (firstScreenshot.startsWith('http')) {
-        console.log('Using full URL screenshot:', firstScreenshot);
-        return firstScreenshot;
-      }
-      const baseUrl = API_URL.includes('/api') ? API_URL.replace('/api', '') : API_URL;
-      const imageUrl = `${baseUrl}/${firstScreenshot.replace(/^\//, '')}`;
-      console.log('Constructed screenshot URL:', imageUrl);
-      return imageUrl;
-    } else {
-      console.log('First screenshot is not a string:', typeof firstScreenshot, firstScreenshot);
-    }
-  }
-  
-  console.log('Using fallback placeholder');
-  // Fallback to placeholder
-  return '/placeholder.svg';
+// Helper function to get proper image URL (same as AdList.tsx)
+const getImageUrl = (ad: any) => {
+  return ad.primary_image || 
+         (ad.screenshots && ad.screenshots.length > 0 ? ad.screenshots[0].url || ad.screenshots[0] : null) || 
+         ad.thumbnail || 
+         '/placeholder.svg';
 };
 
 interface Listing {
@@ -66,8 +33,6 @@ interface Listing {
 
 const ReviewListings: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +49,7 @@ const ReviewListings: React.FC = () => {
         console.log('Raw ad data:', data.ads?.[0]); // Debug log
         // Map backend ads to Listing interface
         const mapped = (data.ads || []).map(ad => {
-          console.log('Processing ad:', ad.id, 'thumbnail:', ad.thumbnail, 'screenshots:', ad.screenshots);
+          console.log('Processing ad:', ad.id, 'ad data:', ad);
           return {
             id: ad.id,
             title: ad.title,
@@ -94,7 +59,7 @@ const ReviewListings: React.FC = () => {
             status: ad.status || 'active',
             createdAt: ad.createdAt ? ad.createdAt.split('T')[0] : '',
             reportCount: ad.reportCount || 0,
-            thumbnail: getImageUrl(ad.thumbnail, ad.screenshots),
+            thumbnail: getImageUrl(ad),
           };
         });
         setListings(mapped);
@@ -106,14 +71,10 @@ const ReviewListings: React.FC = () => {
       });
   }, []);
 
-  const categories = ['Electronics', 'Collectibles', 'Sports', 'Fashion', 'Home', 'Other'];
-
   const filteredListings = listings.filter(listing => {
     const matchesSearch = listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          listing.seller.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || listing.status === filterStatus;
-    const matchesCategory = selectedCategory === 'all' || listing.category === selectedCategory;
-    return matchesSearch && matchesStatus && matchesCategory;
+    return matchesSearch;
   });
 
   const getStatusIcon = (status: string) => {
@@ -210,7 +171,7 @@ const ReviewListings: React.FC = () => {
           status: ad.status || 'active',
           createdAt: ad.createdAt ? ad.createdAt.split('T')[0] : '',
           reportCount: ad.reportCount || 0,
-          thumbnail: getImageUrl(ad.thumbnail, ad.screenshots),
+          thumbnail: getImageUrl(ad),
         };
       });
       setListings(mapped);
@@ -240,29 +201,6 @@ const ReviewListings: React.FC = () => {
               className="w-full bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg px-4 py-2 pl-10 focus:outline-none focus:border-xsm-yellow text-white"
             />
             <Search className="absolute left-3 top-2.5 h-5 w-5 text-xsm-medium-gray" />
-          </div>
-          <div className="flex gap-4">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg px-4 py-2 focus:outline-none focus:border-xsm-yellow text-white"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-              <option value="rejected">Rejected</option>
-              <option value="reported">Reported</option>
-            </select>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg px-4 py-2 focus:outline-none focus:border-xsm-yellow text-white"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
           </div>
         </div>
 

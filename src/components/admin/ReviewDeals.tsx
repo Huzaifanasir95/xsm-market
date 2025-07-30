@@ -45,6 +45,8 @@ const ReviewDeals: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [sendingMessage, setSendingMessage] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [dealsPerPage] = useState(10);
 
   useEffect(() => {
     fetchDeals();
@@ -155,6 +157,28 @@ const ReviewDeals: React.FC = () => {
     );
   }
 
+  // Calculate pagination
+  const totalPages = Math.ceil(deals.length / dealsPerPage);
+  const startIndex = (currentPage - 1) * dealsPerPage;
+  const endIndex = startIndex + dealsPerPage;
+  const currentDeals = deals.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -231,7 +255,7 @@ const ReviewDeals: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-xsm-medium-gray">
-              {deals.map((deal) => (
+              {currentDeals.map((deal) => (
                 <tr key={deal.id} className="hover:bg-xsm-medium-gray/30">
                   <td className="px-4 py-3 text-sm text-white">#{deal.id}</td>
                   <td className="px-4 py-3">
@@ -307,12 +331,80 @@ const ReviewDeals: React.FC = () => {
           </table>
         </div>
 
-        {deals.length === 0 && (
+        {currentDeals.length === 0 && deals.length === 0 && (
           <div className="text-center py-8 text-gray-400">
             No deals found
           </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {deals.length > dealsPerPage && (
+        <div className="bg-xsm-dark-gray rounded-lg border border-xsm-medium-gray p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-400">
+              Showing {startIndex + 1} to {Math.min(endIndex, deals.length)} of {deals.length} deals
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={goToPrevPage}
+                disabled={currentPage === 1}
+                className="px-3 py-1 bg-xsm-medium-gray text-white rounded hover:bg-xsm-medium-gray/80 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              
+              {/* Page Numbers */}
+              <div className="flex items-center space-x-1">
+                {[...Array(totalPages)].map((_, index) => {
+                  const page = index + 1;
+                  const isCurrentPage = page === currentPage;
+                  
+                  // Show first page, last page, current page, and pages around current page
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => goToPage(page)}
+                        className={`px-3 py-1 rounded text-sm ${
+                          isCurrentPage
+                            ? 'bg-xsm-yellow text-black font-medium'
+                            : 'bg-xsm-medium-gray text-white hover:bg-xsm-medium-gray/80'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  }
+                  
+                  // Show ellipsis
+                  if (page === currentPage - 2 || page === currentPage + 2) {
+                    return (
+                      <span key={page} className="text-gray-400 px-2">
+                        ...
+                      </span>
+                    );
+                  }
+                  
+                  return null;
+                })}
+              </div>
+              
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 bg-xsm-medium-gray text-white rounded hover:bg-xsm-medium-gray/80 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Deal Details Modal */}
       {selectedDeal && (

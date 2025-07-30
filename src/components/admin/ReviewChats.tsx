@@ -27,7 +27,6 @@ const ReviewChats: React.FC = () => {
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
   const [error, setError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -162,16 +161,6 @@ const ReviewChats: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-xsm-black border border-xsm-medium-gray rounded-lg px-4 py-2 focus:outline-none focus:border-xsm-yellow w-64"
             />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-xsm-black border border-xsm-medium-gray rounded-lg px-4 py-2 focus:outline-none focus:border-xsm-yellow"
-            >
-              <option value="all">All Chats</option>
-              <option value="active">Active</option>
-              <option value="flagged">Flagged</option>
-              <option value="resolved">Resolved</option>
-            </select>
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-xsm-light-gray">Total Chats: {filteredChats.length}</span>
