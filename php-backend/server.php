@@ -331,6 +331,11 @@ function handleAdminRoutes($controller, $path, $method) {
         if ($method === 'POST') $controller->confirmPrimaryOwnerMade($dealId);
         else methodNotAllowed();
     }
+    elseif (preg_match('/^\/admin\/ads\/(\d+)$/', $path, $matches)) {
+        $adId = $matches[1];
+        if ($method === 'DELETE') $controller->deleteAd($adId);
+        else methodNotAllowed();
+    }
     else {
         routeNotFound();
     }

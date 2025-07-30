@@ -4,7 +4,7 @@ import ManageUsers from '@/components/admin/ManageUsers';
 import ReviewListings from '@/components/admin/ReviewListings';
 import ReviewChats from '@/components/admin/ReviewChats';
 import ReviewDeals from '@/components/admin/ReviewDeals';
-import { getDashboardStats, getRecentActivities } from '@/services/admin';
+import { getDashboardStats } from '@/services/admin';
 
 interface AdminDashboardProps {
   setCurrentPage: (page: string) => void;
@@ -19,9 +19,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
   ]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
-  const [recentLoading, setRecentLoading] = useState(true);
-  const [recentError, setRecentError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -38,18 +35,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
       .catch((err) => {
         setError(err.message || 'Failed to fetch dashboard stats');
         setLoading(false);
-      });
-    // Fetch recent activities
-    setRecentLoading(true);
-    setRecentError(null);
-    getRecentActivities()
-      .then((data) => {
-        setRecentActivities(data);
-        setRecentLoading(false);
-      })
-      .catch((err) => {
-        setRecentError(err.message || 'Failed to fetch recent activities');
-        setRecentLoading(false);
       });
   }, []);
 
@@ -82,31 +67,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
                     <p className="text-2xl font-bold">{stat.value}</p>
                   </div>
                 ))
-              )}
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-xsm-dark-gray rounded-xl border border-xsm-medium-gray p-6">
-              <h2 className="text-xl font-bold mb-6 text-xsm-yellow">Recent Activity</h2>
-              {recentLoading ? (
-                <div className="text-center text-xsm-light-gray py-8">Loading recent activity...</div>
-              ) : recentError ? (
-                <div className="text-center text-red-400 py-8">{recentError}</div>
-              ) : (
-                <div className="space-y-4">
-                  {recentActivities.map((activity, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 hover:bg-xsm-medium-gray/50 rounded-lg transition-colors"
-                    >
-                      <div>
-                        <p className="font-medium">{activity.user}</p>
-                        <p className="text-sm text-xsm-light-gray">{activity.action}</p>
-                      </div>
-                      <span className="text-sm text-xsm-light-gray">{new Date(activity.time).toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
               )}
             </div>
 

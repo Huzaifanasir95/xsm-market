@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, MoreVertical, CheckCircle, XCircle, AlertCircle, Eye, MessageCircle, Flag, Ban, Trash } from 'lucide-react';
+import { Search, Filter, MoreVertical, CheckCircle, XCircle, AlertCircle, Eye, MessageCircle, Flag, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,6 +8,49 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getAllAds } from '@/services/ads';
+import { adminDeleteAd } from '@/services/admin';
+import { API_URL } from '@/services/auth';
+
+// Helper function to get proper image URL
+const getImageUrl = (thumbnail: string | null, screenshots: any[] = []) => {
+  console.log('Processing image URL - thumbnail:', thumbnail, 'screenshots:', screenshots);
+  
+  // If we have a thumbnail, use it
+  if (thumbnail && typeof thumbnail === 'string') {
+    // If it's already a full URL, use as-is
+    if (thumbnail.startsWith('http')) {
+      console.log('Using full URL thumbnail:', thumbnail);
+      return thumbnail;
+    }
+    // If it's a relative path, prefix with backend URL
+    const baseUrl = API_URL.includes('/api') ? API_URL.replace('/api', '') : API_URL;
+    const imageUrl = `${baseUrl}/${thumbnail.replace(/^\//, '')}`;
+    console.log('Constructed thumbnail URL:', imageUrl);
+    return imageUrl;
+  }
+  
+  // If no thumbnail but we have screenshots, use the first one
+  if (screenshots && Array.isArray(screenshots) && screenshots.length > 0) {
+    const firstScreenshot = screenshots[0];
+    // Make sure the first screenshot is a string
+    if (typeof firstScreenshot === 'string') {
+      if (firstScreenshot.startsWith('http')) {
+        console.log('Using full URL screenshot:', firstScreenshot);
+        return firstScreenshot;
+      }
+      const baseUrl = API_URL.includes('/api') ? API_URL.replace('/api', '') : API_URL;
+      const imageUrl = `${baseUrl}/${firstScreenshot.replace(/^\//, '')}`;
+      console.log('Constructed screenshot URL:', imageUrl);
+      return imageUrl;
+    } else {
+      console.log('First screenshot is not a string:', typeof firstScreenshot, firstScreenshot);
+    }
+  }
+  
+  console.log('Using fallback placeholder');
+  // Fallback to placeholder
+  return '/placeholder.svg';
+};
 
 interface Listing {
   id: string;
@@ -28,24 +71,32 @@ const ReviewListings: React.FC = () => {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
 
   React.useEffect(() => {
+    console.log('API_URL:', API_URL);
     setLoading(true);
     setError(null);
     getAllAds()
       .then((data) => {
+        console.log('Raw ad data:', data.ads?.[0]); // Debug log
         // Map backend ads to Listing interface
-        const mapped = (data.ads || []).map(ad => ({
-          id: ad.id,
-          title: ad.title,
-          seller: ad.seller?.username || 'Unknown',
-          price: ad.price ? `$${ad.price}` : '',
-          category: ad.category || 'Other',
-          status: ad.status || 'active',
-          createdAt: ad.createdAt ? ad.createdAt.split('T')[0] : '',
-          reportCount: ad.reportCount || 0,
-          thumbnail: ad.thumbnail || '/images/placeholder.svg',
-        }));
+        const mapped = (data.ads || []).map(ad => {
+          console.log('Processing ad:', ad.id, 'thumbnail:', ad.thumbnail, 'screenshots:', ad.screenshots);
+          return {
+            id: ad.id,
+            title: ad.title,
+            seller: ad.seller?.username || 'Unknown',
+            price: ad.price ? `$${ad.price}` : '',
+            category: ad.category || 'Other',
+            status: ad.status || 'active',
+            createdAt: ad.createdAt ? ad.createdAt.split('T')[0] : '',
+            reportCount: ad.reportCount || 0,
+            thumbnail: getImageUrl(ad.thumbnail, ad.screenshots),
+          };
+        });
         setListings(mapped);
         setLoading(false);
       })
@@ -88,6 +139,91 @@ const ReviewListings: React.FC = () => {
         return 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20';
       default:
         return 'bg-blue-400/10 text-blue-400 border-blue-400/20';
+    }
+  };
+
+  const handleViewDetails = (listing: Listing) => {
+    setSelectedListing(listing);
+    setShowDetailsModal(true);
+  };
+
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedListing(null);
+  };
+
+  const handleContactSeller = async (listing: Listing) => {
+    try {
+      setContactLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        alert('Authentication required');
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/chat/ad-inquiry`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          adId: listing.id,
+          message: `Hello ${listing.seller}, I am contacting you as an admin regarding your listing: ${listing.title}`
+        })
+      });
+
+      const chat = await response.json();
+      
+      if (response.ok) {
+        alert(`Chat created successfully with ${listing.seller}. You can now communicate about the listing "${listing.title}".`);
+        // Optionally navigate to chat or show success message
+      } else {
+        alert(chat.message || 'Failed to create chat with seller');
+      }
+    } catch (error) {
+      console.error('Error creating chat with seller:', error);
+      alert('Failed to create chat with seller');
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
+  const handleDeleteListing = async (listing: Listing) => {
+    if (!window.confirm(`Are you sure you want to delete the listing "${listing.title}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await adminDeleteAd(listing.id);
+      
+      // Refresh the listings
+      const data = await getAllAds();
+      const mapped = (data.ads || []).map(ad => {
+        return {
+          id: ad.id,
+          title: ad.title,
+          seller: ad.seller?.username || 'Unknown',
+          price: ad.price ? `$${ad.price}` : '',
+          category: ad.category || 'Other',
+          status: ad.status || 'active',
+          createdAt: ad.createdAt ? ad.createdAt.split('T')[0] : '',
+          reportCount: ad.reportCount || 0,
+          thumbnail: getImageUrl(ad.thumbnail, ad.screenshots),
+        };
+      });
+      setListings(mapped);
+      
+      // Close modal if it's open for this listing
+      if (selectedListing?.id === listing.id) {
+        closeDetailsModal();
+      }
+      
+      alert(`Listing "${listing.title}" has been successfully deleted.`);
+    } catch (error) {
+      console.error('Error deleting listing:', error);
+      alert(`Failed to delete listing: ${error.message}`);
     }
   };
 
@@ -145,6 +281,10 @@ const ReviewListings: React.FC = () => {
                   src={listing.thumbnail}
                   alt={listing.title}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.log('Image load failed for:', listing.thumbnail);
+                    e.currentTarget.src = '/placeholder.svg';
+                  }}
                 />
                 {listing.reportCount > 0 && (
                   <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
@@ -179,28 +319,26 @@ const ReviewListings: React.FC = () => {
                       <MoreVertical className="h-5 w-5 text-xsm-light-gray" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
+                      <DropdownMenuItem 
+                        className="text-white hover:text-xsm-yellow cursor-pointer"
+                        onClick={() => handleViewDetails(listing)}
+                      >
                         <Eye className="w-4 h-4 mr-2" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Reject
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
+                      <DropdownMenuItem 
+                        className="text-white hover:text-xsm-yellow cursor-pointer"
+                        onClick={() => handleContactSeller(listing)}
+                        disabled={contactLoading}
+                      >
                         <MessageCircle className="w-4 h-4 mr-2" />
-                        Contact Seller
+                        {contactLoading ? 'Connecting...' : 'Contact Seller'}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                        <Ban className="w-4 h-4 mr-2" />
-                        Block Listing
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-500 hover:text-red-400 cursor-pointer">
+                      <DropdownMenuItem 
+                        className="text-red-500 hover:text-red-400 cursor-pointer"
+                        onClick={() => handleDeleteListing(listing)}
+                      >
                         <Trash className="w-4 h-4 mr-2" />
                         Delete Listing
                       </DropdownMenuItem>
@@ -213,6 +351,110 @@ const ReviewListings: React.FC = () => {
         </div>
         )}
       </div>
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedListing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-xsm-dark-gray rounded-xl border border-xsm-medium-gray max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-xsm-medium-gray">
+              <h2 className="text-xl font-bold text-white">Listing Details</h2>
+              <button
+                onClick={closeDetailsModal}
+                className="p-2 hover:bg-xsm-medium-gray rounded-lg transition-colors"
+              >
+                <XCircle className="w-6 h-6 text-xsm-light-gray" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Listing Image */}
+              <div className="aspect-video relative bg-xsm-medium-gray rounded-lg overflow-hidden">
+                <img
+                  src={selectedListing.thumbnail}
+                  alt={selectedListing.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.log('Modal image load failed for:', selectedListing.thumbnail);
+                    e.currentTarget.src = '/placeholder.svg';
+                  }}
+                />
+                {selectedListing.reportCount > 0 && (
+                  <div className="absolute top-4 right-4 bg-red-500 text-white text-sm px-3 py-2 rounded-full">
+                    {selectedListing.reportCount} reports
+                  </div>
+                )}
+              </div>
+
+              {/* Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-xsm-light-gray">Title</label>
+                    <p className="text-white text-lg">{selectedListing.title}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-xsm-light-gray">Seller</label>
+                    <p className="text-white">{selectedListing.seller}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-xsm-light-gray">Category</label>
+                    <p className="text-white">{selectedListing.category}</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-xsm-light-gray">Price</label>
+                    <p className="text-xsm-yellow text-lg font-semibold">{selectedListing.price}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-xsm-light-gray">Status</label>
+                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm border ${getStatusBadgeClass(selectedListing.status)} mt-1`}>
+                      {getStatusIcon(selectedListing.status)}
+                      <span className="ml-2 capitalize">{selectedListing.status}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-xsm-light-gray">Created Date</label>
+                    <p className="text-white">{selectedListing.createdAt}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Reports Section */}
+              {selectedListing.reportCount > 0 && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Flag className="w-5 h-5 text-red-400" />
+                    <h3 className="font-medium text-red-400">Reports ({selectedListing.reportCount})</h3>
+                  </div>
+                  <p className="text-red-300 text-sm">This listing has been reported by users. Please review carefully.</p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-4 pt-4 border-t border-xsm-medium-gray">
+                <button 
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => handleContactSeller(selectedListing)}
+                  disabled={contactLoading}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  {contactLoading ? 'Connecting...' : 'Contact Seller'}
+                </button>
+                <button 
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                  onClick={() => handleDeleteListing(selectedListing)}
+                >
+                  <Trash className="w-4 h-4" />
+                  Delete Listing
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

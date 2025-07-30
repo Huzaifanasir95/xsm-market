@@ -186,6 +186,29 @@ export const adminDeleteChat = async (chatId: string) => {
   return await response.json();
 }; 
 
+// Admin delete ad (listing)
+export const adminDeleteAd = async (adId: string | number) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${ADMIN_API_URL}/admin/ads/${adId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to delete ad: ${response.statusText}`);
+  }
+
+  return await response.json();
+}; 
+
 // Admin confirms that agent has been made primary owner (official API call)
 export const markPrimaryOwnerMade = async (dealId: number) => {
   const token = localStorage.getItem('token');

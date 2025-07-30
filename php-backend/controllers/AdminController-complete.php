@@ -638,4 +638,42 @@ class AdminController {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
     }
+    
+    // Delete ad (admin)
+    public function deleteAd($adId) {
+        // Check if current user is admin
+        if (!$this->isCurrentUserAdmin()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Admin access required']);
+            return;
+        }
+        
+        try {
+            // Find the ad
+            $stmt = $this->db->prepare("SELECT * FROM ads WHERE id = ?");
+            $stmt->execute([$adId]);
+            $ad = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$ad) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Ad not found']);
+                return;
+            }
+            
+            // Delete the ad (admin can delete any ad)
+            $deleteStmt = $this->db->prepare("DELETE FROM ads WHERE id = ?");
+            $deleteStmt->execute([$adId]);
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Ad deleted successfully'
+            ]);
+            
+        } catch (Exception $e) {
+            error_log('Admin delete ad error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+        }
+    }
 }
