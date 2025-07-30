@@ -414,30 +414,16 @@ class AdController {
             
             $offset = ($page - 1) * $limit;
             
-            $options = [
-                'limit' => $limit,
-                'offset' => $offset,
-                'orderBy' => 'createdAt DESC',
-                'where' => ['userId' => $userId]
-            ];
-            
-            if ($status) {
-                $options['where']['status'] = $status;
-            }
-            
-            $ads = Ad::findAll($options);
-            $total = Ad::count(['userId' => $userId]);
-            $totalPages = ceil($total / $limit);
+            // Use the correct method that exists in the Ad model
+            $result = Ad::getUserAdsWithPagination($userId, $limit, $offset, $status);
             
             Response::success([
-                'ads' => $ads,
+                'ads' => $result['ads'],
                 'pagination' => [
-                    'page' => $page,
-                    'limit' => $limit,
-                    'total' => (int)$total,
-                    'totalPages' => (int)$totalPages,
-                    'hasNext' => $page < $totalPages,
-                    'hasPrev' => $page > 1
+                    'currentPage' => $page,
+                    'totalPages' => $result['totalPages'],
+                    'totalItems' => $result['totalItems'],
+                    'itemsPerPage' => $limit
                 ]
             ]);
             

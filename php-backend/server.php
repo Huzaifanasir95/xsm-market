@@ -206,7 +206,7 @@ function handleAdRoutes($controller, $path, $method) {
         else methodNotAllowed();
     }
     elseif ($path === '/ads/user') {
-        if ($method === 'GET') $controller->getUserAds();
+        if ($method === 'GET') $controller->getMyAds();
         else methodNotAllowed();
     }
     elseif (preg_match('/^\/ads\/(\d+)$/', $path, $matches)) {

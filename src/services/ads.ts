@@ -95,7 +95,7 @@ export const getUserAds = async (filters = {}) => {
       }
     });
 
-    const response = await fetch(`${API_URL}/ads/user/my-ads?${queryParams}`, {
+    const response = await fetch(`${API_URL}/ads/user?${queryParams}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

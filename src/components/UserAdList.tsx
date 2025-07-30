@@ -171,7 +171,7 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
           
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="max-h-96 overflow-y-auto custom-scrollbar space-y-4 pr-2">
           {ads.map((ad) => (
             <div key={ad.id} className="bg-xsm-black/50 rounded-lg p-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

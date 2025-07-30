@@ -1,5 +1,5 @@
 // API URL - automatically switches between development and production
-export const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'http://localhost:5000');
+export const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:5000');
 
 console.log('🌐 API_URL configured as:', API_URL);
 

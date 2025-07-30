@@ -131,6 +131,8 @@ export default {
 			}
 		}
 	},
-	// @ts-expect-error - tailwindcss-animate is a CJS module
-	plugins: [require("tailwindcss-animate")],
+	plugins: [
+		require("tailwindcss-animate"),
+		require('tailwind-scrollbar')({ nocompatible: true })
+	],
 } satisfies Config;
