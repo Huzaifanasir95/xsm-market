@@ -1,8 +1,78 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Flag, User, Shield, MessageCircle, Search, Image as ImageIcon } from 'lucide-react';
+import { Send, Shield, MessageCircle, Search, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { API_URL } from '@/services/auth';
 import { getImageUrl } from '@/config/api';
+
+// Custom scrollbar styles
+const scrollbarStyles = `
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #ffd000 #1A1A1A;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #1A1A1A;
+    border-radius: 6px;
+    border: 1px solid #333333;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ffd000 0%, #ffaa00 100%);
+    border-radius: 6px;
+    border: 2px solid #1A1A1A;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #ffdd33 0%, #ffbb33 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #e6b800 0%, #cc9900 100%);
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar {
+    width: 12px;
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-track {
+    background: #000000;
+    border-radius: 6px;
+    border: 1px solid #333333;
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ffd000 0%, #ffaa00 100%);
+    border-radius: 6px;
+    border: 2px solid #000000;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #ffdd33 0%, #ffbb33 100%);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #e6b800 0%, #cc9900 100%);
+  }
+  
+  .messages-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #333333 0%, #555555 100%);
+    border: 2px solid #1A1A1A;
+  }
+  
+  .messages-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #666666 0%, #777777 100%);
+  }
+`;
 
 interface Message {
   id: number;
@@ -45,8 +115,6 @@ const Chat: React.FC = () => {
   const [filteredChats, setFilteredChats] = useState<ChatData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [reportModalOpen, setReportModalOpen] = useState(false);
-  const [reportReason, setReportReason] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [lastMessageId, setLastMessageId] = useState<number | null>(null);
@@ -345,6 +413,7 @@ const Chat: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray">
+      <style dangerouslySetInnerHTML={{ __html: scrollbarStyles }} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-xsm-yellow mb-4">Secure Chat</h1>
@@ -374,7 +443,10 @@ const Chat: React.FC = () => {
                 />
               </div>
 
-              <div className="overflow-y-auto" style={{ height: 'calc(100% - 113px)' }}>
+              <div 
+                className="overflow-y-auto custom-scrollbar conversation-scrollbar" 
+                style={{ height: 'calc(100% - 113px)' }}
+              >
                 {loading ? (
                   <div className="p-4 text-center text-white">Loading chats...</div>
                 ) : filteredChats.length === 0 ? (
@@ -440,19 +512,12 @@ const Chat: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => setReportModalOpen(true)}
-                      className="text-gray-400 hover:text-red-400 transition-colors"
-                      title="Report User"
-                    >
-                      <Flag className="w-5 h-5" />
-                    </button>
                   </div>
 
                   {/* Messages */}
                   <div 
                     ref={messagesContainerRef}
-                    className="flex-1 overflow-y-auto p-4 space-y-4"
+                    className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar messages-scrollbar"
                   >
                     {messages.length === 0 ? (
                       <div className="text-center text-gray-400 py-8">
@@ -574,35 +639,6 @@ const Chat: React.FC = () => {
           </p>
         </div>
       </div>
-
-      {/* Report Modal */}
-      {reportModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-xsm-dark-gray rounded-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-xsm-yellow mb-4">Report User</h3>
-            <textarea
-              value={reportReason}
-              onChange={(e) => setReportReason(e.target.value)}
-              placeholder="Please describe the reason for reporting this user..."
-              className="w-full h-24 px-4 py-2 bg-xsm-black text-white rounded-lg border border-xsm-medium-gray focus:outline-none focus:border-xsm-yellow resize-none"
-            />
-            <div className="flex space-x-3 mt-4">
-              <button
-                onClick={() => setReportModalOpen(false)}
-                className="flex-1 px-4 py-2 border border-xsm-medium-gray text-white rounded-lg hover:bg-xsm-medium-gray transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReport}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Submit Report
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
