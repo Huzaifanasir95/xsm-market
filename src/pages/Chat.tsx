@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Shield, MessageCircle, Search, Image as ImageIcon } from 'lucide-react';
+import { Send, Shield, MessageCircle, Search, Image as ImageIcon, Video } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { API_URL } from '@/services/auth';
 import { getImageUrl } from '@/config/api';
@@ -121,6 +121,8 @@ const Chat: React.FC = () => {
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [imageUploading, setImageUploading] = useState(false);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [videoUploading, setVideoUploading] = useState(false);
 
   // Remove Socket.IO and replace with polling-based real-time updates
   useEffect(() => {
@@ -313,7 +315,7 @@ const Chat: React.FC = () => {
       const formData = new FormData();
       formData.append('image', file);
       formData.append('messageType', 'image');
-      // Optionally add more fields if backend expects
+      
       const response = await fetch(`${API_URL}/chat/chats/${selectedChat.id}/messages`, {
         method: 'POST',
         headers: {
@@ -321,24 +323,80 @@ const Chat: React.FC = () => {
         },
         body: formData
       });
+      
       if (response.ok) {
         const message = await response.json();
         setMessages(prev => [...prev, message]);
         setLastMessageId(message.id);
         updateChatLastMessage(message);
         setTimeout(() => checkForNewMessages(), 500);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload image');
       }
     } catch (error) {
       console.error('Error sending image:', error);
+      alert('Failed to send image. Please try again.');
     } finally {
       setImageUploading(false);
     }
   };
 
+  const handleSendVideo = async (file: File) => {
+    if (!selectedChat || !user || !file) return;
+    
+    // Check file size (limit to 50MB for videos)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Video file size must be less than 50MB');
+      return;
+    }
+    
+    setVideoUploading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('video', file);
+      formData.append('messageType', 'video');
+      
+      const response = await fetch(`${API_URL}/chat/chats/${selectedChat.id}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (response.ok) {
+        const message = await response.json();
+        setMessages(prev => [...prev, message]);
+        setLastMessageId(message.id);
+        updateChatLastMessage(message);
+        setTimeout(() => checkForNewMessages(), 500);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload video');
+      }
+    } catch (error) {
+      console.error('Error sending video:', error);
+      alert('Failed to send video. Please try again.');
+    } finally {
+      setVideoUploading(false);
+    }
+  };
+
   const updateChatLastMessage = (message: Message) => {
+    let displayMessage = message.content;
+    
+    // Show appropriate text for media messages
+    if (message.messageType === 'image') {
+      displayMessage = '📷 Sent an image';
+    } else if (message.messageType === 'video') {
+      displayMessage = '🎥 Sent a video';
+    }
+    
     setChats(prev => prev.map(chat => 
       chat.id === message.chatId 
-        ? { ...chat, lastMessage: message.content, lastMessageTime: message.createdAt }
+        ? { ...chat, lastMessage: displayMessage, lastMessageTime: message.createdAt }
         : chat
     ).sort((a, b) => new Date(b.lastMessageTime || 0).getTime() - new Date(a.lastMessageTime || 0).getTime()));
   };
@@ -555,6 +613,62 @@ const Chat: React.FC = () => {
                                   target.style.display = 'none';
                                 }}
                               />
+                            ) : message.messageType === 'video' && message.content ? (
+                              <div className="relative rounded-lg overflow-hidden max-w-[200px] max-h-[200px] mb-2 border border-xsm-yellow">
+                                <video
+                                  src={getImageUrl(message.content) || message.content}
+                                  className="w-full h-full object-cover"
+                                  controls
+                                  preload="metadata"
+                                  crossOrigin="anonymous"
+                                  onError={(e) => {
+                                    console.error('Video failed to load:', {
+                                      originalContent: message.content,
+                                      resolvedUrl: getImageUrl(message.content) || message.content,
+                                      error: e,
+                                      videoElement: e.target
+                                    });
+                                    const target = e.target as HTMLVideoElement;
+                                    target.style.display = 'none';
+                                    // Show fallback
+                                    const fallback = target.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                  onLoadStart={() => {
+                                    console.log('Video load started:', getImageUrl(message.content) || message.content);
+                                  }}
+                                  onCanPlay={() => {
+                                    console.log('Video can play:', getImageUrl(message.content) || message.content);
+                                  }}
+                                  onLoadedData={() => {
+                                    console.log('Video loaded data:', getImageUrl(message.content) || message.content);
+                                  }}
+                                >
+                                  <source src={getImageUrl(message.content) || message.content} type="video/mp4" />
+                                  Your browser does not support the video tag.
+                                </video>
+                                {/* Fallback display */}
+                                <div 
+                                  className="absolute inset-0 bg-gray-700 flex items-center justify-center text-white text-sm"
+                                  style={{ display: 'none' }}
+                                >
+                                  <div className="text-center">
+                                    <div className="text-2xl mb-2">🎥</div>
+                                    <div>Video file</div>
+                                    <div className="text-xs mt-1 break-all px-2">{message.content}</div>
+                                    <button 
+                                      onClick={() => {
+                                        const url = getImageUrl(message.content) || message.content;
+                                        console.log('Attempting to open:', url);
+                                        window.open(url, '_blank');
+                                      }}
+                                      className="mt-2 px-3 py-1 bg-xsm-yellow text-black rounded text-xs hover:bg-yellow-500"
+                                    >
+                                      Open Video
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
                             ) : (
                               <p className="text-sm">{message.content}</p>
                             )}
@@ -593,6 +707,27 @@ const Chat: React.FC = () => {
                         onChange={e => {
                           if (e.target.files && e.target.files[0]) {
                             handleSendImage(e.target.files[0]);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => videoInputRef.current?.click()}
+                        className="p-2 text-gray-400 hover:text-xsm-yellow rounded-lg border border-xsm-yellow bg-xsm-dark-gray"
+                        title="Attach Video"
+                        disabled={videoUploading}
+                      >
+                        <Video className="w-5 h-5" />
+                      </button>
+                      <input
+                        ref={videoInputRef}
+                        type="file"
+                        accept="video/*"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleSendVideo(e.target.files[0]);
                             e.target.value = '';
                           }
                         }}

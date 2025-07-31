@@ -337,6 +337,45 @@ class ChatController {
                     echo json_encode(['message' => 'Failed to upload image']);
                     return;
                 }
+            }
+            // Check if a video is uploaded
+            elseif (isset($_FILES['video']) && $_FILES['video']['error'] === UPLOAD_ERR_OK) {
+                // Validate video file size (50MB max)
+                $maxSize = 50 * 1024 * 1024; // 50MB
+                if ($_FILES['video']['size'] > $maxSize) {
+                    http_response_code(400);
+                    echo json_encode(['message' => 'Video file size exceeds maximum limit of 50MB']);
+                    return;
+                }
+                
+                // Validate video file type
+                $allowedVideoTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm'];
+                if (!in_array($_FILES['video']['type'], $allowedVideoTypes)) {
+                    http_response_code(400);
+                    echo json_encode(['message' => 'Invalid video file type']);
+                    return;
+                }
+                
+                $uploadDir = __DIR__ . '/../uploads/chat/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+                $fileTmp = $_FILES['video']['tmp_name'];
+                $originalName = $_FILES['video']['name'];
+                // Remove spaces and special characters from filename
+                $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
+                $fileName = uniqid('chatvid_') . '_' . $safeName;
+                $filePath = $uploadDir . $fileName;
+                $publicPath = '/uploads/chat/' . $fileName;
+                if (move_uploaded_file($fileTmp, $filePath)) {
+                    $content = $publicPath;
+                    $messageType = 'video';
+                    $imageUrl = $publicPath; // Reuse imageUrl field for videos
+                } else {
+                    http_response_code(500);
+                    echo json_encode(['message' => 'Failed to upload video']);
+                    return;
+                }
             } else {
                 // Fallback to JSON/text input
                 $input = json_decode(file_get_contents('php://input'), true);
@@ -364,10 +403,26 @@ class ChatController {
 
             // Create message
             $stmt = $this->db->prepare("
-                INSERT INTO messages (content, senderId, chatId, messageType, replyToId, createdAt, updatedAt)
-                VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+                INSERT INTO messages (content, senderId, chatId, messageType, mediaUrl, fileName, fileSize, replyToId, createdAt, updatedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
-            $stmt->execute([$content, $senderId, $chatId, $messageType, $replyToId]);
+            
+            // Prepare values for insertion
+            $mediaUrl = null;
+            $fileName = null;
+            $fileSize = null;
+            
+            if ($messageType === 'image' && isset($_FILES['image'])) {
+                $mediaUrl = $content; // For images, content contains the path
+                $fileName = $_FILES['image']['name'];
+                $fileSize = $_FILES['image']['size'];
+            } elseif ($messageType === 'video' && isset($_FILES['video'])) {
+                $mediaUrl = $content; // For videos, content contains the path
+                $fileName = $_FILES['video']['name'];
+                $fileSize = $_FILES['video']['size'];
+            }
+            
+            $stmt->execute([$content, $senderId, $chatId, $messageType, $mediaUrl, $fileName, $fileSize, $replyToId]);
             $messageId = $this->db->lastInsertId();
 
             // Update chat's last message

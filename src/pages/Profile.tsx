@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, Edit, LogOut, Save, X, Shield, Camera } from 'lucide-react';
+import { User as UserIcon, Edit, LogOut, Save, X, Shield, Camera, Video } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
 import { useAuth } from '@/context/useAuth';

@@ -24,6 +24,7 @@ require_once __DIR__ . '/controllers/UserController.php';
 require_once __DIR__ . '/controllers/AdController-complete.php';
 require_once __DIR__ . '/controllers/AdUploadController.php';
 require_once __DIR__ . '/controllers/ChatController-complete.php';
+require_once __DIR__ . '/controllers/ChatUploadController.php';
 require_once __DIR__ . '/controllers/AdminController-complete.php';
 
 // Error reporting for debugging
@@ -41,6 +42,12 @@ $path = str_replace('/api', '', $path);
 
 // Route handling
 try {
+    // Static file serving for uploads
+    if (strpos($path, '/uploads/') === 0) {
+        include __DIR__ . '/serve-file.php';
+        exit();
+    }
+    
     // Authentication routes
     if (strpos($path, '/auth/') === 0) {
         $authController = new AuthController();
@@ -60,6 +67,10 @@ try {
     elseif (strpos($path, '/chat') === 0) {
         $chatController = new ChatController();
         handleChatRoutes($chatController, $path, $method);
+    }
+    // File serving routes
+    elseif (strpos($path, '/files/') === 0) {
+        handleFileServing($path);
     }
     // Deals routes
     elseif (strpos($path, '/deals') === 0) {
@@ -357,5 +368,77 @@ function handleDealsRoutes($path, $method) {
     $GLOBALS['path'] = $path;
     $GLOBALS['method'] = $method;
     require_once __DIR__ . '/routes/deals.php';
+}
+
+// File serving handler
+function handleFileServing($path) {
+    // Extract file path from URL like /files/uploads/chat/filename.mp4
+    $filePath = substr($path, 7); // Remove '/files/' prefix
+    $fullPath = __DIR__ . '/' . $filePath;
+    
+    // Security check - ensure the file is within allowed directories
+    $realPath = realpath($fullPath);
+    $allowedDir = realpath(__DIR__ . '/uploads/');
+    
+    if ($realPath && $allowedDir && strpos($realPath, $allowedDir) === 0 && file_exists($realPath)) {
+        // Get file info
+        $fileInfo = pathinfo($realPath);
+        $extension = strtolower($fileInfo['extension'] ?? '');
+        
+        // Set appropriate content type
+        $contentTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'mp4' => 'video/mp4',
+            'webm' => 'video/webm',
+            'avi' => 'video/x-msvideo',
+            'mov' => 'video/quicktime',
+            'wmv' => 'video/x-ms-wmv'
+        ];
+        
+        $contentType = $contentTypes[$extension] ?? 'application/octet-stream';
+        
+        // Set headers for file serving
+        header('Content-Type: ' . $contentType);
+        header('Content-Length: ' . filesize($realPath));
+        header('Accept-Ranges: bytes');
+        header('Access-Control-Allow-Origin: *');
+        
+        // Handle range requests for video streaming
+        if (isset($_SERVER['HTTP_RANGE']) && strpos($contentType, 'video/') === 0) {
+            $fileSize = filesize($realPath);
+            $range = $_SERVER['HTTP_RANGE'];
+            
+            if (preg_match('/bytes=(\d+)-(\d*)/', $range, $matches)) {
+                $start = intval($matches[1]);
+                $end = $matches[2] ? intval($matches[2]) : $fileSize - 1;
+                
+                if ($start <= $end && $start < $fileSize) {
+                    header('HTTP/1.1 206 Partial Content');
+                    header("Content-Range: bytes $start-$end/$fileSize");
+                    header('Content-Length: ' . ($end - $start + 1));
+                    
+                    $file = fopen($realPath, 'rb');
+                    fseek($file, $start);
+                    echo fread($file, $end - $start + 1);
+                    fclose($file);
+                    exit();
+                }
+            }
+        }
+        
+        // Serve the entire file
+        readfile($realPath);
+        exit();
+    } else {
+        // File not found or access denied
+        http_response_code(404);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'File not found']);
+        exit();
+    }
 }
 ?>

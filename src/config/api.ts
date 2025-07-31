@@ -24,5 +24,17 @@ export const getFileUrl = (relativePath: string): string => {
 // Helper function to get image URL with fallback
 export const getImageUrl = (imagePath: string | null | undefined): string | null => {
   if (!imagePath) return null;
+  
+  // If it's already a full URL, return as-is
+  if (imagePath.startsWith('http')) {
+    return imagePath;
+  }
+  
+  // For relative paths starting with /uploads/, use the new file serving endpoint
+  if (imagePath.startsWith('/uploads/')) {
+    return `${API_CONFIG.FILE_SERVER_URL}/files${imagePath}`;
+  }
+  
+  // Fallback to the original logic
   return getFileUrl(imagePath);
 };

@@ -80,10 +80,12 @@ class ChatUploadController {
                 return;
             }
             
-            // Generate thumbnail for images
+            // Generate thumbnail for images and videos
             $thumbnail = null;
             if ($messageType === 'image') {
                 $thumbnail = $this->generateThumbnail($filePath, $uploadDir);
+            } elseif ($messageType === 'video') {
+                $thumbnail = $this->generateVideoThumbnail($filePath, $uploadDir);
             }
             
             // Save message to database
@@ -237,6 +239,109 @@ class ChatUploadController {
             
         } catch (Exception $e) {
             error_log('Thumbnail generation error: ' . $e->getMessage());
+            return null;
+        }
+    }
+    
+    private function generateVideoThumbnail($videoPath, $uploadDir) {
+        try {
+            $pathInfo = pathinfo($videoPath);
+            $thumbnailName = 'thumb_' . $pathInfo['filename'] . '.jpg';
+            $thumbnailPath = $uploadDir . $thumbnailName;
+            
+            // Check if FFmpeg is available
+            $ffmpegPath = $this->findFFmpeg();
+            
+            if ($ffmpegPath) {
+                // Use FFmpeg to generate thumbnail
+                $command = sprintf(
+                    '%s -i %s -ss 00:00:01 -vframes 1 -y %s 2>&1',
+                    escapeshellarg($ffmpegPath),
+                    escapeshellarg($videoPath),
+                    escapeshellarg($thumbnailPath)
+                );
+                
+                exec($command, $output, $returnCode);
+                
+                if ($returnCode === 0 && file_exists($thumbnailPath)) {
+                    return '/uploads/chat/' . $thumbnailName;
+                }
+            }
+            
+            // Fallback: Create a placeholder thumbnail
+            return $this->createVideoPlaceholderThumbnail($uploadDir, $thumbnailName);
+            
+        } catch (Exception $e) {
+            error_log('Video thumbnail generation error: ' . $e->getMessage());
+            return null;
+        }
+    }
+    
+    private function findFFmpeg() {
+        // Common FFmpeg paths
+        $possiblePaths = [
+            '/usr/bin/ffmpeg',
+            '/usr/local/bin/ffmpeg',
+            '/opt/homebrew/bin/ffmpeg', // macOS with Homebrew
+            'ffmpeg', // If in PATH
+            'C:\\ffmpeg\\bin\\ffmpeg.exe', // Windows common path
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (@exec("$path -version") !== false) {
+                return $path;
+            }
+        }
+        
+        return null;
+    }
+    
+    private function createVideoPlaceholderThumbnail($uploadDir, $thumbnailName) {
+        try {
+            $thumbnailPath = $uploadDir . $thumbnailName;
+            
+            // Create a 200x150 placeholder image
+            $width = 200;
+            $height = 150;
+            $image = imagecreatetruecolor($width, $height);
+            
+            // Set background color (dark gray)
+            $bgColor = imagecolorallocate($image, 64, 64, 64);
+            imagefill($image, 0, 0, $bgColor);
+            
+            // Set text color (white)
+            $textColor = imagecolorallocate($image, 255, 255, 255);
+            
+            // Add play button icon (triangle)
+            $centerX = $width / 2;
+            $centerY = $height / 2;
+            $triangleSize = 30;
+            
+            $triangle = [
+                $centerX - $triangleSize/2, $centerY - $triangleSize/2,
+                $centerX - $triangleSize/2, $centerY + $triangleSize/2,
+                $centerX + $triangleSize/2, $centerY
+            ];
+            
+            imagefilledpolygon($image, $triangle, 3, $textColor);
+            
+            // Add "VIDEO" text
+            $text = "VIDEO";
+            $font = 3; // Built-in font
+            $textWidth = strlen($text) * imagefontwidth($font);
+            $textX = ($width - $textWidth) / 2;
+            $textY = $centerY + $triangleSize;
+            
+            imagestring($image, $font, $textX, $textY, $text, $textColor);
+            
+            // Save as JPEG
+            imagejpeg($image, $thumbnailPath, 85);
+            imagedestroy($image);
+            
+            return '/uploads/chat/' . $thumbnailName;
+            
+        } catch (Exception $e) {
+            error_log('Video placeholder thumbnail creation error: ' . $e->getMessage());
             return null;
         }
     }
