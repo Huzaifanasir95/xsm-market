@@ -80,8 +80,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const [profile, setProfile] = useState({
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
-    joinDate: (user as ExtendedUser)?.joinDate || '2025-01-15', // Keep the date format as is
-    verificationStatus: 'unverified' as 'unverified' | 'pending' | 'verified',
+    joinDate: (user as any)?.createdAt || new Date().toISOString(), // Use actual creation date
+    verificationStatus: 'verified' as 'unverified' | 'pending' | 'verified', // Default to verified
     profilePicture: user?.profilePicture || ''
   });
 
@@ -99,7 +99,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         username: user.username,
         email: user.email,
         profilePicture: user.profilePicture || '',
-        joinDate: (user as any)?.joinDate || prev.joinDate
+        joinDate: (user as any)?.createdAt || prev.joinDate
       }));
     }
   }, [user]);
@@ -502,9 +502,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           <p className="text-xl text-white">
             Manage your account settings and view your marketplace activity
           </p>
-          <p className="text-sm text-xsm-light-gray mt-2">
-            {getRelativeTimeString(profile.joinDate)}
-          </p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
@@ -544,13 +541,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               </h2>
               <p className="text-xsm-light-gray mb-1">@{profile.username}</p>
               <p className="text-xsm-light-gray mb-4">{profile.email}</p>
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <Shield className="w-4 h-4 text-green-400" />
-                <span className="text-green-400 text-sm font-medium">{profile.verificationStatus}</span>
-              </div>
-              <div className="text-sm text-xsm-light-gray mb-4">
-                {getRelativeTimeString(profile.joinDate)}
-              </div>
               <div className="text-xs text-green-400 flex items-center justify-center gap-1 mb-4">
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                 <span>Active now</span>
