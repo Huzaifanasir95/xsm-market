@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Flag, User, Shield, MessageCircle, Search, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { API_URL } from '@/services/auth';
+import { getImageUrl } from '@/config/api';
 
 interface Message {
   id: number;
@@ -478,10 +479,16 @@ const Chat: React.FC = () => {
                             )}
                             {message.messageType === 'image' && message.content ? (
                               <img
-                                src={message.content}
+                                src={getImageUrl(message.content) || message.content}
                                 alt="Sent image"
-                                className="rounded-lg max-w-[200px] max-h-[200px] mb-2 border border-xsm-yellow"
+                                className="rounded-lg max-w-[200px] max-h-[200px] mb-2 border border-xsm-yellow cursor-pointer"
                                 style={{ objectFit: 'cover' }}
+                                onClick={() => window.open(getImageUrl(message.content) || message.content, '_blank')}
+                                onError={(e) => {
+                                  console.error('Image failed to load:', message.content);
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
                               />
                             ) : (
                               <p className="text-sm">{message.content}</p>

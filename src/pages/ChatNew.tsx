@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Flag, User, Shield, MessageCircle, Image, FileVideo } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { io, Socket } from 'socket.io-client';
+import { getImageUrl } from '@/config/api';
 
 interface Message {
   id: number;
@@ -477,11 +478,16 @@ const Chat: React.FC = () => {
                             {message.messageType === 'image' && message.mediaUrl && (
                               <div className="mb-2">
                                 <img 
-                                  src={`/api${message.mediaUrl}`}
+                                  src={getImageUrl(message.mediaUrl) || ''}
                                   alt="Shared image"
-                                  className="max-w-full h-auto rounded-lg cursor-pointer"
-                                  onClick={() => window.open(`/api${message.mediaUrl}`, '_blank')}
+                                  className="max-w-full h-auto rounded-lg cursor-pointer border border-xsm-yellow"
+                                  onClick={() => window.open(getImageUrl(message.mediaUrl) || '', '_blank')}
                                   style={{ maxHeight: '200px' }}
+                                  onError={(e) => {
+                                    console.error('Image failed to load:', message.mediaUrl);
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                  }}
                                 />
                               </div>
                             )}
