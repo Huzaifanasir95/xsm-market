@@ -3,6 +3,7 @@ import { X, Star, Users, Eye, DollarSign, Shield, MessageCircle, CreditCard } fr
 import { API_URL } from '@/services/auth';
 import { useAuth } from '@/context/useAuth';
 import DealCreationModal from './DealCreationModal';
+import { CountUp } from '@/components/lightswind/count-up';
 
 interface ChannelData {
   id: string;
@@ -267,7 +268,14 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
                 {/* Stats */}
                 <div className="xsm-card text-center">
                   <Users className="w-8 h-8 text-xsm-yellow mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-white">{formatNumber(channel.subscribers)}</div>
+                  <div className="text-2xl font-bold text-white">
+                    <CountUp 
+                      value={channel.subscribers} 
+                      duration={2}
+                      animationStyle="ease-out"
+                      colorScheme="default"
+                    />
+                  </div>
                   <div className="text-sm text-xsm-light-gray">Subscribers</div>
                 </div>
 
@@ -332,7 +340,13 @@ const ChannelModal: React.FC<ChannelModalProps> = ({ channel, isOpen, onClose, o
                 <div className="xsm-card">
                   <div className="text-center mb-6">
                     <div className="text-4xl font-bold text-xsm-yellow mb-2">
-                      {formatPrice(channel.price)}
+                      <CountUp 
+                        value={channel.price} 
+                        prefix="$"
+                        duration={2.5}
+                        animationStyle="spring"
+                        colorScheme="default"
+                      />
                     </div>
                     <div className="flex justify-center items-center space-x-4 mt-4">
                       {channel.premium && (

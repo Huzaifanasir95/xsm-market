@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getUserAds, deleteAd } from '../services/ads';
 import { Star, Eye, Trash2, Edit, AlertCircle } from 'lucide-react';
+import { CountUp } from '@/components/lightswind/count-up';
+import { InteractiveGradient } from "@/components/lightswind/interactive-gradient";
 
 interface UserAd {
   id: number;
@@ -173,7 +175,15 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
       ) : (
         <div className="max-h-96 overflow-y-auto custom-scrollbar space-y-4 pr-2">
           {ads.map((ad) => (
-            <div key={ad.id} className="bg-xsm-black/50 rounded-lg p-4">
+            <InteractiveGradient
+              key={ad.id}
+              gradientColors={['#fbbf24', '#f59e0b', '#d97706']}
+              animationSpeed="medium"
+              intensity="low"
+              followMouse={false}
+              pulseOnHover={true}
+              className="bg-xsm-black/50 rounded-lg p-4"
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -186,10 +196,35 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
                   
                   <div className="flex flex-wrap items-center gap-4 text-sm text-xsm-light-gray mb-2">
                     <span>{ad.category}</span>
-                    <span>{formatNumber(ad.subscribers)} subscribers</span>
-                    <span className="text-xsm-yellow font-semibold">{formatPrice(ad.price)}</span>
+                    <span>
+                      <CountUp 
+                        value={ad.subscribers} 
+                        suffix=" subscribers"
+                        duration={2}
+                        animationStyle="ease-out"
+                        colorScheme="default"
+                      />
+                    </span>
+                    <span className="text-xsm-yellow font-semibold">
+                      <CountUp 
+                        value={ad.price} 
+                        prefix="$"
+                        duration={2.5}
+                        animationStyle="spring"
+                        colorScheme="default"
+                      />
+                    </span>
                     {ad.monthlyIncome > 0 && (
-                      <span className="text-green-400">{formatPrice(ad.monthlyIncome)}/mo</span>
+                      <span className="text-green-400">
+                        <CountUp 
+                          value={ad.monthlyIncome} 
+                          prefix="$"
+                          suffix="/mo"
+                          duration={3}
+                          animationStyle="bounce"
+                          colorScheme="default"
+                        />
+                      </span>
                     )}
                   </div>
 
@@ -222,7 +257,7 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
                   </button>
                 </div>
               </div>
-            </div>
+            </InteractiveGradient>
           ))}
         </div>
       )}

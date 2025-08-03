@@ -1,5 +1,7 @@
 import React from 'react';
 import { Play, Users, Star } from 'lucide-react';
+import { CountUp } from '@/components/lightswind/count-up';
+import { InteractiveGradient } from "@/components/lightswind/interactive-gradient";
 
 interface ChannelData {
   id: string;
@@ -43,7 +45,15 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
   };
 
   return (
-    <div className="xsm-card group cursor-pointer transform transition-all duration-300 hover:-translate-y-2">
+    <InteractiveGradient
+      gradientColors={['#fbbf24', '#f59e0b', '#d97706']}
+      animationSpeed="medium"
+      intensity="medium"
+      followMouse={true}
+      pulseOnHover={true}
+      className="xsm-card group cursor-pointer transform transition-all duration-300 hover:-translate-y-2"
+    >
+      <div onClick={() => onShowMore(channel)}>
       <div className="relative mb-4">
         <div className="w-full h-48 bg-xsm-medium-gray rounded-lg flex items-center justify-center overflow-hidden">
           {channel.primary_image ? (
@@ -99,12 +109,26 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
           {/* Subscribers only */}
           <div className="flex items-center space-x-2 text-xsm-light-gray">
             <Users className="w-4 h-4" />
-            <span>{formatNumber(channel.subscribers)} subs</span>
+            <span>
+              <CountUp 
+                value={channel.subscribers} 
+                suffix=" subs"
+                duration={2}
+                animationStyle="ease-out"
+                colorScheme="default"
+              />
+            </span>
           </div>
 
           {/* Price */}
           <div className="text-2xl font-bold text-xsm-yellow">
-            {formatPrice(channel.price)}
+            <CountUp 
+              value={channel.price} 
+              prefix="$"
+              duration={2.5}
+              animationStyle="spring"
+              colorScheme="default"
+            />
           </div>
         </div>
 
@@ -133,7 +157,8 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
           Show More Details
         </button>
       </div>
-    </div>
+      </div>
+    </InteractiveGradient>
   );
 };
 

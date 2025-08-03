@@ -3,6 +3,8 @@ import { getAllAds } from '../services/ads';
 import { Star, Users, DollarSign, Shield, X, CreditCard, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import DealCreationModal from './DealCreationModal';
+import { CountUp } from '@/components/lightswind/count-up';
+import { InteractiveGradient } from "@/components/lightswind/interactive-gradient";
 
 interface Ad {
   id: number;
@@ -184,11 +186,16 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
       {/* Ad Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {ads.map((ad) => (
-          <div 
-            key={ad.id} 
+          <InteractiveGradient
+            key={ad.id}
+            gradientColors={['#fbbf24', '#f59e0b', '#d97706']}
+            animationSpeed="medium"
+            intensity="medium"
+            followMouse={true}
+            pulseOnHover={true}
             className="xsm-card group hover:scale-105 transition-all duration-300 cursor-pointer"
-            onClick={() => onShowMore(ad)}
           >
+            <div onClick={() => onShowMore(ad)}>
             {/* Thumbnail */}
             <div className="relative h-48 bg-gradient-to-br from-xsm-medium-gray to-xsm-dark-gray rounded-lg mb-4 overflow-hidden group/image">
               <div className="w-full h-full overflow-hidden">
@@ -239,7 +246,13 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
                   {ad.title}
                 </h3>
                 <div className="text-xsm-yellow font-bold whitespace-nowrap text-lg">
-                  {formatPrice(ad.price)}
+                  <CountUp 
+                    value={ad.price} 
+                    prefix="$" 
+                    duration={2}
+                    animationStyle="ease-out"
+                    colorScheme="default"
+                  />
                 </div>
               </div>
 
@@ -251,12 +264,28 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-white font-medium">Subscribers:</span>
-                  <span className="text-white">{formatNumber(ad.subscribers)}</span>
+                  <span className="text-white">
+                    <CountUp 
+                      value={ad.subscribers} 
+                      duration={2.5}
+                      animationStyle="spring"
+                      colorScheme="default"
+                    />
+                  </span>
                 </div>
                 {ad.monthlyIncome > 0 && (
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-green-400" />
-                    <span className="text-green-400">{formatPrice(ad.monthlyIncome)}/mo</span>
+                    <span className="text-green-400">
+                      <CountUp 
+                        value={ad.monthlyIncome} 
+                        prefix="$"
+                        suffix="/mo"
+                        duration={3}
+                        animationStyle="bounce"
+                        colorScheme="default"
+                      />
+                    </span>
                   </div>
                 )}
               </div>
@@ -300,6 +329,7 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
               </div>
             </div>
           </div>
+          </InteractiveGradient>
         ))}
       </div>
 
@@ -311,7 +341,7 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
           channelPrice={selectedAd.price}
           channelTitle={selectedAd.title}
           sellerId={selectedAd.seller.id.toString()}
-          onNavigateToChat={onNavigateToChat}
+          onNavigateToChat={() => onNavigateToChat && onNavigateToChat('')}
         />
       )}
     </div>
