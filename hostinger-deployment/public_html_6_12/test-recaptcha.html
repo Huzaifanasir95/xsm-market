@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>reCAPTCHA Test - XSM Market</title>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-form {
+            margin-top: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 reCAPTCHA Test - XSM Market</h1>
+        
+        <div class="info">
+            <h3>Domain Information:</h3>
+            <p><strong>Current Domain:</strong> <span id="currentDomain"></span></p>
+            <p><strong>Site Key:</strong> 6Lff5ZkrAAAAABHYWbjjk7urNCfN7kkWW9HGIqeb</p>
+            <p><strong>Status:</strong> <span id="recaptchaStatus">Loading...</span></p>
+        </div>
+
+        <form class="test-form" id="testForm">
+            <div class="form-group">
+                <label for="email">Test Email:</label>
+                <input type="email" id="email" name="email" value="test@example.com" required>
+            </div>
+            
+            <div class="form-group">
+                <div class="g-recaptcha" data-sitekey="6Lff5ZkrAAAAABHYWbjjk7urNCfN7kkWW9HGIqeb"></div>
+            </div>
+            
+            <button type="submit">Test reCAPTCHA</button>
+        </form>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        // Display current domain
+        document.getElementById('currentDomain').textContent = window.location.hostname;
+        
+        // Check if reCAPTCHA loaded successfully
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof grecaptcha !== 'undefined') {
+                    document.getElementById('recaptchaStatus').textContent = '✅ reCAPTCHA Loaded';
+                    document.getElementById('recaptchaStatus').style.color = 'green';
+                } else {
+                    document.getElementById('recaptchaStatus').textContent = '❌ reCAPTCHA Failed to Load';
+                    document.getElementById('recaptchaStatus').style.color = 'red';
+                }
+            }, 2000);
+        });
+
+        // Handle form submission
+        document.getElementById('testForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const recaptchaResponse = grecaptcha.getResponse();
+            const resultDiv = document.getElementById('result');
+            
+            if (!recaptchaResponse) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '❌ Please complete the reCAPTCHA verification';
+                return;
+            }
+            
+            // Test the reCAPTCHA with your API
+            fetch('/api/test/recaptcha', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    'g-recaptcha-response': recaptchaResponse,
+                    email: document.getElementById('email').value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                resultDiv.style.display = 'block';
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = '✅ reCAPTCHA verification successful!<br>' + 
+                                        '<strong>Response:</strong> ' + JSON.stringify(data, null, 2);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = '❌ reCAPTCHA verification failed:<br>' + 
+                                        '<strong>Error:</strong> ' + (data.error || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ Network error: ' + error.message;
+            });
+        });
+    </script>
+</body>
+</html>

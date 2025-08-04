@@ -149,6 +149,48 @@ class AdminController {
         }
     }
     
+    // Update user role (admin only)
+    public function updateUserRole($userId) {
+        try {
+            $this->isCurrentUserAdmin();
+            $input = json_decode(file_get_contents('php://input'), true);
+            $role = $input['role'] ?? null;
+            
+            if (!$role || !in_array($role, ['user', 'admin'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Invalid role. Must be "user" or "admin"']);
+                return;
+            }
+            
+            $stmt = $this->db->prepare("SELECT id FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            if (!$stmt->fetch()) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'User not found']);
+                return;
+            }
+            
+            // Update user role (convert role to isAdmin boolean)
+            $isAdmin = ($role === 'admin') ? 1 : 0;
+            $stmt = $this->db->prepare("UPDATE users SET isAdmin = ? WHERE id = ?");
+            $stmt->execute([$isAdmin, $userId]);
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true,
+                'message' => 'User role updated successfully',
+                'user' => [
+                    'id' => (int)$userId,
+                    'role' => $role
+                ]
+            ]);
+        } catch (Exception $e) {
+            error_log('Error updating user role: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
+        }
+    }
+    
     // Delete user
     public function deleteUser($userId) {
         try {
@@ -158,7 +200,7 @@ class AdminController {
             $stmt->execute([$userId]);
             if (!$stmt->fetch()) {
                 http_response_code(404);
-                echo json_encode(['message' => 'User not found']);
+                echo json_encode(['success' => false, 'error' => 'User not found']);
                 return;
             }
             
@@ -166,11 +208,38 @@ class AdminController {
             $stmt->execute([$userId]);
             
             http_response_code(200);
-            echo json_encode(['message' => 'User deleted successfully']);
+            echo json_encode(['success' => true, 'message' => 'User deleted successfully']);
         } catch (Exception $e) {
             error_log('Error deleting user: ' . $e->getMessage());
             http_response_code(500);
-            echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
+            echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
+        }
+    }
+    
+    // Delete ad as admin (no ownership check)
+    public function deleteAdAsAdmin($adId) {
+        try {
+            $this->isCurrentUserAdmin();
+            
+            // Check if ad exists
+            $stmt = $this->db->prepare("SELECT id FROM ads WHERE id = ?");
+            $stmt->execute([$adId]);
+            if (!$stmt->fetch()) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Ad not found']);
+                return;
+            }
+            
+            // Delete the ad
+            $stmt = $this->db->prepare("DELETE FROM ads WHERE id = ?");
+            $stmt->execute([$adId]);
+            
+            http_response_code(200);
+            echo json_encode(['success' => true, 'message' => 'Ad deleted successfully']);
+        } catch (Exception $e) {
+            error_log('Error deleting ad: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
         }
     }
     

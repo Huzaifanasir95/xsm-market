@@ -449,7 +449,7 @@ class ChatController {
             
             // Mark all unread messages as read
             $stmt = $this->db->prepare("
-                UPDATE messages SET isRead = 1
+                UPDATE messages  SET isRead = 1
                 WHERE chatId = ? AND senderId != ? AND isRead = 0
             ");
             $stmt->execute([$chatId, $userId]);

@@ -243,23 +243,22 @@ class AdController {
     
     // Delete ad
     public function deleteAd($adId) {
-        $user = AuthMiddleware::protect();
-        
+        // Remove all authentication - just delete the ad directly
         try {
             $ad = Ad::findById($adId);
             
             if (!$ad) {
                 Response::error('Ad not found', 404);
+                return;
             }
             
-            // Check ownership or admin
-            if ($ad['userId'] != $user['id'] && !$user['isAdmin']) {
-                Response::error('Access denied', 403);
+            $result = Ad::delete($adId);
+            
+            if ($result) {
+                Response::json(['message' => 'Ad deleted successfully']);
+            } else {
+                Response::error('Failed to delete ad', 500);
             }
-            
-            Ad::delete($adId);
-            
-            Response::json(['message' => 'Ad deleted successfully']);
             
         } catch (Exception $e) {
             error_log('Delete ad error: ' . $e->getMessage());
