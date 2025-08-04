@@ -128,7 +128,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
               <img 
                 src="/images/logo.png" 
                 alt="XSM Market Logo" 
-                className="h-10 md:h-[48px] object-contain relative z-10 group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_4px_rgba(255,208,0,0.5)]"
+                className="h-10 md:h-[48px] object-contain relative z-10 drop-shadow-[0_0_4px_rgba(255,208,0,0.5)]"
               />
             </div>
 
