@@ -1,5 +1,9 @@
-// Use PHP backend directly without /api prefix
-const ADMIN_API_URL = 'http://localhost:5000';
+// Use environment variable for API URL
+const getApiUrl = () => {
+  return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api');
+};
+
+const ADMIN_API_URL = getApiUrl();
 
 // Fetch all users (admin only)
 export const getAllUsers = async () => {
@@ -252,4 +256,75 @@ Great news! Our agent has successfully been made the Primary Owner of the channe
     console.error('Error sending ownership confirmation:', error);
     throw error;
   }
+};
+
+// Update ad status (admin only)
+export const updateAdStatus = async (adId: number, status: string, rejectionReason?: string) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${ADMIN_API_URL}/admin/ads/${adId}/status`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ status, rejectionReason })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to update ad status: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+// Ban user (admin only)
+export const banUser = async (userId: number, reason: string) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${ADMIN_API_URL}/admin/users/${userId}/ban`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ reason })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to ban user: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+// Unban user (admin only)
+export const unbanUser = async (userId: number) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${ADMIN_API_URL}/admin/users/${userId}/unban`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to unban user: ${response.statusText}`);
+  }
+
+  return await response.json();
 };

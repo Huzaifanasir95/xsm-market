@@ -8,9 +8,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getAllAds } from '@/services/ads';
+// Get API URL from environment variables
+const getApiUrl = () => {
+  return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api');
+};
+
+const getBaseUrl = () => {
+  const apiUrl = getApiUrl();
+  return apiUrl.replace('/api', '');
+};
+
+const API_URL = getBaseUrl();
+
+// Helper function to get proper image URL (same as AdList.tsx)
+const getImageUrl = (ad: any) => {
+  return ad.primary_image || 
+         (ad.screenshots && ad.screenshots.length > 0 ? ad.screenshots[0].url || ad.screenshots[0] : null) || 
+         ad.thumbnail || 
+         '/placeholder.svg';
+};
 
 interface Listing {
-  id: string;
   title: string;
   seller: string;
   price: string;
@@ -138,7 +156,7 @@ const ReviewListings: React.FC = () => {
         ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredListings.map((listing) => (
-            <div key={listing.id} className="bg-xsm-dark-gray rounded-xl border border-xsm-medium-gray overflow-hidden">
+            <div key={listing.title} className="bg-xsm-dark-gray rounded-xl border border-xsm-medium-gray overflow-hidden">
               {/* Listing Image */}
               <div className="aspect-video relative bg-xsm-medium-gray">
                 <img

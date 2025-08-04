@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { MessageSquare, Send, X, Users, Phone, Video, MoreVertical, Paperclip, Image, Camera, FileVideo } from 'lucide-react';
+import { getImageUrl } from '@/config/api';
 
 interface User {
   id: string;
@@ -394,10 +395,15 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, isOpen, onClose })
           {message.messageType === 'image' && message.mediaUrl && (
             <div className="relative">
               <img
-                src={message.mediaUrl}
+                src={getImageUrl(message.mediaUrl) || ''}
                 alt="Shared image"
-                className="w-full h-auto max-h-64 object-cover cursor-pointer"
-                onClick={() => window.open(message.mediaUrl, '_blank')}
+                className="w-full h-auto max-h-64 object-cover cursor-pointer rounded-lg border border-yellow-400"
+                onClick={() => window.open(getImageUrl(message.mediaUrl) || '', '_blank')}
+                onError={(e) => {
+                  console.error('Image failed to load:', message.mediaUrl);
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
               />
               {message.content && (
                 <div className="px-4 py-2">

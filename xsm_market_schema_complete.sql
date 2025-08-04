@@ -52,6 +52,7 @@ CREATE TABLE `ads` (
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   `channelUrl` varchar(500) NOT NULL,
+  `primary_image` longtext DEFAULT NULL,  -- Primary image URL or base64 data
   `platform` enum('facebook','instagram','twitter','tiktok','youtube') NOT NULL,
   `category` varchar(100) NOT NULL,
   `contentType` enum('Unique content','Rewritten','Not unique content','Mixed') DEFAULT NULL,
@@ -150,7 +151,15 @@ CREATE TABLE `messages` (
   `chatId` int(11) NOT NULL,
   `senderId` int(11) NOT NULL,
   `content` text NOT NULL,
+<<<<<<< Updated upstream
   `messageType` enum('text','image','file','system') NOT NULL DEFAULT 'text',
+=======
+  `messageType` enum('text','image','file','system','video') NOT NULL DEFAULT 'text',
+  `mediaUrl` varchar(500) DEFAULT NULL,
+  `fileName` varchar(255) DEFAULT NULL,
+  `fileSize` int(11) DEFAULT NULL,
+  `thumbnail` varchar(500) DEFAULT NULL,
+>>>>>>> Stashed changes
   `replyToId` int(11) DEFAULT NULL,
   `isRead` tinyint(1) NOT NULL DEFAULT 0,
   `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),

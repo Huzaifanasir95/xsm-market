@@ -1,6 +1,11 @@
 // Admin configuration
 let adminData: { adminEmail: string | null; adminUsername: string | null } | null = null;
 
+// Get API URL from environment variables
+const getApiUrl = () => {
+  return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api');
+};
+
 // Fetch admin data from backend
 const fetchAdminData = async (): Promise<{ adminEmail: string | null; adminUsername: string | null }> => {
   if (adminData !== null) {
@@ -8,8 +13,18 @@ const fetchAdminData = async (): Promise<{ adminEmail: string | null; adminUsern
   }
   
   try {
-    // Use the PHP backend directly on port 5000
-    const response = await fetch('http://localhost:5000/admin/email');
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return { adminEmail: null, adminUsername: null };
+    }
+
+    // Use the backend URL from environment variables
+    const response = await fetch(`${getApiUrl()}/admin/email`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
     
     if (response.ok) {
       const data = await response.json();
@@ -28,37 +43,49 @@ const fetchAdminData = async (): Promise<{ adminEmail: string | null; adminUsern
 
 export const ADMIN_CONFIG = {
   // This is now fetched from backend .env file
-  ADMIN_EMAIL: 'rebirthcar63@gmail.com', // Fallback, actual value comes from backend
+  ADMIN_EMAIL: 'hamzasheikh1228@gmail.com', // Fallback, actual value comes from backend
 } as const;
 
 /**
- * Check if a user is an admin based on their email or username compared to backend admin_email/admin_username
+ * Check if a user is an admin based on their isAdmin flag from the database
  * @param userEmail The user's email address
  * @param username The user's username (optional)
  * @returns Promise<boolean> true if the user is an admin, false otherwise
  */
 export const isCurrentUserAdmin = async (userEmail: string | undefined, username?: string | undefined): Promise<boolean> => {
-  if (!userEmail && !username) return false;
-  
-  const { adminEmail, adminUsername } = await fetchAdminData();
-  
-  // Check email match
-  if (userEmail && adminEmail) {
-    const emailMatch = userEmail.toLowerCase() === adminEmail.toLowerCase();
-    if (emailMatch) {
-      return true;
+  try {
+    // First check if user has isAdmin flag set to true in localStorage
+    const userData = localStorage.getItem('userData');
+    if (userData) {
+      const user = JSON.parse(userData);
+      if (user.isAdmin === true) {
+        console.log('✅ User is admin (isAdmin flag set to true)');
+        return true;
+      }
     }
-  }
-  
-  // Check username match
-  if (username && adminUsername) {
-    const usernameMatch = username.toLowerCase() === adminUsername.toLowerCase();
-    if (usernameMatch) {
-      return true;
+    
+    // Fallback: check against backend admin configuration
+    const { adminEmail, adminUsername } = await fetchAdminData();
+    
+    const isAdminByEmail = adminEmail && userEmail && 
+      userEmail.toLowerCase() === adminEmail.toLowerCase();
+    
+    const isAdminByUsername = adminUsername && username && 
+      username.toLowerCase() === adminUsername.toLowerCase();
+    
+    const isAdmin = isAdminByEmail || isAdminByUsername;
+    
+    if (isAdmin) {
+      console.log('✅ User is admin (matched admin email/username)');
+    } else {
+      console.log('❌ User is not admin');
     }
+    
+    return isAdmin;
+  } catch (error) {
+    console.error('❌ Error checking admin status:', error);
+    return false;
   }
-  
-  return false;
 };
 
 /**

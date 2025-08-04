@@ -4,7 +4,19 @@ import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
 import { useAuth } from '@/context/useAuth';
 import { User } from '@/context/AuthContext';
-import { updateProfile, changePassword, logout, API_URL } from '@/services/auth';
+import { updateProfile, changePassword, logout } from '@/services/auth';
+
+// Get API URL from environment variables
+const getApiUrl = () => {
+  return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api');
+};
+
+const getBaseUrl = () => {
+  const apiUrl = getApiUrl();
+  return apiUrl.replace('/api', '');
+};
+
+const API_URL = getBaseUrl();
 
 interface ProfileProps {
   setCurrentPage: (page: string) => void;

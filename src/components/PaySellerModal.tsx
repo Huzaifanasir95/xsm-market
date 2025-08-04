@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
 import { X, DollarSign, CheckCircle, Shield } from 'lucide-react';
 
+// Get API URL from environment variables
+const getApiUrl = () => {
+  return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api');
+};
+
+const getBaseUrl = () => {
+  const apiUrl = getApiUrl();
+  return apiUrl.replace('/api', '');
+};
+
 interface PaySellerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -47,7 +57,7 @@ const PaySellerModal: React.FC<PaySellerModalProps> = ({
 
       // Call the API to confirm payment
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/deals/${deal.id}/buyer-paid-seller`, {
+      const response = await fetch(`${getBaseUrl()}/deals/${deal.id}/buyer-paid-seller`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

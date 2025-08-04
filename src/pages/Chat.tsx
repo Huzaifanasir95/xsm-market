@@ -1,7 +1,78 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Flag, User, Shield, MessageCircle, Search, Image as ImageIcon } from 'lucide-react';
+import { Send, Shield, MessageCircle, Search, Image as ImageIcon, Video } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { API_URL } from '@/services/auth';
+import { getImageUrl } from '@/config/api';
+
+// Custom scrollbar styles
+const scrollbarStyles = `
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #ffd000 #1A1A1A;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #1A1A1A;
+    border-radius: 6px;
+    border: 1px solid #333333;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ffd000 0%, #ffaa00 100%);
+    border-radius: 6px;
+    border: 2px solid #1A1A1A;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #ffdd33 0%, #ffbb33 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #e6b800 0%, #cc9900 100%);
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar {
+    width: 12px;
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-track {
+    background: #000000;
+    border-radius: 6px;
+    border: 1px solid #333333;
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ffd000 0%, #ffaa00 100%);
+    border-radius: 6px;
+    border: 2px solid #000000;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #ffdd33 0%, #ffbb33 100%);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #e6b800 0%, #cc9900 100%);
+  }
+  
+  .messages-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #333333 0%, #555555 100%);
+    border: 2px solid #1A1A1A;
+  }
+  
+  .messages-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #666666 0%, #777777 100%);
+  }
+`;
 
 interface Message {
   id: number;
@@ -9,7 +80,6 @@ interface Message {
   senderId: string;
   chatId: number;
   messageType: string;
-  mediaUrl?: string;
   isRead: boolean;
   createdAt: string;
   sender: {
@@ -45,14 +115,14 @@ const Chat: React.FC = () => {
   const [filteredChats, setFilteredChats] = useState<ChatData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [reportModalOpen, setReportModalOpen] = useState(false);
-  const [reportReason, setReportReason] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [lastMessageId, setLastMessageId] = useState<number | null>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [imageUploading, setImageUploading] = useState(false);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [videoUploading, setVideoUploading] = useState(false);
 
   // Remove Socket.IO and replace with polling-based real-time updates
   useEffect(() => {
@@ -239,38 +309,111 @@ const Chat: React.FC = () => {
 
   const handleSendImage = async (file: File) => {
     if (!selectedChat || !user || !file) return;
+    
+    // Check file size (limit to 10MB for images)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image file size must be less than 10MB');
+      return;
+    }
+    
     setImageUploading(true);
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('file', file); // Changed from 'image' to 'file'
       formData.append('messageType', 'image');
-      // Optionally add more fields if backend expects
-      const response = await fetch(`${API_URL}/chat/chats/${selectedChat.id}/messages`, {
+      
+      console.log('Uploading image:', file.name, 'Size:', file.size);
+      
+      // Use the correct upload endpoint
+      const response = await fetch(`${API_URL}/chat/chats/${selectedChat.id}/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
         },
         body: formData
       });
+      
       if (response.ok) {
         const message = await response.json();
+        console.log('Image upload successful:', message);
         setMessages(prev => [...prev, message]);
         setLastMessageId(message.id);
         updateChatLastMessage(message);
         setTimeout(() => checkForNewMessages(), 500);
+      } else {
+        const errorData = await response.json();
+        console.error('Image upload failed:', errorData);
+        throw new Error(errorData.message || 'Failed to upload image');
       }
     } catch (error) {
       console.error('Error sending image:', error);
+      alert(`Failed to send image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setImageUploading(false);
     }
   };
 
+  const handleSendVideo = async (file: File) => {
+    if (!selectedChat || !user || !file) return;
+    
+    // Check file size (limit to 50MB for videos)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Video file size must be less than 50MB');
+      return;
+    }
+    
+    setVideoUploading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('file', file); // Changed from 'video' to 'file'
+      formData.append('messageType', 'video');
+      
+      console.log('Uploading video:', file.name, 'Size:', file.size);
+      
+      // Use the correct upload endpoint
+      const response = await fetch(`${API_URL}/chat/chats/${selectedChat.id}/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (response.ok) {
+        const message = await response.json();
+        console.log('Video upload successful:', message);
+        setMessages(prev => [...prev, message]);
+        setLastMessageId(message.id);
+        updateChatLastMessage(message);
+        setTimeout(() => checkForNewMessages(), 500);
+      } else {
+        const errorData = await response.json();
+        console.error('Video upload failed:', errorData);
+        throw new Error(errorData.message || 'Failed to upload video');
+      }
+    } catch (error) {
+      console.error('Error sending video:', error);
+      alert(`Failed to send video: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setVideoUploading(false);
+    }
+  };
+
   const updateChatLastMessage = (message: Message) => {
+    let displayMessage = message.content;
+    
+    // Show appropriate text for media messages
+    if (message.messageType === 'image') {
+      displayMessage = '📷 Sent an image';
+    } else if (message.messageType === 'video') {
+      displayMessage = '🎥 Sent a video';
+    }
+    
     setChats(prev => prev.map(chat => 
       chat.id === message.chatId 
-        ? { ...chat, lastMessage: message.content, lastMessageTime: message.createdAt }
+        ? { ...chat, lastMessage: displayMessage, lastMessageTime: message.createdAt }
         : chat
     ).sort((a, b) => new Date(b.lastMessageTime || 0).getTime() - new Date(a.lastMessageTime || 0).getTime()));
   };
@@ -282,13 +425,13 @@ const Chat: React.FC = () => {
     }
   };
 
-  const handleReport = () => {
-    if (reportReason.trim()) {
-      alert(`User reported successfully. Reason: ${reportReason}\n\nOur admin team will review this report within 24 hours.`);
-      setReportModalOpen(false);
-      setReportReason('');
-    }
-  };
+  // const handleReport = () => {
+  //   if (reportReason.trim()) {
+  //     alert(`User reported successfully. Reason: ${reportReason}\n\nOur admin team will review this report within 24 hours.`);
+  //     setReportModalOpen(false);
+  //     setReportReason('');
+  //   }
+  // };
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -345,6 +488,7 @@ const Chat: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray">
+      <style dangerouslySetInnerHTML={{ __html: scrollbarStyles }} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-xsm-yellow mb-4">Secure Chat</h1>
@@ -374,7 +518,10 @@ const Chat: React.FC = () => {
                 />
               </div>
 
-              <div className="overflow-y-auto" style={{ height: 'calc(100% - 113px)' }}>
+              <div 
+                className="overflow-y-auto custom-scrollbar conversation-scrollbar" 
+                style={{ height: 'calc(100% - 113px)' }}
+              >
                 {loading ? (
                   <div className="p-4 text-center text-white">Loading chats...</div>
                 ) : filteredChats.length === 0 ? (
@@ -440,19 +587,12 @@ const Chat: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => setReportModalOpen(true)}
-                      className="text-gray-400 hover:text-red-400 transition-colors"
-                      title="Report User"
-                    >
-                      <Flag className="w-5 h-5" />
-                    </button>
                   </div>
 
                   {/* Messages */}
                   <div 
                     ref={messagesContainerRef}
-                    className="flex-1 overflow-y-auto p-4 space-y-4"
+                    className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar messages-scrollbar"
                   >
                     {messages.length === 0 ? (
                       <div className="text-center text-gray-400 py-8">
@@ -478,15 +618,102 @@ const Chat: React.FC = () => {
                               </p>
                             )}
                             {message.messageType === 'image' && (message.mediaUrl || message.content) ? (
-                              <img
-                                src={message.mediaUrl ? `http://localhost:5000${message.mediaUrl}` : message.content}
-                                alt="Sent image"
-                                className="rounded-lg max-w-[200px] max-h-[200px] mb-2 border border-xsm-yellow"
-                                style={{ objectFit: 'cover' }}
-                              />
-                            ) : message.content ? (
+                              <div className="relative">
+                                <img
+                                  src={getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content}
+                                  alt="Sent image"
+                                  className="rounded-lg max-w-[200px] max-h-[200px] mb-2 border border-xsm-yellow cursor-pointer"
+                                  style={{ objectFit: 'cover' }}
+                                  onClick={() => window.open(getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content, '_blank')}
+                                  onError={(e) => {
+                                    console.error('Image failed to load:', {
+                                      originalContent: message.content,
+                                      mediaUrl: message.mediaUrl,
+                                      resolvedUrl: getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content
+                                    });
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    // Show fallback
+                                    const fallback = target.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                />
+                                {/* Fallback for broken images */}
+                                <div 
+                                  className="absolute inset-0 bg-gray-700 rounded-lg flex items-center justify-center text-white text-sm"
+                                  style={{ display: 'none' }}
+                                >
+                                  <div className="text-center p-4">
+                                    <div className="text-2xl mb-2">🖼️</div>
+                                    <div>Image unavailable</div>
+                                    <button 
+                                      onClick={() => {
+                                        const url = getImageUrl(message.content) || message.content;
+                                        window.open(url, '_blank');
+                                      }}
+                                      className="mt-2 px-3 py-1 bg-xsm-yellow text-black rounded text-xs hover:bg-yellow-500"
+                                    >
+                                      Try Opening
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : message.messageType === 'video' && (message.mediaUrl || message.content) ? (
+                              <div className="relative rounded-lg overflow-hidden max-w-[250px] max-h-[200px] mb-2 border border-xsm-yellow bg-black">
+                                <video
+                                  src={getImageUrl(message.content) || message.content}
+                                  className="w-full h-full object-cover"
+                                  controls
+                                  preload="metadata"
+                                  crossOrigin="anonymous"
+                                  style={{ maxHeight: '200px' }}
+                                  onError={(e) => {
+                                    console.error('Video failed to load:', {
+                                      originalContent: message.content,
+                                      mediaUrl: message.mediaUrl,
+                                      resolvedUrl: getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content,
+                                      error: e
+                                    });
+                                    const target = e.target as HTMLVideoElement;
+                                    target.style.display = 'none';
+                                    // Show fallback
+                                    const fallback = target.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                  onLoadStart={() => {
+                                    console.log('Video load started:', getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content);
+                                  }}
+                                >
+                                  <source src={getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content} type="video/mp4" />
+                                  Your browser does not support the video tag.
+                                </video>
+                                {/* Fallback display for broken videos */}
+                                <div 
+                                  className="absolute inset-0 bg-gray-700 flex items-center justify-center text-white text-sm"
+                                  style={{ display: 'none' }}
+                                >
+                                  <div className="text-center p-4">
+                                    <div className="text-2xl mb-2">🎥</div>
+                                    <div>Video file</div>
+                                    <div className="text-xs mt-1 break-all px-2 max-w-[200px]">
+                                      {message.content.split('/').pop()}
+                                    </div>
+                                    <button 
+                                      onClick={() => {
+                                        const url = getImageUrl(message.content) || message.content;
+                                        console.log('Attempting to open video:', url);
+                                        window.open(url, '_blank');
+                                      }}
+                                      className="mt-2 px-3 py-1 bg-xsm-yellow text-black rounded text-xs hover:bg-yellow-500"
+                                    >
+                                      Open Video
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
                               <p className="text-sm">{message.content}</p>
-                            ) : null}
+                            )}
                             <p
                               className={`text-xs mt-1 ${
                                 message.senderId === user?.id ? 'text-xsm-dark-gray' : 'text-gray-400'
@@ -508,11 +735,17 @@ const Chat: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => imageInputRef.current?.click()}
-                        className="p-2 text-gray-400 hover:text-xsm-yellow rounded-lg border border-xsm-yellow bg-xsm-dark-gray"
+                        className={`p-2 text-gray-400 hover:text-xsm-yellow rounded-lg border border-xsm-yellow bg-xsm-dark-gray ${
+                          imageUploading ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                         title="Attach Image"
-                        disabled={imageUploading}
+                        disabled={imageUploading || videoUploading}
                       >
-                        <ImageIcon className="w-5 h-5" />
+                        {imageUploading ? (
+                          <div className="w-5 h-5 border-2 border-xsm-yellow border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <ImageIcon className="w-5 h-5" />
+                        )}
                       </button>
                       <input
                         ref={imageInputRef}
@@ -522,6 +755,34 @@ const Chat: React.FC = () => {
                         onChange={e => {
                           if (e.target.files && e.target.files[0]) {
                             handleSendImage(e.target.files[0]);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                      {/* Video Button */}
+                      <button
+                        type="button"
+                        onClick={() => videoInputRef.current?.click()}
+                        className={`p-2 text-gray-400 hover:text-xsm-yellow rounded-lg border border-xsm-yellow bg-xsm-dark-gray ${
+                          videoUploading ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        title="Attach Video"
+                        disabled={videoUploading || imageUploading}
+                      >
+                        {videoUploading ? (
+                          <div className="w-5 h-5 border-2 border-xsm-yellow border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Video className="w-5 h-5" />
+                        )}
+                      </button>
+                      <input
+                        ref={videoInputRef}
+                        type="file"
+                        accept="video/*"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleSendVideo(e.target.files[0]);
                             e.target.value = '';
                           }
                         }}
@@ -568,35 +829,6 @@ const Chat: React.FC = () => {
           </p>
         </div>
       </div>
-
-      {/* Report Modal */}
-      {reportModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-xsm-dark-gray rounded-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-xsm-yellow mb-4">Report User</h3>
-            <textarea
-              value={reportReason}
-              onChange={(e) => setReportReason(e.target.value)}
-              placeholder="Please describe the reason for reporting this user..."
-              className="w-full h-24 px-4 py-2 bg-xsm-black text-white rounded-lg border border-xsm-medium-gray focus:outline-none focus:border-xsm-yellow resize-none"
-            />
-            <div className="flex space-x-3 mt-4">
-              <button
-                onClick={() => setReportModalOpen(false)}
-                className="flex-1 px-4 py-2 border border-xsm-medium-gray text-white rounded-lg hover:bg-xsm-medium-gray transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReport}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Submit Report
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

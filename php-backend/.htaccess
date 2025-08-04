@@ -16,7 +16,11 @@ RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/uploads/
+RewriteCond %{REQUEST_URI} !^/webhooks/
 RewriteRule ^api/(.*)$ index.php [QSA,L]
+
+# Handle webhook requests directly
+RewriteRule ^webhooks/nowpayments/?$ webhooks/nowpayments.php [QSA,L]
 
 # Route root API requests to index.php
 RewriteCond %{REQUEST_FILENAME} !-f

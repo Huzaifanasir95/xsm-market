@@ -32,16 +32,28 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   // Check admin status when user changes
   useEffect(() => {
     const checkAdminStatus = async () => {
-      if (isLoggedIn && user?.email) {
-        const adminStatus = await isCurrentUserAdmin(user.email, user.username);
-        setIsUserAdmin(adminStatus);
+      if (isLoggedIn && user) {
+        // First check if user has isAdmin flag set to true
+        if (user.isAdmin === true) {
+          console.log('✅ User is admin (isAdmin flag set to true)');
+          setIsUserAdmin(true);
+          return;
+        }
+        
+        // Fallback: check against backend admin configuration
+        if (user.email || user.username) {
+          const adminStatus = await isCurrentUserAdmin(user.email, user.username);
+          setIsUserAdmin(adminStatus);
+        } else {
+          setIsUserAdmin(false);
+        }
       } else {
         setIsUserAdmin(false);
       }
     };
 
     checkAdminStatus();
-  }, [isLoggedIn, user?.email, user?.username]);
+  }, [isLoggedIn, user?.email, user?.username, user?.isAdmin]);
 
   const handleLogout = () => {
     logout();

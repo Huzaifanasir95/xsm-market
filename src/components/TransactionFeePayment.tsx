@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
 import { X, CreditCard, Bitcoin, Zap, DollarSign, User, AlertCircle, CheckCircle } from 'lucide-react';
+import CryptoPaymentModal from './CryptoPaymentModal';
 
-const API_URL = 'http://localhost:5000';
+// Get API URL from environment variables
+const getApiUrl = () => {
+  return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api');
+};
+
+const getBaseUrl = () => {
+  const apiUrl = getApiUrl();
+  return apiUrl.replace('/api', '');
+};
+
+const API_URL = getBaseUrl();
 
 interface Deal {
   id: number;
@@ -39,12 +50,27 @@ const TransactionFeePayment: React.FC<TransactionFeePaymentProps> = ({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showCryptoModal, setShowCryptoModal] = useState(false);
 
   if (!isOpen || !deal) return null;
 
+  console.log('TransactionFeePayment state:', { 
+    isOpen, 
+    deal: !!deal, 
+    showCryptoModal, 
+    selectedPaymentMethod,
+    showConfirmation 
+  });
+
   const handlePaymentMethodSelect = (method: PaymentMethod) => {
+    console.log('Payment method selected:', method);
     setSelectedPaymentMethod(method);
-    setShowConfirmation(true);
+    if (method === 'crypto') {
+      console.log('Opening crypto modal');
+      setShowCryptoModal(true);
+    } else {
+      setShowConfirmation(true);
+    }
   };
 
   const handleConfirmPayment = async () => {
@@ -83,6 +109,19 @@ const TransactionFeePayment: React.FC<TransactionFeePaymentProps> = ({
 
   const handleBack = () => {
     setShowConfirmation(false);
+    setSelectedPaymentMethod(null);
+  };
+
+  const handleCryptoPaymentComplete = () => {
+    console.log('Crypto payment completed');
+    setShowCryptoModal(false);
+    onPaymentComplete();
+    onClose();
+  };
+
+  const handleCloseCryptoModal = () => {
+    console.log('Closing crypto modal');
+    setShowCryptoModal(false);
     setSelectedPaymentMethod(null);
   };
 
@@ -156,22 +195,7 @@ const TransactionFeePayment: React.FC<TransactionFeePaymentProps> = ({
                 <h3 className="text-lg font-semibold text-white mb-4">Choose Payment Method</h3>
                 <div className="grid grid-cols-1 gap-4">
                   {/* Stripe Option */}
-                  <button
-                    onClick={() => handlePaymentMethodSelect('stripe')}
-                    className="flex items-center justify-between p-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-xsm-yellow rounded-lg transition-all group"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="bg-purple-600 p-3 rounded-lg group-hover:bg-purple-500 transition-colors">
-                        <CreditCard className="text-white" size={24} />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="text-white font-semibold">Stripe</h4>
-                        <p className="text-gray-400 text-sm">Credit/Debit Card, Bank Transfer</p>
-                        <p className="text-green-400 text-xs">Instant processing</p>
-                      </div>
-                    </div>
-                    <Zap className="text-xsm-yellow opacity-0 group-hover:opacity-100 transition-opacity" size={20} />
-                  </button>
+                 
 
                   {/* Crypto Option */}
                   <button
@@ -184,8 +208,8 @@ const TransactionFeePayment: React.FC<TransactionFeePaymentProps> = ({
                       </div>
                       <div className="text-left">
                         <h4 className="text-white font-semibold">Cryptocurrency</h4>
-                        <p className="text-gray-400 text-sm">Bitcoin, Ethereum, USDT</p>
-                        <p className="text-yellow-400 text-xs">Lower fees, more private</p>
+                        <p className="text-gray-400 text-sm">Bitcoin, Ethereum, USDT, and more</p>
+                        <p className="text-yellow-400 text-xs">Lower fees, secure & private</p>
                       </div>
                     </div>
                     <Zap className="text-xsm-yellow opacity-0 group-hover:opacity-100 transition-opacity" size={20} />
@@ -292,6 +316,18 @@ const TransactionFeePayment: React.FC<TransactionFeePaymentProps> = ({
           )}
         </div>
       </div>
+      
+      {/* Crypto Payment Modal */}
+      <CryptoPaymentModal
+        isOpen={showCryptoModal}
+        onClose={handleCloseCryptoModal}
+        deal={deal ? {
+          id: deal.id,
+          channel_title: deal.channel_title,
+          escrow_fee: deal.escrow_fee
+        } : null}
+        onPaymentComplete={handleCryptoPaymentComplete}
+      />
     </div>
   );
 };

@@ -31,6 +31,10 @@ const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const { isLoggedIn, user } = useAuth();
   
+  // Type assertion for user to include isAdmin property
+  type AdminUser = typeof user & { isAdmin?: boolean };
+  const adminUser = user as AdminUser;
+  
   // Initialize token manager for session handling
   useTokenManager();
   
@@ -79,6 +83,11 @@ const AppContent: React.FC = () => {
       case 'forgot-password':
         return <ForgotPassword setCurrentPage={setCurrentPage} />;
       case 'admin-dashboard':
+        // Only require login to access admin dashboard
+        if (!isLoggedIn) {
+          setCurrentPage('login');
+          return <Login setCurrentPage={setCurrentPage} />;
+        }
         return <AdminDashboard setCurrentPage={setCurrentPage} />;
       default:
         return <div className="text-white p-8">Default Home</div>;

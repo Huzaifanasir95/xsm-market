@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Flag, User, Shield, MessageCircle, Image, FileVideo } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { io, Socket } from 'socket.io-client';
+import { getImageUrl } from '@/config/api';
 
 interface Message {
   id: number;
@@ -53,7 +54,6 @@ const Chat: React.FC = () => {
   const [reportReason, setReportReason] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -118,21 +118,6 @@ const Chat: React.FC = () => {
         }
       });
       const data = await response.json();
-      console.log('Fetched messages:', data);
-      
-      // Debug image messages to verify they have proper mediaUrl
-      data.forEach((msg: Message, index: number) => {
-        if (msg.messageType === 'image') {
-          console.log(`🖼️ Image message ${index}:`, {
-            id: msg.id,
-            messageType: msg.messageType,
-            mediaUrl: msg.mediaUrl,
-            content: msg.content,
-            imageSource: msg.mediaUrl || msg.content
-          });
-        }
-      });
-      
       setMessages(data);
       
       // Mark messages as read
@@ -147,78 +132,140 @@ const Chat: React.FC = () => {
     }
   };
 
-  // Simplified image upload function
-  const uploadImageMessage = async (file: File) => {
-    if (!selectedChat || !user) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('messageType', 'image');
-      
-      console.log('🚀 Uploading image:', file.name, file.size);
-
-      const response = await fetch(`/api/chat/chats/${selectedChat.id}/upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status}`);
-      }
-
-      const newMessage = await response.json();
-      console.log('✅ Upload successful:', newMessage);
-      
-      // Add to messages immediately
-      setMessages(prev => [...prev, newMessage]);
-      
-      // Clear form
-      setSelectedImage(null);
-      setImagePreview(null);
-      if (imageInputRef.current) {
-        imageInputRef.current.value = '';
-      }
-      
-      return newMessage;
-    } catch (error) {
-      console.error('❌ Upload failed:', error);
-      alert('Failed to upload image: ' + error.message);
-    }
-  };
   const handleSendMessage = async () => {
-    if (!selectedChat || !user || !newMessage.trim()) return;
+    console.log('=== handleSendMessage START ===');
+    console.log('newMessage:', newMessage);
+    console.log('selectedImage:', selectedImage);
+    console.log('selectedChat:', selectedChat);
+    console.log('user:', user);
+    
+    // Check if we have either a message or an image
+    const hasMessage = newMessage.trim().length > 0;
+    const hasImage = selectedImage !== null;
+    
+    console.log('hasMessage:', hasMessage);
+    console.log('hasImage:', hasImage);
+    
+    if ((!hasMessage && !hasImage) || !selectedChat || !user) {
+      console.log('Early return - conditions not met');
+      console.log('hasMessage || hasImage:', hasMessage || hasImage);
+      console.log('selectedChat:', !!selectedChat);
+      console.log('user:', !!user);
+      return;
+    }
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/chat/chats/${selectedChat.id}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          content: newMessage.trim(),
-          messageType: 'text'
-        })
-      });
+      console.log('Token available:', !!token);
+      
+      // If there's an image, upload it first
+      if (hasImage && selectedImage) {
+        console.log('=== TAKING IMAGE UPLOAD PATH ===');
+        const formData = new FormData();
+        formData.append('file', selectedImage);
+        formData.append('messageType', 'image');
+        if (hasMessage) {
+          console.log('Adding text content to image message');
+          formData.append('content', newMessage.trim());
+        }
 
-      if (!response.ok) {
-        throw new Error(`Message failed: ${response.status}`);
+        const uploadUrl = `/api/chat/chats/${selectedChat.id}/upload`;
+        console.log('Uploading image to:', uploadUrl);
+        console.log('FormData entries:');
+        for (const [key, value] of formData.entries()) {
+          console.log(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size}bytes)` : value);
+        }
+
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        console.log('Upload response status:', response.status);
+        console.log('Upload response headers:', Object.fromEntries(response.headers.entries()));
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Upload error response:', errorText);
+          throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+        }
+
+        const message = await response.json();
+        console.log('Upload success, message:', message);
+        
+        // Add to local messages
+        setMessages(prev => [...prev, message]);
+        
+        // Emit to socket for real-time delivery (if socket is available)
+        if (socket) {
+          socket.emit('send_message', {
+            ...message,
+            chatId: selectedChat.id
+          });
+        }
+
+        // Update chat list
+        updateChatLastMessage(message);
+        
+        // Clear form
+        setNewMessage('');
+        setSelectedImage(null);
+        setImagePreview(null);
+        if (imageInputRef.current) {
+          imageInputRef.current.value = '';
+        }
+      } else if (hasMessage) {
+        console.log('=== TAKING TEXT MESSAGE PATH ===');
+        // Send text message
+        const messageUrl = `/api/chat/chats/${selectedChat.id}/messages`;
+        console.log('Sending text message to:', messageUrl);
+        const response = await fetch(messageUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            content: newMessage.trim(),
+            messageType: 'text'
+          })
+        });
+
+        console.log('Message response status:', response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Message error response:', errorText);
+          throw new Error(`Message failed: ${response.status} - ${errorText}`);
+        }
+
+        const message = await response.json();
+        
+        // Add to local messages
+        setMessages(prev => [...prev, message]);
+        
+        // Emit to socket for real-time delivery (if socket is available)
+        if (socket) {
+          socket.emit('send_message', {
+            ...message,
+            chatId: selectedChat.id
+          });
+        }
+
+        // Update chat list
+        updateChatLastMessage(message);
+        
+        setNewMessage('');
       }
-
-      const textMessage = await response.json();
-      setMessages(prev => [...prev, textMessage]);
-      setNewMessage('');
     } catch (error) {
+      console.error('=== ERROR IN handleSendMessage ===');
       console.error('Error sending message:', error);
       alert('Failed to send message: ' + error.message);
     }
-  };
+    console.log('=== handleSendMessage END ===');
   };
 
   const updateChatLastMessage = (message: Message) => {
@@ -233,114 +280,19 @@ const Chat: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Simple image rendering - just show the image with a direct URL
-  const renderChatImage = (message: Message) => {
-    // Build image URL - try different combinations
-    const imagePaths = [
-      message.mediaUrl,
-      message.content,
-      message.content?.startsWith('/uploads/chat/') ? message.content : null
-    ].filter(Boolean);
-    
-    if (imagePaths.length === 0) {
-      return (
-        <div className="bg-gray-100 border border-gray-300 text-gray-700 px-3 py-2 rounded text-sm">
-          📷 Image (no path available)
-        </div>
-      );
-    }
-    
-    return (
-      <div className="space-y-2">
-        {imagePaths.map((imagePath, index) => {
-          if (!imagePath) return null;
-          
-          const imageUrl = imagePath.startsWith('http') 
-            ? imagePath 
-            : `http://localhost:5000${imagePath}`;
-            
-          return (
-            <div key={index} className="border border-gray-300 rounded p-2">
-              <img 
-                src={imageUrl}
-                alt="Chat image"
-                className="max-w-full h-auto rounded cursor-pointer"
-                style={{ maxHeight: '150px' }}
-                onClick={() => window.open(imageUrl, '_blank')}
-                onError={(e) => {
-                  console.error('Failed to load:', imageUrl);
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
-              />
-              <div className="text-xs text-gray-500 mt-1">
-                {imagePath}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // Function to check if message has text content (not image path)
-  const getMessageTextContent = (message: Message) => {
-    if (!message.content) return null;
-    
-    // Don't show content if it's an image path
-    if (message.content.includes('/uploads/chat/')) return null;
-    
-    return message.content;
-  };
-
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     console.log('Image selection event:', file);
     if (file && file.type.startsWith('image/')) {
-      processImageFile(file);
+      setSelectedImage(file);
+      console.log('Image selected:', file.name, file.size);
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+      console.log('Image preview URL created:', previewUrl);
     } else {
       console.log('Invalid file selected or no file selected');
-      alert('Please select a valid image file');
-    }
-  };
-
-  const processImageFile = (file: File) => {
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB');
-      return;
-    }
-    
-    setSelectedImage(file);
-    console.log('Image selected:', file.name, file.size);
-    
-    // Create preview URL using the same method as SellChannel
-    const previewUrl = URL.createObjectURL(file);
-    setImagePreview(previewUrl);
-    console.log('Image preview URL created:', previewUrl);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    const imageFile = droppedFiles.find(file => file.type.startsWith('image/'));
-    
-    if (imageFile) {
-      processImageFile(imageFile);
-    } else {
-      alert('Please drop a valid image file');
     }
   };
 
@@ -523,17 +475,27 @@ const Chat: React.FC = () => {
                             )}
                             
                             {/* Render image if it's an image message */}
-                            {message.messageType === 'image' && (
+                            {message.messageType === 'image' && message.mediaUrl && (
                               <div className="mb-2">
-                                {renderChatImage(message)}
+                                <img 
+                                  src={getImageUrl(message.mediaUrl) || ''}
+                                  alt="Shared image"
+                                  className="max-w-full h-auto rounded-lg cursor-pointer border border-xsm-yellow"
+                                  onClick={() => window.open(getImageUrl(message.mediaUrl) || '', '_blank')}
+                                  style={{ maxHeight: '200px' }}
+                                  onError={(e) => {
+                                    console.error('Image failed to load:', message.mediaUrl);
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                  }}
+                                />
                               </div>
                             )}
                             
-                            {/* Render text content if present and not an image path */}
-                            {(() => {
-                              const textContent = getMessageTextContent(message);
-                              return textContent ? <p className="text-sm">{textContent}</p> : null;
-                            })()}
+                            {/* Render text content if present */}
+                            {message.content && (
+                              <p className="text-sm">{message.content}</p>
+                            )}
                             
                             <p
                               className={`text-xs mt-1 ${
@@ -551,18 +513,36 @@ const Chat: React.FC = () => {
 
                   {/* Message Input */}
                   <div className="p-4 border-t border-xsm-medium-gray bg-xsm-black">
+                    {/* Image Preview */}
+                    {imagePreview && (
+                      <div className="mb-3 p-3 bg-xsm-dark-gray rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-white">Image selected:</span>
+                          <button
+                            onClick={clearImageSelection}
+                            className="text-red-400 hover:text-red-300 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <img 
+                          src={imagePreview} 
+                          alt="Preview" 
+                          className="max-w-full h-auto rounded max-h-20"
+                        />
+                      </div>
+                    )}
                     
                     <div className="flex space-x-2">
-                      {/* Simple Upload Image Button */}
+                      {/* Image Button */}
                       <button
                         type="button"
                         onClick={() => imageInputRef.current?.click()}
-                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                        title="Upload Image"
+                        className="p-2 text-gray-400 hover:text-xsm-yellow rounded-lg border border-xsm-yellow bg-xsm-dark-gray"
+                        title="Attach Image"
                       >
-                        📷 Image
+                        <Image className="w-5 h-5" />
                       </button>
-                      
                       <input
                         type="text"
                         value={newMessage}
@@ -578,27 +558,18 @@ const Chat: React.FC = () => {
                       />
                       <button
                         onClick={handleSendMessage}
-                        disabled={!newMessage.trim()}
+                        disabled={!newMessage.trim() && !selectedImage}
                         className="px-4 py-2 bg-xsm-yellow text-xsm-black rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Send className="w-5 h-5" />
                       </button>
-                      
-                      {/* Hidden file input */}
+                      {/* Hidden file inputs */}
                       <input
                         ref={imageInputRef}
                         type="file"
                         accept="image/*"
                         style={{ display: 'none' }}
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file && file.type.startsWith('image/')) {
-                            console.log('📷 File selected:', file.name);
-                            await uploadImageMessage(file);
-                          } else {
-                            alert('Please select a valid image file');
-                          }
-                        }}
+                        onChange={handleImageSelect}
                       />
                     </div>
                   </div>

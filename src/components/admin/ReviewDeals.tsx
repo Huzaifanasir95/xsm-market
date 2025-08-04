@@ -2,7 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, DollarSign, User, Eye, Calendar, TrendingUp, Send } from 'lucide-react';
 import { getAllDeals, markPrimaryOwnerMade } from '@/services/admin';
 
-const API_URL = 'http://localhost:5000';
+// Get API URL from environment variables
+const getApiUrl = () => {
+  return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api');
+};
+
+const getBaseUrl = () => {
+  const apiUrl = getApiUrl();
+  return apiUrl.replace('/api', '');
+};
+
+const API_URL = getBaseUrl();
 
 interface Deal {
   id: number;

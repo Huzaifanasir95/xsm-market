@@ -2,6 +2,7 @@
   "name": "xsm-market",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "description": "XSM Market - Complete Full-Stack Application",
   "scripts": {
     "setup-local": "node scripts/setup-local.js",

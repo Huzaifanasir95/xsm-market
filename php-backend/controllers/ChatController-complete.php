@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../middleware/auth.php';
 require_once __DIR__ . '/../models/Chat-complete.php';
 require_once __DIR__ . '/../models/Message.php';
 require_once __DIR__ . '/../models/ChatParticipant.php';
@@ -9,18 +9,16 @@ require_once __DIR__ . '/../config/database.php';
 
 class ChatController {
     private $db;
-    private $authMiddleware;
     
     public function __construct() {
         $database = new Database();
         $this->db = $database->getConnection();
-        $this->authMiddleware = new AuthMiddleware();
     }
     
     // Get all chats for a user
     public function getUserChats() {
         try {
-            $user = $this->authMiddleware->authenticate();
+            $user = AuthMiddleware::authenticate();
             $userId = (int)$user['id'];
             
             // Get all chats where user is an active participant
@@ -115,7 +113,7 @@ class ChatController {
     // Create or get existing chat
     public function createOrGetChat() {
         try {
-            $user = $this->authMiddleware->authenticate();
+            $user = AuthMiddleware::authenticate();
             $input = json_decode(file_get_contents('php://input'), true);
             
             $participantId = (int)($input['participantId'] ?? 0);
@@ -223,7 +221,7 @@ class ChatController {
     // Get messages for a chat
     public function getChatMessages($chatId) {
         try {
-            $user = $this->authMiddleware->authenticate();
+            $user = AuthMiddleware::authenticate();
             $userId = (int)$user['id'];
             $page = (int)($_GET['page'] ?? 1);
             $limit = (int)($_GET['limit'] ?? 50);
@@ -273,6 +271,10 @@ class ChatController {
                     'senderId' => (int)$msg['senderId'],
                     'chatId' => (int)$msg['chatId'],
                     'messageType' => $msg['messageType'],
+                    'mediaUrl' => $msg['mediaUrl'],
+                    'fileName' => $msg['fileName'],
+                    'fileSize' => $msg['fileSize'] ? (int)$msg['fileSize'] : null,
+                    'thumbnail' => $msg['thumbnail'],
                     'isRead' => (bool)$msg['isRead'],
                     'createdAt' => $msg['createdAt'],
                     'updatedAt' => $msg['updatedAt'],
@@ -311,7 +313,7 @@ class ChatController {
     // Send a message
     public function sendMessage($chatId) {
         try {
-            $user = $this->authMiddleware->authenticate();
+            $user = AuthMiddleware::authenticate();
             $senderId = (int)$user['id'];
             $replyToId = isset($_POST['replyToId']) ? (int)$_POST['replyToId'] : null;
             $messageType = $_POST['messageType'] ?? 'text';
@@ -430,7 +432,7 @@ class ChatController {
     // Mark messages as read
     public function markMessagesAsRead($chatId) {
         try {
-            $user = $this->authMiddleware->authenticate();
+            $user = AuthMiddleware::authenticate();
             $userId = (int)$user['id'];
             
             // Verify user is participant
@@ -447,7 +449,7 @@ class ChatController {
             
             // Mark all unread messages as read
             $stmt = $this->db->prepare("
-                UPDATE messages SET isRead = 1
+                UPDATE messages  SET isRead = 1
                 WHERE chatId = ? AND senderId != ? AND isRead = 0
             ");
             $stmt->execute([$chatId, $userId]);
@@ -464,7 +466,7 @@ class ChatController {
     // Create ad inquiry chat
     public function createAdInquiryChat() {
         try {
-            $user = $this->authMiddleware->authenticate();
+            $user = AuthMiddleware::authenticate();
             $input = json_decode(file_get_contents('php://input'), true);
             
             $adId = (int)($input['adId'] ?? 0);
@@ -631,7 +633,7 @@ class ChatController {
     // Admin find deal chat between buyer and seller
     public function adminFindDealChat() {
         try {
-            $currentUser = $this->authMiddleware->authenticate();
+            $currentUser = AuthMiddleware::authenticate();
             
             // Check if user is admin
             $this->checkAdminAccess($currentUser);
@@ -679,7 +681,7 @@ class ChatController {
     // Check if chat exists between users
     public function checkExistingChat() {
         try {
-            $user = $this->authMiddleware->authenticate();
+            $user = AuthMiddleware::authenticate();
             $input = json_decode(file_get_contents('php://input'), true);
             
             $sellerId = (int)($input['sellerId'] ?? 0);
@@ -720,7 +722,7 @@ class ChatController {
     // Admin send message to any chat
     public function adminSendMessage($chatId) {
         try {
-            $currentUser = $this->authMiddleware->authenticate();
+            $currentUser = AuthMiddleware::authenticate();
             
             // Check if user is admin
             $this->checkAdminAccess($currentUser);
@@ -778,7 +780,7 @@ class ChatController {
     // Admin delete individual message
     public function adminDeleteMessage($messageId) {
         try {
-            $currentUser = $this->authMiddleware->authenticate();
+            $currentUser = AuthMiddleware::authenticate();
             
             // Check if user is admin
             $this->checkAdminAccess($currentUser);
@@ -804,7 +806,7 @@ class ChatController {
     // Admin delete entire chat
     public function adminDeleteChat($chatId) {
         try {
-            $currentUser = $this->authMiddleware->authenticate();
+            $currentUser = AuthMiddleware::authenticate();
             
             // Check if user is admin
             $this->checkAdminAccess($currentUser);
@@ -842,43 +844,14 @@ class ChatController {
     
     // Helper method to check admin access
     private function checkAdminAccess($user) {
-        // Load admin email from .env
-        $envFile = __DIR__ . '/../.env';
-        $adminEmail = null;
-        $adminUsername = null;
+        // Get admin email from environment (check both formats)
+        $adminEmail = getenv('ADMIN_EMAIL') ?: getenv('admin_email');
         
-        if (file_exists($envFile)) {
-            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            foreach ($lines as $line) {
-                $line = trim($line);
-                if (strpos($line, 'admin_email') === 0) {
-                    $parts = explode('=', $line, 2);
-                    if (count($parts) === 2) {
-                        $adminEmail = trim(trim($parts[1]), ' "\'');
-                    }
-                }
-                if (strpos($line, 'admin_username') === 0) {
-                    $parts = explode('=', $line, 2);
-                    if (count($parts) === 2) {
-                        $adminUsername = trim(trim($parts[1]), ' "\'');
-                    }
-                }
-            }
-        }
+        // Check if user is admin by email or isAdmin flag
+        $isAdminByEmail = $adminEmail && strtolower($user['email']) === strtolower($adminEmail);
+        $isAdminByFlag = !empty($user['isAdmin']);
         
-        // Check if current user matches admin email or username
-        $userEmail = strtolower($user['email']);
-        $username = strtolower($user['username']);
-        
-        $isAdmin = false;
-        if ($adminEmail && $userEmail === strtolower($adminEmail)) {
-            $isAdmin = true;
-        }
-        if ($adminUsername && $username === strtolower($adminUsername)) {
-            $isAdmin = true;
-        }
-        
-        if (!$isAdmin) {
+        if (!$isAdminByEmail && !$isAdminByFlag) {
             http_response_code(403);
             echo json_encode(['message' => 'Access denied. Admin privileges required.']);
             exit;

@@ -1,0 +1,27 @@
+# API Directory Configuration
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
+
+# Security - Deny access to sensitive files
+<Files ".env">
+    Order deny,allow
+    Deny from all
+</Files>
+
+<Files "*.log">
+    Order deny,allow
+    Deny from all
+</Files>
+
+# PHP Configuration for file uploads
+php_value upload_max_filesize 50M
+php_value post_max_size 50M
+php_value max_execution_time 300
+php_value memory_limit 256M
+
+# Enable error reporting for debugging (uncomment if needed)
+# php_value display_errors On
+# php_value error_reporting E_ALL
