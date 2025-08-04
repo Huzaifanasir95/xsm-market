@@ -29,6 +29,7 @@ const getImageUrl = (ad: any) => {
 };
 
 interface Listing {
+  id: number;
   title: string;
   seller: string;
   price: string;
@@ -37,6 +38,9 @@ interface Listing {
   createdAt: string;
   reportCount: number;
   thumbnail: string;
+  primary_image?: string;
+  additional_images?: any[];
+  screenshots?: any[];
 }
 
 const ReviewListings: React.FC = () => {
@@ -60,7 +64,10 @@ const ReviewListings: React.FC = () => {
           status: ad.status || 'active',
           createdAt: ad.createdAt ? ad.createdAt.split('T')[0] : '',
           reportCount: ad.reportCount || 0,
-          thumbnail: ad.thumbnail || '/images/placeholder.svg',
+          thumbnail: ad.thumbnail || '/placeholder.svg',
+          primary_image: ad.primary_image,
+          additional_images: ad.additional_images,
+          screenshots: ad.screenshots,
         }));
         setListings(mapped);
         setLoading(false);
@@ -127,13 +134,23 @@ const ReviewListings: React.FC = () => {
         ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredListings.map((listing) => (
-            <div key={listing.title} className="bg-xsm-dark-gray rounded-xl border border-xsm-medium-gray overflow-hidden">
+            <div key={listing.id} className="bg-xsm-dark-gray rounded-xl border border-xsm-medium-gray overflow-hidden">
               {/* Listing Image */}
               <div className="aspect-video relative bg-xsm-medium-gray">
                 <img
-                  src={listing.thumbnail}
+                  src={
+                    listing.primary_image || 
+                    (listing.screenshots && listing.screenshots.length > 0 ? listing.screenshots[0].url || listing.screenshots[0] : null) || 
+                    listing.thumbnail || 
+                    '/placeholder.svg'
+                  }
                   alt={listing.title}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = '/placeholder.svg';
+                  }}
                 />
                 {listing.reportCount > 0 && (
                   <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
