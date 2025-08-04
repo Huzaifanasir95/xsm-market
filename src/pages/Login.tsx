@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/useAuth';
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { login, googleSignIn } from '@/services/auth';
 import { useToast } from "@/components/ui/use-toast";
 import { GoogleLogin } from '@react-oauth/google';
 import { Eye, EyeOff } from 'lucide-react';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 interface LoginProps {
   setCurrentPage: (page: string) => void;
@@ -19,18 +20,44 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   const { toast } = useToast();
   const { setIsLoggedIn, setUser } = useAuth();
+
+  const handleRecaptchaChange = (token: string | null) => {
+    setRecaptchaToken(token);
+  };
+
+  const resetRecaptcha = () => {
+    if (recaptchaRef.current) {
+      recaptchaRef.current.reset();
+    }
+    setRecaptchaToken(null);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please complete the reCAPTCHA verification",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     console.log('🚀 Starting login process...');
 
     try {
-      const response = await login(email, password);
+      const response = await login(email, password, recaptchaToken);
       console.log('📡 Login response:', response);
       
       // Handle special cases that don't have user data
@@ -78,6 +105,9 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
         throw new Error('Login succeeded but user data is missing');
       }
     } catch (err) {
+      // Reset reCAPTCHA on error
+      resetRecaptcha();
+      
       console.error('❌ Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to login';
       
@@ -225,11 +255,21 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
               </button>
             </div>
 
+            {/* reCAPTCHA */}
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                onChange={handleRecaptchaChange}
+                theme="dark"
+              />
+            </div>
+
             <div>
               <Button 
                 type="submit" 
                 className="w-full bg-xsm-yellow hover:bg-yellow-500 text-black"
-                disabled={isLoading}
+                disabled={isLoading || !recaptchaToken}
               >
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>

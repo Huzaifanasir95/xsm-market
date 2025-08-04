@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { useAuth } from '@/context/useAuth';
 import { GoogleLogin } from '@react-oauth/google';
 import OTPVerification from '@/components/OTPVerification';
 import { Eye, EyeOff } from 'lucide-react';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 // Email validation helper function
 const isValidEmail = (email: string): boolean => {
@@ -31,13 +32,38 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
   const [registrationEmail, setRegistrationEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   const { toast } = useToast();
   const { setIsLoggedIn, setUser } = useAuth();
+
+  const handleRecaptchaChange = (token: string | null) => {
+    setRecaptchaToken(token);
+  };
+
+  const resetRecaptcha = () => {
+    if (recaptchaRef.current) {
+      recaptchaRef.current.reset();
+    }
+    setRecaptchaToken(null);
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Signup form submitted");
     setError('');
+
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please complete the reCAPTCHA verification",
+      });
+      return;
+    }
 
     // Form validation
     if (!username || !email || !password || !confirmPassword) {
@@ -102,7 +128,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
 
     try {
       console.log("Sending registration request to backend...");
-      const response = await register(username, email, password);
+      const response = await register(username, email, password, recaptchaToken);
       console.log("Registration response:", response);
       
       // Check if response indicates verification is required
@@ -137,6 +163,9 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
         }, 1500);
       }
     } catch (err) {
+      // Reset reCAPTCHA on error
+      resetRecaptcha();
+      
       console.error("Registration failed:", err);
       let errorMessage = err instanceof Error ? err.message : 'Failed to register';
       
@@ -339,11 +368,21 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
               </div>
             </div>
 
+            {/* reCAPTCHA */}
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                onChange={handleRecaptchaChange}
+                theme="dark"
+              />
+            </div>
+
             <div>
               <Button 
                 type="submit" 
                 className="w-full bg-xsm-yellow hover:bg-yellow-500 text-black"
-                disabled={isLoading}
+                disabled={isLoading || !recaptchaToken}
                 onClick={(e) => {
                   if (!isLoading) {
                     console.log("Sign up button clicked");

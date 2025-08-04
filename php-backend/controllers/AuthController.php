@@ -4,6 +4,7 @@ require_once __DIR__ . '/../utils/EmailService.php';
 require_once __DIR__ . '/../utils/jwt.php';
 require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../utils/Validation.php';
+require_once __DIR__ . '/../utils/RecaptchaService.php';
 
 class AuthController {
     private $db;
@@ -65,6 +66,7 @@ class AuthController {
         $username = trim($input['username'] ?? '');
         $email = trim($input['email'] ?? '');
         $password = $input['password'] ?? '';
+        $recaptchaToken = $input['recaptchaToken'] ?? '';
         
         // Log registration attempt (filter out password)
         error_log('Registration attempt: ' . json_encode(['username' => $username, 'email' => $email]));
@@ -72,6 +74,26 @@ class AuthController {
         // Validation
         if (!$username || !$email || !$password) {
             Response::error('Please provide username, email and password', 400);
+            return;
+        }
+        
+        // Verify reCAPTCHA
+        try {
+            $recaptcha = new RecaptchaService();
+            if ($recaptcha->shouldEnforce()) {
+                $recaptchaResult = $recaptcha->verifyToken($recaptchaToken, $_SERVER['REMOTE_ADDR'] ?? null);
+                
+                if (!$recaptchaResult['success']) {
+                    Response::error($recaptchaResult['message'], 400, [
+                        'recaptcha_error' => true,
+                        'error_codes' => $recaptchaResult['error-codes']
+                    ]);
+                    return;
+                }
+            }
+        } catch (Exception $e) {
+            error_log('reCAPTCHA verification error: ' . $e->getMessage());
+            Response::error('reCAPTCHA verification failed', 400);
             return;
         }
         
@@ -163,12 +185,33 @@ class AuthController {
         $input = json_decode(file_get_contents('php://input'), true);
         $email = trim($input['email'] ?? '');
         $password = $input['password'] ?? '';
+        $recaptchaToken = $input['recaptchaToken'] ?? '';
         
         error_log('Login attempt: ' . $email);
         
         // Validation
         if (!$email || !$password) {
             Response::error('Please provide email and password', 400);
+            return;
+        }
+        
+        // Verify reCAPTCHA
+        try {
+            $recaptcha = new RecaptchaService();
+            if ($recaptcha->shouldEnforce()) {
+                $recaptchaResult = $recaptcha->verifyToken($recaptchaToken, $_SERVER['REMOTE_ADDR'] ?? null);
+                
+                if (!$recaptchaResult['success']) {
+                    Response::error($recaptchaResult['message'], 400, [
+                        'recaptcha_error' => true,
+                        'error_codes' => $recaptchaResult['error-codes']
+                    ]);
+                    return;
+                }
+            }
+        } catch (Exception $e) {
+            error_log('reCAPTCHA verification error: ' . $e->getMessage());
+            Response::error('reCAPTCHA verification failed', 400);
             return;
         }
         

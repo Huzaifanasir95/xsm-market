@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -8,6 +8,7 @@ import { useAuth } from '@/context/useAuth';
 import { login, register, googleSignIn } from '@/services/auth';
 import { User, Mail, Lock, X, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
+import ReCAPTCHA from 'react-google-recaptcha';
 import OTPVerification from './OTPVerification';
 import ForgotPassword from './ForgotPassword';
 
@@ -33,17 +34,42 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
   const [registrationEmail, setRegistrationEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   const { toast } = useToast();
   const { setIsLoggedIn, setUser } = useAuth();
+
+  const handleRecaptchaChange = (token: string | null) => {
+    setRecaptchaToken(token);
+  };
+
+  const resetRecaptcha = () => {
+    if (recaptchaRef.current) {
+      recaptchaRef.current.reset();
+    }
+    setRecaptchaToken(null);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please complete the reCAPTCHA verification",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await login(email, password);
+      const response = await login(email, password, recaptchaToken);
       
       if (response.user) {
         setIsLoggedIn(true);
@@ -57,6 +83,9 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
         throw new Error('Login succeeded but user data is missing');
       }
     } catch (err) {
+      // Reset reCAPTCHA on error
+      resetRecaptcha();
+      
       const errorMessage = err instanceof Error ? err.message : 'Failed to login';
       
       // Check if it's an email verification error
@@ -89,6 +118,17 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
     e.preventDefault();
     console.log("Signup form submitted");
     setError('');
+
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please complete the reCAPTCHA verification",
+      });
+      return;
+    }
 
     // Form validation
     if (!username || !email || !password || !confirmPassword) {
@@ -153,7 +193,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
 
     try {
       console.log("Sending registration request to backend...");
-      const response = await register(username, email, password);
+      const response = await register(username, email, password, recaptchaToken);
       console.log("Registration response:", response);
       
       // Check if response indicates verification is required
@@ -181,6 +221,9 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
         setIsLogin(true);
       }
     } catch (err) {
+      // Reset reCAPTCHA on error
+      resetRecaptcha();
+      
       console.error("Registration failed:", err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to register';
       
@@ -436,10 +479,20 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
               </div>
             )}
 
+            {/* reCAPTCHA */}
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                onChange={handleRecaptchaChange}
+                theme="dark"
+              />
+            </div>
+
             <Button 
               type="submit" 
               className="w-full bg-xsm-yellow hover:bg-yellow-500 text-black"
-              disabled={isLoading}
+              disabled={isLoading || !recaptchaToken}
             >
               {isLoading ? (
                 isLogin ? 'Signing in...' : 'Creating account...'
