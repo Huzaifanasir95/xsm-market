@@ -95,7 +95,7 @@ export const getUserAds = async (filters = {}) => {
       }
     });
 
-    const response = await fetch(`${API_URL}/ads/user/my-ads?${queryParams}`, {
+    const response = await fetch(`${API_URL}/ads/my-ads?${queryParams}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -188,6 +188,90 @@ export const getPlatformStats = async () => {
     return await response.json();
   } catch (error) {
     console.error('Get platform stats error:', error);
+    throw error;
+  }
+};
+
+// Alternative method to get user's ads using a different endpoint
+export const getUserAdsAlternative = async (filters = {}) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    // Try to get user data from localStorage first
+    const userDataString = localStorage.getItem('userData');
+    let userId = null;
+    
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        userId = userData.id;
+      } catch (e) {
+        console.log('Failed to parse user data from localStorage');
+      }
+    }
+
+    // If no user ID from localStorage, try to get from profile endpoint
+    if (!userId) {
+      const userResponse = await fetch(`${API_URL}/user/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!userResponse.ok) {
+        throw new Error('Failed to get user profile');
+      }
+
+      const userData = await userResponse.json();
+      userId = userData.user?.id || userData.id;
+    }
+
+    if (!userId) {
+      throw new Error('Could not determine user ID');
+    }
+
+    // Get all ads and filter by user ID on the client side temporarily
+    const allAdsResponse = await fetch(`${API_URL}/ads`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!allAdsResponse.ok) {
+      throw new Error('Failed to fetch ads');
+    }
+
+    const allAdsData = await allAdsResponse.json();
+    
+    // Filter ads by user ID (check both userId and user_id fields)
+    const userAds = allAdsData.ads.filter(ad => 
+      ad.userId == userId || ad.user_id == userId || ad.createdBy == userId
+    );
+    
+    // Apply additional filters if provided
+    let filteredAds = userAds;
+    if (filters.status) {
+      filteredAds = userAds.filter(ad => ad.status === filters.status);
+    }
+
+    return {
+      ads: filteredAds,
+      pagination: {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: filteredAds.length,
+        itemsPerPage: filteredAds.length
+      }
+    };
+
+  } catch (error) {
+    console.error('Get user ads alternative error:', error);
     throw error;
   }
 };

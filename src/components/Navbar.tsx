@@ -149,41 +149,48 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
               {/* Chat Button - only show for logged in users */}
               {/* Profile Dropdown or Login Button */}
               {isLoggedIn ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-                      <div className="w-8 h-8 bg-xsm-yellow rounded-full overflow-hidden">
-                        {user?.profilePicture ? (
-                          <img
-                            src={user.profilePicture}
-                            alt={user.username}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <User className="w-5 h-5 text-black m-1.5" />
-                        )}
-                      </div>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
-                    <DropdownMenuItem onClick={() => navigateToPage('profile')} className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigateToPage('my-deals')} className="cursor-pointer">
-                      <FileText className="mr-2 h-4 w-4" />
-                      <span>My Deals</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigateToPage('seller-deals')} className="cursor-pointer">
-                      <FileText className="mr-2 h-4 w-4" />
-                      <span>Seller Deals</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Logout</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center space-x-3">
+                  {/* Greeting text */}
+                  <span className="text-white text-sm hidden md:block">
+                    Hi, <span className="text-xsm-yellow font-medium">{user?.username || 'User'}</span>
+                  </span>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+                        <div className="w-8 h-8 bg-xsm-yellow rounded-full overflow-hidden">
+                          {user?.profilePicture ? (
+                            <img
+                              src={user.profilePicture}
+                              alt={user.username}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User className="w-5 h-5 text-black m-1.5" />
+                          )}
+                        </div>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
+                      <DropdownMenuItem onClick={() => navigateToPage('profile')} className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Profile</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigateToPage('my-deals')} className="cursor-pointer">
+                        <FileText className="mr-2 h-4 w-4" />
+                        <span>My Deals</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigateToPage('seller-deals')} className="cursor-pointer">
+                        <FileText className="mr-2 h-4 w-4" />
+                        <span>Seller Deals</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Logout</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               ) : (
                 <button
                   onClick={() => setShowAuthWidget(true)}
