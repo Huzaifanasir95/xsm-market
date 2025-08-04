@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Filter, MoreVertical, User, Shield, Ban, Mail, Edit, Trash } from 'lucide-react';
+import { Search, MoreVertical, User, Shield, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getAllUsers } from '@/services/admin';
@@ -21,7 +20,6 @@ interface UserData {
 
 const ManageUsers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +41,7 @@ const ManageUsers: React.FC = () => {
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || user.status === filterStatus;
-    return matchesSearch && matchesFilter;
+    return matchesSearch;
   });
 
   const getStatusColor = (status: string) => {
@@ -65,9 +62,9 @@ const ManageUsers: React.FC = () => {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-xsm-yellow mb-6">Manage Users</h1>
         
-        {/* Search and Filter Bar */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
             <input
               type="text"
               placeholder="Search users..."
@@ -76,18 +73,6 @@ const ManageUsers: React.FC = () => {
               className="w-full bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg px-4 py-2 pl-10 focus:outline-none focus:border-xsm-yellow text-white"
             />
             <Search className="absolute left-3 top-2.5 h-5 w-5 text-xsm-medium-gray" />
-          </div>
-          <div className="flex gap-4">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg px-4 py-2 focus:outline-none focus:border-xsm-yellow text-white"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
-              <option value="pending">Pending</option>
-            </select>
           </div>
         </div>
 
@@ -147,21 +132,8 @@ const ManageUsers: React.FC = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
                           <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit User
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Mail className="w-4 h-4 mr-2" />
-                            Send Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
                             <Shield className="w-4 h-4 mr-2" />
                             Change Role
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                            <Ban className="w-4 h-4 mr-2" />
-                            Suspend User
                           </DropdownMenuItem>
                           <DropdownMenuItem className="text-red-500 hover:text-red-400 cursor-pointer">
                             <Trash className="w-4 h-4 mr-2" />
