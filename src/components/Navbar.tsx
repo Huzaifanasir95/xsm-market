@@ -90,7 +90,13 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   return (
     <>
       {showAuthWidget && (
-        <AuthWidget onClose={() => setShowAuthWidget(false)} />
+        <AuthWidget 
+          onClose={() => setShowAuthWidget(false)} 
+          onNavigate={(page) => {
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       )}
       <nav className="bg-gradient-to-r from-xsm-black via-xsm-dark-gray to-xsm-black border-b border-xsm-medium-gray sticky top-0 z-50 relative">
         {/* Middle fade effect */}

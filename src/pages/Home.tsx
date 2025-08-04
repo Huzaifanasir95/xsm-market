@@ -415,7 +415,13 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   return (
     <>
       {showAuthWidget && (
-        <AuthWidget onClose={() => setShowAuthWidget(false)} />
+        <AuthWidget 
+          onClose={() => setShowAuthWidget(false)} 
+          onNavigate={(page) => {
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       )}
       <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray">
         {/* Main content area */}

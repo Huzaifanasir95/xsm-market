@@ -14,6 +14,7 @@ import ForgotPassword from './ForgotPassword';
 
 interface AuthWidgetProps {
   onClose: () => void;
+  onNavigate?: (page: string) => void;
 }
 
 const isValidEmail = (email: string): boolean => {
@@ -21,7 +22,7 @@ const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
-const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
+const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose, onNavigate }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,6 +36,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
   
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const { toast } = useToast();
@@ -133,6 +135,18 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
     // Form validation
     if (!username || !email || !password || !confirmPassword) {
       const errorMsg = "Username, email, password, and confirm password are required";
+      setError(errorMsg);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMsg,
+      });
+      return;
+    }
+
+    // Check if user agreed to terms
+    if (!agreeToTerms) {
+      const errorMsg = "Please agree to the Terms and Conditions to continue";
       setError(errorMsg);
       toast({
         variant: "destructive",
@@ -350,26 +364,26 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
         }
       }}
     >
-      <Card className="w-full max-w-sm mx-4 bg-xsm-dark-gray border-xsm-medium-gray relative animate-scaleIn max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-sm mx-4 bg-xsm-dark-gray border-xsm-medium-gray relative animate-scaleIn">
         <button
           onClick={onClose}
-          className="absolute top-2 right-2 text-gray-400 hover:text-white"
+          className="absolute top-2 right-2 text-gray-400 hover:text-white z-10"
         >
           <X className="w-4 h-4" />
         </button>
         
-        <div className="p-3">
-          <h2 className="text-lg font-bold text-xsm-yellow mb-3 text-center">
+        <div className="p-2">
+          <h2 className="text-base font-bold text-xsm-yellow mb-2 text-center">
             {isLogin ? 'Sign in to your account' : 'Create your account'}
           </h2>
 
           {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertDescription>{error}</AlertDescription>
+            <Alert variant="destructive" className="mb-2">
+              <AlertDescription className="text-xs">{error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-2" noValidate>
+          <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-1.5" noValidate>
             {!isLogin && (
               <>
                 <div>
@@ -385,7 +399,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Choose a username"
                     disabled={isLoading}
-                    className="bg-xsm-black"
+                    className="bg-xsm-black h-8 text-sm"
                   />
                 </div>
               </>
@@ -405,7 +419,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 disabled={isLoading}
-                className="bg-xsm-black"
+                className="bg-xsm-black h-8 text-sm"
               />
             </div>
 
@@ -424,7 +438,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={isLogin ? "Enter your password" : "Create a password"}
                   disabled={isLoading}
-                  className="bg-xsm-black pr-10"
+                  className="bg-xsm-black pr-10 h-8 text-sm"
                 />
                 <button
                   type="button"
@@ -432,14 +446,14 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
                   disabled={isLoading}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                 </button>
               </div>
             </div>
 
             {!isLogin && (
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-white mb-0.5">
+                <label htmlFor="confirmPassword" className="block text-xs font-medium text-white mb-0.5">
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -452,7 +466,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Confirm your password"
                     disabled={isLoading}
-                    className="bg-xsm-black pr-10"
+                    className="bg-xsm-black pr-10 h-8 text-sm"
                   />
                   <button
                     type="button"
@@ -460,9 +474,38 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
                     disabled={isLoading}
                   >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showConfirmPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {!isLogin && (
+              <div className="flex items-start space-x-2">
+                <input
+                  type="checkbox"
+                  id="agreeToTerms"
+                  checked={agreeToTerms}
+                  onChange={(e) => setAgreeToTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-xsm-yellow focus:ring-xsm-yellow"
+                  disabled={isLoading}
+                  required
+                />
+                <label htmlFor="agreeToTerms" className="text-sm text-white">
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onNavigate) {
+                        onNavigate('terms');
+                        onClose();
+                      }
+                    }}
+                    className="text-xsm-yellow hover:text-yellow-500 underline"
+                  >
+                    Terms and Conditions
+                  </button>
+                </label>
               </div>
             )}
 
