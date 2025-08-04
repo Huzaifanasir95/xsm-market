@@ -343,6 +343,11 @@ function handleAdminRoutes($controller, $path, $method) {
         if ($method === 'PUT') $controller->updateUserStatus($userId);
         else methodNotAllowed();
     }
+    elseif (preg_match('/^\/admin\/users\/(\d+)\/role$/', $path, $matches)) {
+        $userId = $matches[1];
+        if ($method === 'PUT') $controller->updateUserRole($userId);
+        else methodNotAllowed();
+    }
     elseif ($path === '/admin/chats') {
         if ($method === 'GET') $controller->getAllChats();
         else methodNotAllowed();

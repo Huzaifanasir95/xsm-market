@@ -6,7 +6,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getAllUsers } from '@/services/admin';
+import { useToast } from '@/components/ui/use-toast';
+import { getAllUsers, deleteUser, updateUserRole } from '@/services/admin';
 
 interface UserData {
   id: string;
@@ -23,6 +24,7 @@ const ManageUsers: React.FC = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     setLoading(true);
@@ -37,6 +39,81 @@ const ManageUsers: React.FC = () => {
         setLoading(false);
       });
   }, []);
+
+  const handleDeleteUser = async (user: UserData) => {
+    const confirmed = window.confirm(
+      `⚠️ DELETE USER CONFIRMATION ⚠️\n\n` +
+      `Are you sure you want to permanently delete this user?\n\n` +
+      `Username: "${user.username}"\n` +
+      `Email: ${user.email}\n` +
+      `Role: ${user.role}\n\n` +
+      `This action cannot be undone and will permanently remove the user and all their data from the database.`
+    );
+    
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteUser(user.id);
+      
+      // Remove the deleted user from the state
+      setUsers(prevUsers => prevUsers.filter(u => u.id !== user.id));
+      
+      toast({
+        title: "✅ User Deleted",
+        description: `User "${user.username}" has been permanently deleted.`,
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        variant: "destructive",
+        title: "❌ Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete user",
+      });
+    }
+  };
+
+  const handleChangeRole = async (user: UserData) => {
+    const newRole = user.role === 'admin' ? 'user' : 'admin';
+    
+    const confirmed = window.confirm(
+      `🔄 CHANGE USER ROLE ⚠️\n\n` +
+      `Change user role?\n\n` +
+      `User: "${user.username}"\n` +
+      `Current Role: ${user.role}\n` +
+      `New Role: ${newRole}\n\n` +
+      `${newRole === 'admin' ? 'This will grant admin privileges to the user.' : 'This will remove admin privileges from the user.'}`
+    );
+    
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      // Use the role update endpoint
+      await updateUserRole(user.id, newRole);
+      
+      // Update the user's role in the state
+      setUsers(prevUsers => 
+        prevUsers.map(u => 
+          u.id === user.id ? { ...u, role: newRole as 'user' | 'admin' } : u
+        )
+      );
+      
+      toast({
+        title: "✅ Role Updated",
+        description: `User "${user.username}" role changed to ${newRole}.`,
+      });
+    } catch (error) {
+      console.error('Error changing user role:', error);
+      toast({
+        variant: "destructive",
+        title: "❌ Role Change Failed",
+        description: error instanceof Error ? error.message : "Failed to change user role",
+      });
+    }
+  };
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,9 +166,7 @@ const ManageUsers: React.FC = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-xsm-light-gray uppercase tracking-wider">User</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-xsm-light-gray uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-xsm-light-gray uppercase tracking-wider">Role</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-xsm-light-gray uppercase tracking-wider">Join Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-xsm-light-gray uppercase tracking-wider">Last Active</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-xsm-light-gray uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -116,14 +191,8 @@ const ManageUsers: React.FC = () => {
                         {user.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white capitalize">
-                      {user.role}
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-xsm-light-gray">
                       {user.joinDate}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-xsm-light-gray">
-                      {user.lastActive}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <DropdownMenu>
@@ -131,11 +200,17 @@ const ManageUsers: React.FC = () => {
                           <MoreVertical className="h-5 w-5 text-xsm-light-gray" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
-                          <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
+                          <DropdownMenuItem 
+                            className="text-white hover:text-xsm-yellow cursor-pointer"
+                            onClick={() => handleChangeRole(user)}
+                          >
                             <Shield className="w-4 h-4 mr-2" />
-                            Change Role
+                            Change Role to {user.role === 'admin' ? 'User' : 'Admin'}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-500 hover:text-red-400 cursor-pointer">
+                          <DropdownMenuItem 
+                            className="text-red-500 hover:text-red-400 cursor-pointer"
+                            onClick={() => handleDeleteUser(user)}
+                          >
                             <Trash className="w-4 h-4 mr-2" />
                             Delete User
                           </DropdownMenuItem>
