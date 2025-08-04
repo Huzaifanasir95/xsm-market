@@ -29,6 +29,12 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   const [isUserAdmin, setIsUserAdmin] = useState(false);
   const { isLoggedIn, setIsLoggedIn, user } = useAuth();
 
+  // Helper function to navigate and scroll to top
+  const navigateToPage = (page: string) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Check admin status when user changes
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -58,7 +64,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   const handleLogout = () => {
     logout();
     setIsLoggedIn(false);
-    setCurrentPage('home');
+    navigateToPage('home');
   };
 
   const getNavItems = () => {
@@ -98,7 +104,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   key={item.id}
                   onClick={() => {
                     if (isLoggedIn) {
-                      setCurrentPage(item.id);
+                      navigateToPage(item.id);
                     } else {
                       setShowAuthWidget(true);
                     }
@@ -118,7 +124,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
             {/* Center Logo with enhanced highlight effect */}
             <div 
               className="flex-shrink-0 cursor-pointer absolute left-1/2 transform -translate-x-1/2 z-10 group"
-              onClick={() => setCurrentPage('home')}
+              onClick={() => navigateToPage('home')}
             >
               {/* Logo highlight background with yellow fade in middle */}
               <div className="absolute -inset-4 bg-gradient-radial from-xsm-yellow/30 via-xsm-medium-gray/30 to-transparent rounded-full blur-lg opacity-80 group-hover:opacity-100 transition-all duration-300 group-hover:from-xsm-yellow/50"></div>
@@ -154,15 +160,15 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
-                    <DropdownMenuItem onClick={() => setCurrentPage('profile')} className="cursor-pointer">
+                    <DropdownMenuItem onClick={() => navigateToPage('profile')} className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCurrentPage('my-deals')} className="cursor-pointer">
+                    <DropdownMenuItem onClick={() => navigateToPage('my-deals')} className="cursor-pointer">
                       <FileText className="mr-2 h-4 w-4" />
                       <span>My Deals</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCurrentPage('seller-deals')} className="cursor-pointer">
+                    <DropdownMenuItem onClick={() => navigateToPage('seller-deals')} className="cursor-pointer">
                       <FileText className="mr-2 h-4 w-4" />
                       <span>Seller Deals</span>
                     </DropdownMenuItem>
@@ -220,7 +226,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                       key={item.id}
                       onClick={() => {
                         if (isLoggedIn) {
-                          setCurrentPage(item.id);
+                          navigateToPage(item.id);
                         } else {
                           setShowAuthWidget(true);
                         }
@@ -239,7 +245,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   
                   <button
                     onClick={() => {
-                      setCurrentPage('profile');
+                      navigateToPage('profile');
                       setIsMenuOpen(false);
                     }}
                     className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
@@ -250,7 +256,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   
                   <button
                     onClick={() => {
-                      setCurrentPage('my-deals');
+                      navigateToPage('my-deals');
                       setIsMenuOpen(false);
                     }}
                     className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
@@ -261,7 +267,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   
                   <button
                     onClick={() => {
-                      setCurrentPage('seller-deals');
+                      navigateToPage('seller-deals');
                       setIsMenuOpen(false);
                     }}
                     className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
@@ -300,7 +306,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   
                   <button
                     onClick={() => {
-                      setCurrentPage('login');
+                      navigateToPage('login');
                       setIsMenuOpen(false);
                     }}
                     className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium bg-xsm-yellow hover:bg-yellow-500 text-black"

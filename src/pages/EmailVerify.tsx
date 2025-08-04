@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { useToast } from "@/components/ui/use-toast";
 import OTPVerification from '@/components/OTPVerification';
+import { scrollToTop } from '@/utils/navigation';
 
 interface EmailVerifyProps {
   setCurrentPage: (page: string) => void;
@@ -32,11 +33,13 @@ const EmailVerify: React.FC<EmailVerifyProps> = ({ setCurrentPage, email }) => {
     
     setTimeout(() => {
       setCurrentPage('home');
+      scrollToTop();
     }, 2000);
   };
 
   const handleBackToLogin = () => {
     setCurrentPage('login');
+    scrollToTop();
   };
 
   return (

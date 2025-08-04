@@ -144,7 +144,7 @@ const AppContent: React.FC = () => {
             
             {/* Begin Selling Button (right) */}
             <button
-              onClick={() => setCurrentPage('sell')}
+              onClick={() => {setCurrentPage('sell'); window.scrollTo({ top: 0, behavior: 'smooth' });}}
               className="bg-xsm-yellow text-black px-4 py-2 text-sm font-medium rounded hover:bg-yellow-500 transition-colors"
             >
               Begin Selling
@@ -153,10 +153,10 @@ const AppContent: React.FC = () => {
           
           {/* Simple Navigation */}
           <div className="flex flex-wrap justify-center gap-6 text-sm text-xsm-light-gray">
-            <button onClick={() => setCurrentPage('about')} className="hover:text-xsm-yellow transition-colors">About Us</button>
-            <button onClick={() => setCurrentPage('contact')} className="hover:text-xsm-yellow transition-colors">Contact</button>
-            <button onClick={() => setCurrentPage('terms')} className="hover:text-xsm-yellow transition-colors">Terms of Service</button>
-            <button onClick={() => setCurrentPage('privacy')} className="hover:text-xsm-yellow transition-colors">Privacy Policy</button>
+            <button onClick={() => {setCurrentPage('about'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">About Us</button>
+            <button onClick={() => {setCurrentPage('contact'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">Contact</button>
+            <button onClick={() => {setCurrentPage('terms'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">Terms of Service</button>
+            <button onClick={() => {setCurrentPage('privacy'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">Privacy Policy</button>
           </div>
           
           {/* Copyright */}
