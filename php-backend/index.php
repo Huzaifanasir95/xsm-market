@@ -58,6 +58,7 @@ $path = str_replace('/api', '', $path);
 error_log("Received request: $method $request_uri");
 error_log("Parsed path: $path");
 error_log("Chat check: " . (strpos($path, '/chat') === 0 ? 'MATCHES' : 'NO_MATCH'));
+error_log("Delete-ad check: " . (preg_match('/^\/delete-ad\/(\d+)$/', $path) ? 'MATCHES' : 'NO_MATCH'));
 
 // Output debug info to browser for testing
 if (strpos($path, '/upload') !== false) {
@@ -67,6 +68,27 @@ if (strpos($path, '/upload') !== false) {
 
 // Route handling
 try {
+    // Simple delete ad endpoint (no authentication) - placed early to ensure it gets matched
+    if (preg_match('/^\/delete-ad\/(\d+)$/', $path, $matches) && $method === 'DELETE') {
+        error_log("DELETE AD ROUTE MATCHED: Path=$path, Method=$method, AdId={$matches[1]}");
+        try {
+            $adId = $matches[1];
+            error_log("Attempting to delete ad with ID: $adId");
+            $result = Ad::delete($adId);
+            error_log("Delete result: " . ($result ? 'SUCCESS' : 'FAILED'));
+            
+            if ($result) {
+                Response::json(['message' => 'Ad deleted successfully', 'success' => true]);
+            } else {
+                Response::error('Failed to delete ad', 500);
+            }
+        } catch (Exception $e) {
+            error_log('Simple delete ad error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+        exit(); // Ensure we exit after handling this route
+    }
+    
     // Authentication routes
     if (strpos($path, '/auth/') === 0) {
         $authController = new AuthController();

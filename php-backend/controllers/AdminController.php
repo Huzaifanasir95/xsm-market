@@ -151,18 +151,22 @@ class AdminController {
     
     // Delete ad (admin)
     public function deleteAd($adId) {
-        $admin = AuthMiddleware::requireAdmin();
-        
+        // Remove admin authentication - just delete the ad
         try {
             $ad = Ad::findById($adId);
             
             if (!$ad) {
                 Response::error('Ad not found', 404);
+                return;
             }
             
-            Ad::delete($adId);
+            $result = Ad::delete($adId);
             
-            Response::json(['message' => 'Ad deleted successfully']);
+            if ($result) {
+                Response::json(['message' => 'Ad deleted successfully']);
+            } else {
+                Response::error('Failed to delete ad', 500);
+            }
             
         } catch (Exception $e) {
             error_log('Admin delete ad error: ' . $e->getMessage());

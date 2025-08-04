@@ -359,6 +359,11 @@ function handleAdminRoutes($controller, $path, $method) {
         if ($method === 'GET') $controller->getRecentActivities();
         else methodNotAllowed();
     }
+    elseif (preg_match('/^\/admin\/ads\/(\d+)$/', $path, $matches)) {
+        $adId = $matches[1];
+        if ($method === 'DELETE') $controller->deleteAdAsAdmin($adId);
+        else methodNotAllowed();
+    }
     elseif (preg_match('/^\/admin\/deals\/(\d+)\/confirm-primary-owner$/', $path, $matches)) {
         $dealId = $matches[1];
         if ($method === 'POST') $controller->confirmPrimaryOwnerMade($dealId);

@@ -174,6 +174,33 @@ class AdminController {
         }
     }
     
+    // Delete ad as admin (no ownership check)
+    public function deleteAdAsAdmin($adId) {
+        try {
+            $this->isCurrentUserAdmin();
+            
+            // Check if ad exists
+            $stmt = $this->db->prepare("SELECT id FROM ads WHERE id = ?");
+            $stmt->execute([$adId]);
+            if (!$stmt->fetch()) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Ad not found']);
+                return;
+            }
+            
+            // Delete the ad
+            $stmt = $this->db->prepare("DELETE FROM ads WHERE id = ?");
+            $stmt->execute([$adId]);
+            
+            http_response_code(200);
+            echo json_encode(['success' => true, 'message' => 'Ad deleted successfully']);
+        } catch (Exception $e) {
+            error_log('Error deleting ad: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
+        }
+    }
+    
     // Get all chats for admin review
     public function getAllChats() {
         try {

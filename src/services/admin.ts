@@ -328,3 +328,32 @@ export const unbanUser = async (userId: number) => {
 
   return await response.json();
 };
+
+// Delete listing (admin only)
+export const deleteListing = async (listingId: number) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  // Use the admin-specific DELETE endpoint
+  const response = await fetch(`/api/admin/ads/${listingId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const result = await response.json();
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to delete listing');
+  }
+
+  return result;
+};
