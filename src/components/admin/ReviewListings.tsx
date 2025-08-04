@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, MoreVertical, CheckCircle, XCircle, AlertCircle, Eye, MessageCircle, Flag, Ban, Trash } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, XCircle, AlertCircle, Eye, MessageCircle, Flag, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,8 +41,6 @@ interface Listing {
 
 const ReviewListings: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,14 +71,10 @@ const ReviewListings: React.FC = () => {
       });
   }, []);
 
-  const categories = ['Electronics', 'Collectibles', 'Sports', 'Fashion', 'Home', 'Other'];
-
   const filteredListings = listings.filter(listing => {
     const matchesSearch = listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          listing.seller.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || listing.status === filterStatus;
-    const matchesCategory = selectedCategory === 'all' || listing.category === selectedCategory;
-    return matchesSearch && matchesStatus && matchesCategory;
+    return matchesSearch;
   });
 
   const getStatusIcon = (status: string) => {
@@ -122,29 +116,6 @@ const ReviewListings: React.FC = () => {
               className="w-full bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg px-4 py-2 pl-10 focus:outline-none focus:border-xsm-yellow text-white"
             />
             <Search className="absolute left-3 top-2.5 h-5 w-5 text-xsm-medium-gray" />
-          </div>
-          <div className="flex gap-4">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg px-4 py-2 focus:outline-none focus:border-xsm-yellow text-white"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-              <option value="rejected">Rejected</option>
-              <option value="reported">Reported</option>
-            </select>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg px-4 py-2 focus:outline-none focus:border-xsm-yellow text-white"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
           </div>
         </div>
 
@@ -202,22 +173,10 @@ const ReviewListings: React.FC = () => {
                         View Details
                       </DropdownMenuItem>
                       <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Reject
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
                         <MessageCircle className="w-4 h-4 mr-2" />
                         Contact Seller
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-white hover:text-xsm-yellow cursor-pointer">
-                        <Ban className="w-4 h-4 mr-2" />
-                        Block Listing
-                      </DropdownMenuItem>
                       <DropdownMenuItem className="text-red-500 hover:text-red-400 cursor-pointer">
                         <Trash className="w-4 h-4 mr-2" />
                         Delete Listing
