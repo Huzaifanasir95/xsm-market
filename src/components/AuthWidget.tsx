@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/useAuth';
 import { login, register, googleSignIn } from '@/services/auth';
-import { User, Mail, Lock, X } from 'lucide-react';
+import { User, Mail, Lock, X, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import OTPVerification from './OTPVerification';
 import ForgotPassword from './ForgotPassword';
@@ -26,12 +26,13 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showOTPVerification, setShowOTPVerification] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [registrationEmail, setRegistrationEmail] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const { toast } = useToast();
   const { setIsLoggedIn, setUser } = useAuth();
@@ -152,7 +153,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
 
     try {
       console.log("Sending registration request to backend...");
-      const response = await register(username, email, password, fullName);
+      const response = await register(username, email, password);
       console.log("Registration response:", response);
       
       // Check if response indicates verification is required
@@ -344,22 +345,6 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                     className="bg-xsm-black"
                   />
                 </div>
-
-                <div>
-                  <label htmlFor="fullName" className="block text-xs font-medium text-white mb-0.5">
-                    Full Name (Optional)
-                  </label>
-                  <Input
-                    id="fullName"
-                    name="fullName"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Enter your full name"
-                    disabled={isLoading}
-                    className="bg-xsm-black"
-                  />
-                </div>
               </>
             )}
 
@@ -385,18 +370,28 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
               <label htmlFor="password" className="block text-xs font-medium text-white mb-0.5">
                 Password
               </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete={isLogin ? "current-password" : "new-password"}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={isLogin ? "Enter your password" : "Create a password"}
-                disabled={isLoading}
-                className="bg-xsm-black"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={isLogin ? "Enter your password" : "Create a password"}
+                  disabled={isLoading}
+                  className="bg-xsm-black pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             {!isLogin && (
@@ -404,17 +399,27 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-white mb-0.5">
                   Confirm Password
                 </label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm your password"
-                  disabled={isLoading}
-                  className="bg-xsm-black"
-                />
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm your password"
+                    disabled={isLoading}
+                    className="bg-xsm-black pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                    disabled={isLoading}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
             )}
 
