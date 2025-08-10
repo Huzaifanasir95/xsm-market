@@ -507,15 +507,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-8">
-          <div className="flex justify-center items-center mb-4">
-            <h1 className="text-4xl font-bold text-xsm-yellow">My Profile</h1>
-          </div>
-          <p className="text-xl text-white">
-            Manage your account settings and view your marketplace activity
-          </p>
-        </div>
-
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Profile Overview */}
           <div className="lg:col-span-1">
