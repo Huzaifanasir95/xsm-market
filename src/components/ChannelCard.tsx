@@ -43,7 +43,7 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
   };
 
   return (
-    <div className="xsm-card group cursor-pointer transform transition-all duration-300 hover:-translate-y-2">
+    <div className="xsm-card group cursor-pointer">
       <div className="relative mb-4">
         <div className="w-full h-48 bg-xsm-medium-gray rounded-lg flex items-center justify-center overflow-hidden">
           {channel.primary_image ? (

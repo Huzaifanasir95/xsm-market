@@ -186,7 +186,7 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
         {ads.map((ad) => (
           <div 
             key={ad.id} 
-            className="xsm-card group hover:scale-105 transition-all duration-300 cursor-pointer"
+            className="xsm-card group transition-all duration-300 cursor-pointer"
             onClick={() => onShowMore(ad)}
           >
             {/* Thumbnail */}
@@ -200,7 +200,7 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
                     '/placeholder.svg'
                   } 
                   alt={ad.title}
-                  className="w-full h-full object-cover transition-all duration-500 ease-in-out group-hover:scale-105 group-hover/image:scale-110"
+                  className="w-full h-full object-cover transition-all duration-500 ease-in-out"
                   style={{ objectPosition: 'center' }}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
