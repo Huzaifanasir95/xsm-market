@@ -1,54 +1,67 @@
-# API Directory Configuration
-<IfModule mod_headers.c>
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-NOWPayments-Sig"
-</IfModule>
-
-# Security - Deny access to sensitive files
-<Files ".env">
-    Order deny,allow
-    Deny from all
-</Files>
-
-<Files "*.log">
-    Order deny,allow
-    Deny from all
-</Files>
-
-# Protect webhook logs but allow PHP access
-<Files "webhook.log">
-    Order deny,allow
-    Deny from all
-</Files>
-
-# PHP Configuration for file uploads
-php_value upload_max_filesize 50M
-php_value post_max_size 50M
-php_value max_execution_time 300
-php_value memory_limit 256M
-
-# Enable error reporting for debugging (uncomment if needed)
-# php_value display_errors On
-# php_value error_reporting E_ALL
-
-# Webhook-specific configurations
-php_value max_input_time 60
-php_value default_socket_timeout 60
-
-# URL Rewriting for clean API endpoints
 RewriteEngine On
 
-# Handle webhook endpoints specifically
-RewriteRule ^webhooks/nowpayments/?$ webhooks/nowpayments.php [L,QSA]
-RewriteRule ^webhooks/([^/]+)/?$ webhooks/$1.php [L,QSA]
+# Handle CORS preflight requests
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
 
-# Security headers for webhooks
+# Remove www from domain
+RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
+RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
+
+# Force HTTPS (uncomment for production)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Route all API requests to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/uploads/
+RewriteCond %{REQUEST_URI} !^/webhooks/
+RewriteRule ^api/(.*)$ index.php [QSA,L]
+
+# Handle webhook requests directly
+RewriteRule ^webhooks/nowpayments/?$ webhooks/nowpayments.php [QSA,L]
+
+# Route root API requests to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/uploads/
+RewriteRule ^(auth|user|ads|chat|admin|contact|social-media|debug|health)/(.*)$ index.php [QSA,L]
+
+# Security headers
 <IfModule mod_headers.c>
-    # Prevent caching of webhook responses
-    <FilesMatch "webhooks/.*\.php$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-    </FilesMatch>
+    # CORS headers
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET,POST,PUT,DELETE,OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type,Authorization,X-Requested-With"
+    Header always set Access-Control-Allow-Credentials "true"
+    Header always set Access-Control-Max-Age "3600"
+    
+    # Security headers
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Remove server information
+    Header unset Server
+    Header unset X-Powered-By
 </IfModule>
+
+# Prevent access to sensitive files
+<FilesMatch "\.(env|log|sql|md|txt|json|lock)$">
+    Require all denied
+</FilesMatch>
+
+# Prevent access to directories
+Options -Indexes
+
+# Set max upload size
+php_value upload_max_filesize 10M
+php_value post_max_size 10M
+php_value max_execution_time 30
+php_value max_input_time 30
+
+# Error pages (customize as needed)
+ErrorDocument 404 /api/404.php
+ErrorDocument 500 /api/500.php

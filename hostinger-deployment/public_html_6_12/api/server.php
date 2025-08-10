@@ -195,6 +195,38 @@ function handleUserRoutes($controller, $path, $method) {
             if ($method === 'PUT') $controller->changePassword();
             else methodNotAllowed();
             break;
+        case '/user/password/change-request':
+            if ($method === 'POST') $controller->requestPasswordChange();
+            else methodNotAllowed();
+            break;
+        case '/user/password/verify-change':
+            if ($method === 'POST') $controller->verifyPasswordChange();
+            else methodNotAllowed();
+            break;
+        case '/user/password/cooldown-status':
+            if ($method === 'GET') $controller->getPasswordChangeCooldown();
+            else methodNotAllowed();
+            break;
+        case '/user/email/change-request':
+            if ($method === 'POST') $controller->requestEmailChange();
+            else methodNotAllowed();
+            break;
+        case '/user/email/verify-current':
+            if ($method === 'POST') $controller->verifyCurrentEmail();
+            else methodNotAllowed();
+            break;
+        case '/user/email/verify-new':
+            if ($method === 'POST') $controller->verifyNewEmail();
+            else methodNotAllowed();
+            break;
+        case '/user/email/verify-change':
+            if ($method === 'POST') $controller->verifyEmailChange();
+            else methodNotAllowed();
+            break;
+        case '/user/email/cooldown-status':
+            if ($method === 'GET') $controller->getEmailChangeCooldown();
+            else methodNotAllowed();
+            break;
         case '/user/profile-legacy':
             if ($method === 'GET') $controller->getProfile();
             else methodNotAllowed();
@@ -213,6 +245,14 @@ function handleAdRoutes($controller, $path, $method) {
     }
     elseif ($path === '/ads/search') {
         if ($method === 'GET') $controller->searchAds();
+        else methodNotAllowed();
+    }
+    elseif ($path === '/ads/my-ads') {
+        if ($method === 'GET') $controller->getMyAds();
+        else methodNotAllowed();
+    }
+    elseif ($path === '/ads/user/my-ads') {
+        if ($method === 'GET') $controller->getMyAds();
         else methodNotAllowed();
     }
     elseif ($path === '/ads/user') {
