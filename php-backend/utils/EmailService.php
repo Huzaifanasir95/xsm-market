@@ -159,6 +159,59 @@ class EmailService {
         }
     }
     
+    // NEW DUAL VERIFICATION METHODS
+    
+    // Send verification to CURRENT email - Step 1 of dual verification
+    public function sendCurrentEmailVerification($currentEmail, $otp, $username, $newEmail) {
+        try {
+            $subject = 'XSM Market - Verify Current Email for Address Change';
+            $htmlBody = $this->getCurrentEmailVerificationTemplate($otp, $username, $newEmail);
+            $textBody = "Hello $username,\n\nYou requested to change your email address on XSM Market to: $newEmail\n\nTo verify that you own this current email address, please enter this verification code: $otp\n\nThis code expires in 15 minutes.\n\nAfter verifying this email, you'll receive another verification code at your new email address.\n\nIf you didn't request this change, please ignore this email.\n\nBest regards,\nXSM Market Team";
+            
+            $result = $this->sendEmail($currentEmail, $subject, $htmlBody, $textBody);
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log('Failed to send current email verification: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // Send verification to NEW email - Step 2 of dual verification
+    public function sendNewEmailVerification($newEmail, $otp, $username) {
+        try {
+            $subject = 'XSM Market - Verify Your New Email Address';
+            $htmlBody = $this->getNewEmailVerificationTemplate($otp, $username);
+            $textBody = "Hello $username,\n\nYour current email has been verified! Now please verify ownership of this new email address.\n\nYour verification code is: $otp\n\nThis code expires in 15 minutes.\n\nOnce you enter this code, your email address will be successfully changed.\n\nBest regards,\nXSM Market Team";
+            
+            $result = $this->sendEmail($newEmail, $subject, $htmlBody, $textBody);
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log('Failed to send new email verification: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // Send final confirmation to NEW email after successful change
+    public function sendEmailChangeConfirmation($newEmail, $username) {
+        try {
+            $subject = 'XSM Market - Email Address Successfully Changed';
+            $htmlBody = $this->getEmailChangeConfirmationTemplate($username);
+            $textBody = "Hello $username,\n\nGreat news! Your email address on XSM Market has been successfully changed.\n\nYou can now use this email address to log into your account.\n\nFor your security, we recommend updating your browser's saved passwords if needed.\n\nBest regards,\nXSM Market Team";
+            
+            $result = $this->sendEmail($newEmail, $subject, $htmlBody, $textBody);
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log('Failed to send email change confirmation: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
     // Send password change verification - new method for secure password change
     public function sendPasswordChangeVerification($email, $otp, $username, $verificationToken, $isGoogleUser = false) {
         try {
@@ -1000,5 +1053,144 @@ class EmailService {
             error_log("Direct SMTP error: " . $e->getMessage());
             return false;
         }
+    }
+    
+    // NEW EMAIL TEMPLATES FOR DUAL VERIFICATION
+    
+    private function getCurrentEmailVerificationTemplate($otp, $username, $newEmail) {
+        return "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Verify Current Email</title>
+</head>
+<body style='font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1);'>
+        <div style='text-align: center; margin-bottom: 30px;'>
+            <h1 style='color: #333; margin: 0;'>XSM Market</h1>
+            <p style='color: #666; margin: 5px 0 0 0;'>Social Media Marketplace</p>
+        </div>
+        
+        <h2 style='color: #17a2b8; margin-bottom: 20px;'>Verify Your Current Email (Step 1 of 2)</h2>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Hello <strong>$username</strong>,</p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>You requested to change your email address to: <strong>$newEmail</strong></p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>First, we need to verify that you own this current email address. Please enter this verification code:</p>
+        
+        <div style='text-align: center; margin: 30px 0;'>
+            <div style='display: inline-block; background-color: #17a2b8; color: white; padding: 15px 30px; border-radius: 8px; font-size: 24px; font-weight: bold; letter-spacing: 3px;'>
+                $otp
+            </div>
+        </div>
+        
+        <p style='color: #555; margin-bottom: 20px;'>After entering this code, you'll receive another verification code at your new email address.</p>
+        
+        <p style='color: #dc3545; margin-bottom: 20px; padding: 15px; background-color: #f8d7da; border-radius: 5px; border-left: 4px solid #dc3545;'>
+            <strong>⚠️ Important:</strong> This code expires in 15 minutes.
+        </p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>If you didn't request this change, please ignore this email and your account will remain secure.</p>
+        
+        <div style='text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;'>
+            <p style='color: #888; font-size: 14px; margin: 0;'>Best regards,<br>The XSM Market Team</p>
+        </div>
+    </div>
+</body>
+</html>";
+    }
+    
+    private function getNewEmailVerificationTemplate($otp, $username) {
+        return "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Verify New Email</title>
+</head>
+<body style='font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1);'>
+        <div style='text-align: center; margin-bottom: 30px;'>
+            <h1 style='color: #333; margin: 0;'>XSM Market</h1>
+            <p style='color: #666; margin: 5px 0 0 0;'>Social Media Marketplace</p>
+        </div>
+        
+        <h2 style='color: #28a745; margin-bottom: 20px;'>Verify Your New Email (Step 2 of 2)</h2>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Hello <strong>$username</strong>,</p>
+        
+        <p style='color: #28a745; margin-bottom: 20px;'>✅ Your current email has been verified successfully!</p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Now, please verify that you own this new email address by entering this verification code:</p>
+        
+        <div style='text-align: center; margin: 30px 0;'>
+            <div style='display: inline-block; background-color: #28a745; color: white; padding: 15px 30px; border-radius: 8px; font-size: 24px; font-weight: bold; letter-spacing: 3px;'>
+                $otp
+            </div>
+        </div>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Once you enter this code, your email address will be successfully changed and you can use this new email to log in.</p>
+        
+        <p style='color: #dc3545; margin-bottom: 20px; padding: 15px; background-color: #f8d7da; border-radius: 5px; border-left: 4px solid #dc3545;'>
+            <strong>⚠️ Important:</strong> This code expires in 15 minutes.
+        </p>
+        
+        <div style='text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;'>
+            <p style='color: #888; font-size: 14px; margin: 0;'>Best regards,<br>The XSM Market Team</p>
+        </div>
+    </div>
+</body>
+</html>";
+    }
+    
+    private function getEmailChangeConfirmationTemplate($username) {
+        return "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Email Changed Successfully</title>
+</head>
+<body style='font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1);'>
+        <div style='text-align: center; margin-bottom: 30px;'>
+            <h1 style='color: #333; margin: 0;'>XSM Market</h1>
+            <p style='color: #666; margin: 5px 0 0 0;'>Social Media Marketplace</p>
+        </div>
+        
+        <div style='text-align: center; margin-bottom: 30px;'>
+            <div style='display: inline-block; background-color: #28a745; color: white; padding: 20px; border-radius: 50%; font-size: 30px;'>
+                ✅
+            </div>
+        </div>
+        
+        <h2 style='color: #28a745; margin-bottom: 20px; text-align: center;'>Email Address Successfully Changed!</h2>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Hello <strong>$username</strong>,</p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Congratulations! Your email address on XSM Market has been successfully changed.</p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>You can now use this new email address to:</p>
+        
+        <ul style='color: #555; margin-bottom: 20px; padding-left: 20px;'>
+            <li>Log into your XSM Market account</li>
+            <li>Receive important notifications</li>
+            <li>Reset your password if needed</li>
+        </ul>
+        
+        <p style='color: #555; margin-bottom: 20px;'>For your security, we recommend updating your browser's saved passwords with this new email address.</p>
+        
+        <div style='text-align: center; margin: 30px 0;'>
+            <a href='#' style='display: inline-block; background-color: #17a2b8; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Go to XSM Market</a>
+        </div>
+        
+        <div style='text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;'>
+            <p style='color: #888; font-size: 14px; margin: 0;'>Best regards,<br>The XSM Market Team</p>
+        </div>
+    </div>
+</body>
+</html>";
     }
 }

@@ -681,8 +681,14 @@ export const createChannelListing = async (channelData: any): Promise<any> => {
   }
 };
 
-// Email change functionality
-export const requestEmailChange = async (newEmail: string): Promise<{ message: string; newEmail: string; verificationToken: string }> => {
+// Email change functionality - Updated for dual verification
+export const requestEmailChange = async (newEmail: string): Promise<{ 
+  message: string; 
+  step: string;
+  currentEmail: string;
+  pendingEmail: string;
+  verificationToken: string 
+}> => {
   try {
     const response = await authenticatedFetch(`${API_URL}/user/email/change-request`, {
       method: 'POST',
@@ -699,6 +705,58 @@ export const requestEmailChange = async (newEmail: string): Promise<{ message: s
   }
 };
 
+// Step 1: Verify current email
+export const verifyCurrentEmail = async (token: string, otp: string): Promise<{ 
+  message: string; 
+  step: string;
+  newEmail: string;
+  verificationToken: string 
+}> => {
+  try {
+    const response = await fetch(`${API_URL}/user/email/verify-current`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, otp }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to verify current email');
+    }
+  }
+};
+
+// Step 2: Verify new email
+export const verifyNewEmail = async (token: string, otp: string): Promise<{ 
+  message: string; 
+  oldEmail: string;
+  newEmail: string 
+}> => {
+  try {
+    const response = await fetch(`${API_URL}/user/email/verify-new`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, otp }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to verify new email');
+    }
+  }
+};
+
+// Legacy function for backward compatibility
 export const verifyEmailChange = async (token: string, otp: string): Promise<{ message: string; newEmail: string }> => {
   try {
     const response = await fetch(`${API_URL}/user/email/verify-change`, {

@@ -442,28 +442,33 @@ class UserController {
                 }
             }
 
-            // Generate verification token and OTP
+            // Generate verification token and current email OTP (Step 1)
             $verificationToken = bin2hex(random_bytes(32));
-            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            $otpExpires = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+            $currentEmailOTP = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $currentEmailOTPExpires = date('Y-m-d H:i:s', strtotime('+15 minutes'));
 
-            // Store email change request
+            // Store email change request (Step 1: verify current email)
             $stmt = $pdo->prepare("
                 UPDATE users 
-                SET pendingEmail = ?, emailChangeToken = ?, emailOTP = ?, otpExpires = ? 
+                SET pendingEmail = ?, emailChangeToken = ?, 
+                    currentEmailOTP = ?, currentEmailOTPExpires = ?,
+                    currentEmailVerified = 0, emailChangeRequestedAt = NOW(),
+                    newEmailOTP = NULL, newEmailOTPExpires = NULL
                 WHERE id = ?
             ");
-            $stmt->execute([$newEmail, $verificationToken, $otp, $otpExpires, $user['id']]);
+            $stmt->execute([$newEmail, $verificationToken, $currentEmailOTP, $currentEmailOTPExpires, $user['id']]);
 
-            // Send verification email to new email address
+            // Send verification email to CURRENT email address first
             require_once __DIR__ . '/../utils/EmailService.php';
             $emailService = new EmailService();
-            $emailSent = $emailService->sendEmailChangeVerification($newEmail, $otp, $userData['username'], $verificationToken);
+            $emailSent = $emailService->sendCurrentEmailVerification($userData['email'], $currentEmailOTP, $userData['username'], $newEmail);
 
             if ($emailSent) {
                 Response::json([
-                    'message' => 'Verification email sent to new email address',
-                    'newEmail' => $newEmail,
+                    'message' => 'Verification email sent to your current email address. Please check your inbox.',
+                    'step' => 'verify_current_email',
+                    'currentEmail' => $userData['email'],
+                    'pendingEmail' => $newEmail,
                     'verificationToken' => $verificationToken
                 ]);
             } else {
@@ -476,31 +481,135 @@ class UserController {
         }
     }
 
-    // Change email - Step 2: Verify and complete email change
-    public function verifyEmailChange() {
+    // Verify current email - Step 1 of email change
+    public function verifyCurrentEmail() {
         try {
             $input = json_decode(file_get_contents('php://input'), true);
             
-            $token = $input['token'] ?? null;
             $otp = $input['otp'] ?? null;
 
-            if (!$token || !$otp) {
-                Response::error('Token and OTP are required', 400);
+            if (!$otp) {
+                Response::error('OTP is required', 400);
                 return;
             }
 
             $pdo = Database::getConnection();
 
-            // Find user with matching token and OTP
+            // Find user with matching current email OTP - no auth required, just check OTP
             $stmt = $pdo->prepare("
-                SELECT id, username, email, pendingEmail, emailOTP, otpExpires 
+                SELECT id, username, email, pendingEmail, currentEmailOTP, currentEmailOTPExpires, emailChangeToken
                 FROM users 
-                WHERE emailChangeToken = ? AND emailOTP = ? AND otpExpires > NOW()
+                WHERE currentEmailOTP = ? AND currentEmailOTPExpires > NOW()
             ");
-            $stmt->execute([$token, $otp]);
+            $stmt->execute([$otp]);
             $userData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$userData) {
+                // Check if there's an expired verification for this OTP
+                $expiredStmt = $pdo->prepare("
+                    SELECT id, currentEmailOTPExpires 
+                    FROM users 
+                    WHERE currentEmailOTP = ?
+                ");
+                $expiredStmt->execute([$otp]);
+                $expiredData = $expiredStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($expiredData) {
+                    // Clean up expired verification data
+                    $cleanupStmt = $pdo->prepare("
+                        UPDATE users 
+                        SET pendingEmail = NULL, emailChangeToken = NULL, 
+                            currentEmailOTP = NULL, currentEmailOTPExpires = NULL,
+                            currentEmailVerified = 0, emailChangeRequestedAt = NULL,
+                            newEmailOTP = NULL, newEmailOTPExpires = NULL
+                        WHERE id = ?
+                    ");
+                    $cleanupStmt->execute([$expiredData['id']]);
+                    
+                    Response::error('Your verification code has expired. Please request a new email change to get a fresh verification code.', 400, [
+                        'expired' => true,
+                        'needNewRequest' => true
+                    ]);
+                } else {
+                    Response::error('Invalid verification code. Please check the code and try again.', 400);
+                }
+                return;
+            }
+
+            // Generate OTP for new email (Step 2)
+            $newEmailOTP = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $newEmailOTPExpires = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+
+            // Mark current email as verified and generate new email OTP
+            $stmt = $pdo->prepare("
+                UPDATE users 
+                SET currentEmailVerified = 1, currentEmailOTP = NULL, currentEmailOTPExpires = NULL,
+                    newEmailOTP = ?, newEmailOTPExpires = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([$newEmailOTP, $newEmailOTPExpires, $userData['id']]);
+
+            // Send verification email to NEW email address
+            require_once __DIR__ . '/../utils/EmailService.php';
+            $emailService = new EmailService();
+            $emailSent = $emailService->sendNewEmailVerification($userData['pendingEmail'], $newEmailOTP, $userData['username']);
+
+            if ($emailSent) {
+                Response::json([
+                    'message' => 'Current email verified! Now check your new email for the final verification code.',
+                    'step' => 'verify_new_email',
+                    'newEmail' => $userData['pendingEmail'],
+                    'verificationToken' => $userData['emailChangeToken']
+                ]);
+            } else {
+                Response::error('Current email verified but failed to send verification email to new address', 500);
+            }
+
+        } catch (Exception $e) {
+            error_log('Current email verification error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // Verify new email - Step 2 of email change (final step)
+    public function verifyNewEmail() {
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $otp = $input['otp'] ?? null;
+
+            if (!$otp) {
+                Response::error('OTP is required', 400);
+                return;
+            }
+
+            $pdo = Database::getConnection();
+
+            // Find user with matching new email OTP and current email already verified
+            $stmt = $pdo->prepare("
+                SELECT id, username, email, pendingEmail, newEmailOTP, newEmailOTPExpires, currentEmailVerified
+                FROM users 
+                WHERE newEmailOTP = ? AND newEmailOTPExpires > NOW() 
+                AND currentEmailVerified = 1
+            ");
+            $stmt->execute([$otp]);
+            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$userData) {
+                // Check if there's a user with this OTP but current email not verified
+                $currentCheckStmt = $pdo->prepare("
+                    SELECT currentEmailVerified 
+                    FROM users 
+                    WHERE newEmailOTP = ?
+                ");
+                $currentCheckStmt->execute([$otp]);
+                $currentCheck = $currentCheckStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($currentCheck && !$currentCheck['currentEmailVerified']) {
+                    Response::error('You must verify your current email first before verifying the new email', 400);
+                    return;
+                }
+                
                 Response::error('Invalid or expired verification code', 400);
                 return;
             }
@@ -508,30 +617,39 @@ class UserController {
             $oldEmail = $userData['email'];
             $newEmail = $userData['pendingEmail'];
 
-            // Update email and clear pending change data, set cooldown timestamp
+            // Complete email change: update email and clear all pending data
             $stmt = $pdo->prepare("
                 UPDATE users 
                 SET email = ?, pendingEmail = NULL, emailChangeToken = NULL, 
-                    emailOTP = NULL, otpExpires = NULL, isEmailVerified = 1,
-                    lastEmailChange = NOW()
+                    currentEmailOTP = NULL, currentEmailOTPExpires = NULL,
+                    newEmailOTP = NULL, newEmailOTPExpires = NULL,
+                    currentEmailVerified = 0, emailChangeRequestedAt = NULL,
+                    isEmailVerified = 1, lastEmailChange = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([$newEmail, $userData['id']]);
 
-            // Send confirmation email to old email
+            // Send confirmation emails to both old and new addresses
             require_once __DIR__ . '/../utils/EmailService.php';
             $emailService = new EmailService();
             $emailService->sendEmailChangeNotification($oldEmail, $newEmail, $userData['username']);
+            $emailService->sendEmailChangeConfirmation($newEmail, $userData['username']);
 
             Response::json([
-                'message' => 'Email address successfully changed',
+                'message' => 'Email address successfully changed! You can now use your new email to log in.',
+                'oldEmail' => $oldEmail,
                 'newEmail' => $newEmail
             ]);
 
         } catch (Exception $e) {
-            error_log('Verify email change error: ' . $e->getMessage());
+            error_log('New email verification error: ' . $e->getMessage());
             Response::error('Server error: ' . $e->getMessage(), 500);
         }
+    }
+
+    // Legacy method for backward compatibility - now redirects to dual verification
+    public function verifyEmailChange() {
+        Response::error('This endpoint has been updated. Please use the new dual verification system: /verify-current-email followed by /verify-new-email', 410);
     }
 
     // Secure password change - Step 1: Request password change and send verification

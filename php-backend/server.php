@@ -211,6 +211,14 @@ function handleUserRoutes($controller, $path, $method) {
             if ($method === 'POST') $controller->requestEmailChange();
             else methodNotAllowed();
             break;
+        case '/user/email/verify-current':
+            if ($method === 'POST') $controller->verifyCurrentEmail();
+            else methodNotAllowed();
+            break;
+        case '/user/email/verify-new':
+            if ($method === 'POST') $controller->verifyNewEmail();
+            else methodNotAllowed();
+            break;
         case '/user/email/verify-change':
             if ($method === 'POST') $controller->verifyEmailChange();
             else methodNotAllowed();

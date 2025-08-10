@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User as UserIcon, Edit, LogOut, Save, X, Camera, Pin, Crown, Settings } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
-import EmailVerificationModal from '@/components/EmailVerificationModal';
+import DualEmailVerificationModal from '@/components/DualEmailVerificationModal';
 import PasswordVerificationModal from '@/components/PasswordVerificationModal';
 import EmailChangeCooldownTimer from '@/components/EmailChangeCooldownTimer';
 import PasswordChangeCooldownTimer from '@/components/PasswordChangeCooldownTimer';
@@ -1010,18 +1010,15 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       // Request email change with verification
                       const result = await requestEmailChange(settingsForm.email);
                       
-                      // Store verification data for the modal
-                      setPendingEmail(result.newEmail);
+                      // Store verification data for the dual verification modal
+                      setPendingEmail(result.pendingEmail);
                       setEmailVerificationToken(result.verificationToken || 'temp-token');
                       setShowEmailVerification(true);
                       setShowSettings(false);
                       
-                      // Show success notification
-                      if (import.meta.env.DEV) {
-                        showInfo('Verification email sent', 'Check your email for the verification code. In development, also check browser console or backend logs.');
-                      } else {
-                        showSuccess('Verification email sent', 'Please check your new email address for the verification code.');
-                      }
+                      // Show success notification for step 1
+                      showSuccess('Verification email sent', 'Please check your current email address for the verification code.');
+                      
                       
                       
                     } else if (activeSettingsTab === 'password') {
@@ -1157,21 +1154,22 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         </div>
       )}
 
-      {/* Email Verification Modal */}
-      <EmailVerificationModal
+      {/* Dual Email Verification Modal */}
+      <DualEmailVerificationModal
         isOpen={showEmailVerification}
         onClose={() => setShowEmailVerification(false)}
         onSuccess={(newEmail) => {
           // Update profile and user context with new email
           setProfile(prev => ({ ...prev, email: newEmail }));
           setUser(prev => prev ? { ...prev, email: newEmail } : prev);
-          // Success notification is already handled by EmailVerificationModal
+          // Success notification is already handled by DualEmailVerificationModal
           
           // Reset form
           setSettingsForm(prev => ({ ...prev, email: newEmail }));
           setPendingEmail('');
           setEmailVerificationToken('');
         }}
+        currentEmail={user?.email || ''}
         newEmail={pendingEmail}
         verificationToken={emailVerificationToken}
       />
