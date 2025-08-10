@@ -729,7 +729,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
 
             {/* My Ads */}
             <div className="xsm-card">
-              <h3 className="text-xl font-bold text-xsm-yellow mb-6">My Listings</h3>
               <UserAdList />
             </div>
 
