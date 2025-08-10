@@ -3,9 +3,12 @@ import { User as UserIcon, Edit, LogOut, Save, X, Camera, Pin, Crown, Settings }
 import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
 import EmailVerificationModal from '@/components/EmailVerificationModal';
+import PasswordVerificationModal from '@/components/PasswordVerificationModal';
+import EmailChangeCooldownTimer from '@/components/EmailChangeCooldownTimer';
+import PasswordChangeCooldownTimer from '@/components/PasswordChangeCooldownTimer';
 import { useAuth } from '@/context/useAuth';
 import { User } from '@/context/AuthContext';
-import { updateProfile, getProfile, changePassword, logout, requestEmailChange } from '@/services/auth';
+import { updateProfile, getProfile, changePassword, logout, requestEmailChange, requestPasswordChange } from '@/services/auth';
 
 // Get API URL from environment variables
 const getApiUrl = () => {
@@ -63,6 +66,15 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const [showEmailVerification, setShowEmailVerification] = useState(false);
   const [emailVerificationToken, setEmailVerificationToken] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
+  const [emailCooldownActive, setEmailCooldownActive] = useState(false);
+  
+  // Password verification modal state
+  const [showPasswordVerification, setShowPasswordVerification] = useState(false);
+  const [passwordVerificationToken, setPasswordVerificationToken] = useState('');
+  const [pendingPasswordEmail, setPendingPasswordEmail] = useState('');
+  const [isGoogleUserPassword, setIsGoogleUserPassword] = useState(false);
+  const [passwordCooldownActive, setPasswordCooldownActive] = useState(false);
+  
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   
   const [editForm, setEditForm] = useState({
@@ -839,6 +851,13 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               {/* Email Tab */}
               {activeSettingsTab === 'email' && (
                 <div className="space-y-4">
+                  {/* Email Change Cooldown Timer */}
+                  <EmailChangeCooldownTimer
+                    onCooldownEnd={() => setEmailCooldownActive(false)}
+                    onCooldownStatusChange={setEmailCooldownActive}
+                    className="mb-4"
+                  />
+                  
                   <div>
                     <label className="block text-white font-medium mb-2">Current Email</label>
                     <input
@@ -854,12 +873,16 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       type="email"
                       value={settingsForm.email}
                       onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder="Enter new email address"
+                      disabled={emailCooldownActive}
+                      className={`xsm-input w-full ${emailCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder={emailCooldownActive ? "Email change is on cooldown" : "Enter new email address"}
                     />
                   </div>
                   <div className="text-sm text-gray-400">
-                    You will need to verify your new email address before the change takes effect.
+                    {emailCooldownActive 
+                      ? "You must wait 15 days between email changes for security reasons."
+                      : "You will need to verify your new email address before the change takes effect."
+                    }
                   </div>
                 </div>
               )}
@@ -867,6 +890,13 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               {/* Password Tab */}
               {activeSettingsTab === 'password' && (
                 <div className="space-y-4">
+                  {/* Password Change Cooldown Timer */}
+                  <PasswordChangeCooldownTimer
+                    onCooldownEnd={() => setPasswordCooldownActive(false)}
+                    onCooldownStatusChange={setPasswordCooldownActive}
+                    className="mb-4"
+                  />
+                  
                   {(user as any)?.authProvider === 'google' && (
                     <div className="bg-blue-500/10 rounded-lg p-4 mb-4">
                       <h4 className="text-blue-400 font-semibold mb-2">Google Account</h4>
@@ -886,8 +916,9 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                         type="password"
                         value={settingsPasswordForm.currentPassword}
                         onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, currentPassword: e.target.value })}
-                        className="xsm-input w-full"
-                        placeholder="Enter current password"
+                        disabled={passwordCooldownActive}
+                        className={`xsm-input w-full ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        placeholder={passwordCooldownActive ? "Password change is on cooldown" : "Enter current password"}
                         autoComplete="current-password"
                       />
                     </div>
@@ -901,8 +932,9 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       type="password"
                       value={settingsPasswordForm.newPassword}
                       onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, newPassword: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder={(user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password'}
+                      disabled={passwordCooldownActive}
+                      className={`xsm-input w-full ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder={passwordCooldownActive ? "Password change is on cooldown" : ((user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password')}
                       autoComplete="new-password"
                     />
                   </div>
@@ -912,13 +944,17 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       type="password"
                       value={settingsPasswordForm.confirmPassword}
                       onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, confirmPassword: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder="Confirm password"
+                      disabled={passwordCooldownActive}
+                      className={`xsm-input w-full ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder={passwordCooldownActive ? "Password change is on cooldown" : "Confirm new password"}
                       autoComplete="new-password"
                     />
                   </div>
                   <div className="text-sm text-gray-400">
-                    Password must be at least 6 characters long.
+                    {passwordCooldownActive 
+                      ? "You must wait 48 hours between password changes for security reasons."
+                      : "Password must be at least 6 characters long."
+                    }
                   </div>
                 </div>
               )}
@@ -953,6 +989,12 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       alert('Username updated successfully!');
                       
                     } else if (activeSettingsTab === 'email') {
+                      // Check if email change is on cooldown
+                      if (emailCooldownActive) {
+                        alert('Email change is currently on cooldown. Please wait for the cooldown period to end.');
+                        return;
+                      }
+                      
                       if (settingsForm.email === profile.email) {
                         alert('Email is the same as current. No changes to save.');
                         return;
@@ -981,6 +1023,12 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       
                       
                     } else if (activeSettingsTab === 'password') {
+                      // Check if password change is on cooldown
+                      if (passwordCooldownActive) {
+                        alert('Password change is currently on cooldown. Please wait for the cooldown period to end.');
+                        return;
+                      }
+                      
                       // Password validation
                       if (settingsPasswordForm.newPassword !== settingsPasswordForm.confirmPassword) {
                         alert('New passwords do not match!');
@@ -1021,22 +1069,24 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                         return;
                       }
                       
-                      // Change password using the same logic as Profile
-                      await changePassword(
+                      // Request secure password change with verification
+                      const result = await requestPasswordChange(
                         isGoogleUser ? '' : settingsPasswordForm.currentPassword, 
                         settingsPasswordForm.newPassword
                       );
                       
-                      setSettingsPasswordForm({
-                        currentPassword: '',
-                        newPassword: '',
-                        confirmPassword: '',
-                      });
+                      // Store verification data for the modal
+                      setPendingPasswordEmail(result.email);
+                      setPasswordVerificationToken(result.verificationToken);
+                      setIsGoogleUserPassword(result.isGoogleUser);
+                      setShowPasswordVerification(true);
+                      setShowSettings(false);
                       
-                      if (isGoogleUser) {
-                        alert('Password set successfully! You can now login with email/password in addition to Google.');
+                      // Development mode message
+                      if (import.meta.env.DEV) {
+                        alert('Development Mode: Password change verification email sent! Check the browser console or backend logs for the verification code.');
                       } else {
-                        alert('Password changed successfully!');
+                        alert('Password change verification email sent! Please check your email.');
                       }
                     }
                     
@@ -1067,8 +1117,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     setIsUpdating(false);
                   }
                 }}
-                disabled={isUpdating}
-                className={`xsm-button flex items-center space-x-2 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isUpdating || (activeSettingsTab === 'email' && emailCooldownActive) || (activeSettingsTab === 'password' && passwordCooldownActive)}
+                className={`xsm-button flex items-center space-x-2 ${isUpdating || (activeSettingsTab === 'email' && emailCooldownActive) || (activeSettingsTab === 'password' && passwordCooldownActive) ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {isUpdating ? (
                   <>
@@ -1122,6 +1172,33 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         }}
         newEmail={pendingEmail}
         verificationToken={emailVerificationToken}
+      />
+
+      {/* Password Verification Modal */}
+      <PasswordVerificationModal
+        isOpen={showPasswordVerification}
+        onClose={() => setShowPasswordVerification(false)}
+        onSuccess={() => {
+          // Reset form
+          setSettingsPasswordForm({
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+          });
+          
+          if (isGoogleUserPassword) {
+            alert('Password set successfully! You can now login with email/password in addition to Google.');
+          } else {
+            alert('Password changed successfully!');
+          }
+          
+          // Clear verification data
+          setPendingPasswordEmail('');
+          setPasswordVerificationToken('');
+        }}
+        email={pendingPasswordEmail}
+        verificationToken={passwordVerificationToken}
+        isGoogleUser={isGoogleUserPassword}
       />
     </div>
   );

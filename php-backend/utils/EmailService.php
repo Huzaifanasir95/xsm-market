@@ -163,6 +163,50 @@ class EmailService {
         }
     }
     
+    // Send password change verification - new method for secure password change
+    public function sendPasswordChangeVerification($email, $otp, $username, $verificationToken, $isGoogleUser = false) {
+        try {
+            error_log("Attempting to send password change verification to: $email with OTP: $otp");
+            
+            $subject = $isGoogleUser ? 'XSM Market - Set Your Password' : 'XSM Market - Verify Password Change';
+            $htmlBody = $this->getPasswordChangeVerificationTemplate($otp, $username, $verificationToken, $isGoogleUser);
+            $textBody = $isGoogleUser 
+                ? "Hello $username,\n\nYou are setting a password for your XSM Market account.\n\nYour verification code is: $otp\n\nThis code expires in 15 minutes.\n\nBest regards,\nXSM Market Team"
+                : "Hello $username,\n\nYou requested to change your password on XSM Market.\n\nYour verification code is: $otp\n\nThis code expires in 15 minutes.\n\nIf you didn't request this change, please ignore this email.\n\nBest regards,\nXSM Market Team";
+            
+            $result = $this->sendEmail($email, $subject, $htmlBody, $textBody);
+            error_log("Password change verification send result: " . ($result ? 'SUCCESS' : 'FAILED'));
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log('Failed to send password change verification: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // Send password change notification - new method for password change confirmation
+    public function sendPasswordChangeNotification($email, $username, $isGoogleUser = false) {
+        try {
+            error_log("Sending password change notification to: $email");
+            
+            $subject = $isGoogleUser ? 'XSM Market - Password Set Successfully' : 'XSM Market - Password Changed';
+            $htmlBody = $this->getPasswordChangeNotificationTemplate($username, $isGoogleUser);
+            $textBody = $isGoogleUser
+                ? "Hello $username,\n\nYou have successfully set a password for your XSM Market account.\n\nYou can now login using both Google sign-in and email/password.\n\nBest regards,\nXSM Market Team"
+                : "Hello $username,\n\nYour password on XSM Market has been successfully changed.\n\nIf you didn't make this change, please contact our support team immediately.\n\nBest regards,\nXSM Market Team";
+            
+            $result = $this->sendEmail($email, $subject, $htmlBody, $textBody);
+            error_log("Password change notification send result: " . ($result ? 'SUCCESS' : 'FAILED'));
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log('Failed to send password change notification: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
     // Core email sending function - made public for use by other controllers
     public function sendEmail($to, $subject, $htmlBody, $textBody = '') {
         try {
@@ -681,6 +725,115 @@ class EmailService {
         </div>
         
         <p style='color: #555; margin-bottom: 20px;'>All future communications will be sent to your new email address.</p>
+        
+        <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+        
+        <p style='color: #888; font-size: 14px; margin: 0;'>
+            Best regards,<br>
+            The XSM Market Team<br>
+            Changed on: " . date('Y-m-d H:i:s') . "
+        </p>
+    </div>
+</body>
+</html>";
+    }
+    
+    private function getPasswordChangeVerificationTemplate($otp, $username, $verificationToken, $isGoogleUser = false) {
+        $title = $isGoogleUser ? 'Set Your Password' : 'Verify Password Change';
+        $heading = $isGoogleUser ? 'Set Your Password' : 'Verify Password Change';
+        $message = $isGoogleUser 
+            ? 'You are setting a password for your XSM Market account. This will allow you to login with email/password in addition to Google sign-in.'
+            : 'You requested to change your password on XSM Market. To complete this change, please verify using the code below:';
+        $color = $isGoogleUser ? '#28a745' : '#ffc107';
+        
+        return "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>$title</title>
+</head>
+<body style='font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1);'>
+        <div style='text-align: center; margin-bottom: 30px;'>
+            <h1 style='color: #333; margin: 0;'>XSM Market</h1>
+            <p style='color: #666; margin: 5px 0 0 0;'>Social Media Marketplace</p>
+        </div>
+        
+        <h2 style='color: $color; margin-bottom: 20px;'>$heading</h2>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Hello <strong>$username</strong>,</p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>$message</p>
+        
+        <div style='text-align: center; margin: 30px 0;'>
+            <div style='background-color: $color; color: " . ($isGoogleUser ? 'white' : '#212529') . "; padding: 15px 30px; border-radius: 5px; font-size: 24px; font-weight: bold; letter-spacing: 3px; display: inline-block;'>
+                $otp
+            </div>
+        </div>
+        
+        <p style='color: #555; margin-bottom: 20px;'>This verification code expires in <strong>15 minutes</strong>.</p>
+        
+        <div style='background-color: " . ($isGoogleUser ? '#d4edda' : '#fff3cd') . "; border: 1px solid " . ($isGoogleUser ? '#c3e6cb' : '#ffeaa7') . "; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <p style='color: " . ($isGoogleUser ? '#155724' : '#856404') . "; margin: 0; font-weight: bold;'>" . ($isGoogleUser ? '🔐' : '⚠️') . " Security Notice:</p>
+            <p style='color: " . ($isGoogleUser ? '#155724' : '#856404') . "; margin: 10px 0 0 0;'>" . ($isGoogleUser 
+                ? 'Setting a password will not affect your Google sign-in. You will be able to use both methods to access your account.'
+                : 'If you didn\'t request this password change, please ignore this message and contact our support team if you have concerns.') . "</p>
+        </div>
+        
+        <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+        
+        <p style='color: #888; font-size: 14px; margin: 0;'>
+            Best regards,<br>
+            The XSM Market Team
+        </p>
+    </div>
+</body>
+</html>";
+    }
+    
+    private function getPasswordChangeNotificationTemplate($username, $isGoogleUser = false) {
+        $title = $isGoogleUser ? 'Password Set Successfully' : 'Password Changed';
+        $heading = $isGoogleUser ? 'Password Set Successfully' : 'Password Changed Successfully';
+        $message = $isGoogleUser
+            ? 'You have successfully set a password for your XSM Market account. You can now login using both Google sign-in and email/password.'
+            : 'Your password on XSM Market has been successfully changed.';
+        $color = $isGoogleUser ? '#28a745' : '#17a2b8';
+        
+        return "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>$title</title>
+</head>
+<body style='font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1);'>
+        <div style='text-align: center; margin-bottom: 30px;'>
+            <h1 style='color: #333; margin: 0;'>XSM Market</h1>
+            <p style='color: #666; margin: 5px 0 0 0;'>Social Media Marketplace</p>
+        </div>
+        
+        <h2 style='color: $color; margin-bottom: 20px;'>$heading</h2>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Hello <strong>$username</strong>,</p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>$message</p>
+        
+        " . ($isGoogleUser ? "
+        <div style='background-color: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <p style='color: #155724; margin: 0; font-weight: bold;'>🎉 Dual Login Available:</p>
+            <p style='color: #155724; margin: 10px 0 0 0;'>You can now sign in using either:
+                <br>• Google Sign-in (your original method)
+                <br>• Email and Password (newly set)
+            </p>
+        </div>
+        " : "
+        <div style='background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <p style='color: #721c24; margin: 0; font-weight: bold;'>🚨 Important Security Notice:</p>
+            <p style='color: #721c24; margin: 10px 0 0 0;'>If you didn't make this change, please contact our support team immediately. Your account security may have been compromised.</p>
+        </div>
+        ") . "
         
         <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
         

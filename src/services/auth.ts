@@ -718,3 +718,133 @@ export const verifyEmailChange = async (token: string, otp: string): Promise<{ m
     }
   }
 };
+
+// Secure password change functionality
+export const requestPasswordChange = async (currentPassword: string, newPassword: string): Promise<{ message: string; email: string; verificationToken: string; isGoogleUser: boolean }> => {
+  try {
+    const response = await authenticatedFetch(`${API_URL}/user/password/change-request`, {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to request password change');
+    }
+  }
+};
+
+export const verifyPasswordChange = async (token: string, otp: string): Promise<{ message: string; isGoogleUser: boolean }> => {
+  try {
+    const response = await fetch(`${API_URL}/user/password/verify-change`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, otp }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to verify password change');
+    }
+  }
+};
+
+// Email Change Cooldown Status
+export interface EmailChangeCooldownStatus {
+  cooldownActive: boolean;
+  canChangeEmail: boolean;
+  daysRemaining?: number;
+  timeRemaining?: {
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    totalSeconds: number;
+  };
+  nextAllowedDate?: string;
+  lastEmailChange?: string;
+}
+
+export const getEmailChangeCooldownStatus = async (): Promise<EmailChangeCooldownStatus> => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/user/email/cooldown-status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to get cooldown status');
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to get email change cooldown status');
+    }
+  }
+};
+
+// Password Change Cooldown Status
+export interface PasswordChangeCooldownStatus {
+  cooldownActive: boolean;
+  canChangePassword: boolean;
+  hoursRemaining?: number;
+  timeRemaining?: {
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    totalSeconds: number;
+  };
+  nextAllowedDate?: string;
+  lastPasswordChange?: string;
+}
+
+export const getPasswordChangeCooldownStatus = async (): Promise<PasswordChangeCooldownStatus> => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/user/password/cooldown-status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to get cooldown status');
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to get password change cooldown status');
+    }
+  }
+};

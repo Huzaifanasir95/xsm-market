@@ -411,14 +411,35 @@ class UserController {
                 return;
             }
 
-            // Get current user info
-            $stmt = $pdo->prepare("SELECT username, email FROM users WHERE id = ?");
+            // Get current user info and check cooldown
+            $stmt = $pdo->prepare("SELECT username, email, lastEmailChange FROM users WHERE id = ?");
             $stmt->execute([$user['id']]);
             $userData = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$userData) {
                 Response::error('User not found', 404);
                 return;
+            }
+
+            // Check 15-day cooldown period
+            if ($userData['lastEmailChange']) {
+                $lastChange = new DateTime($userData['lastEmailChange']);
+                $now = new DateTime();
+                $daysSinceLastChange = $now->diff($lastChange)->days;
+                
+                if ($daysSinceLastChange < 15) {
+                    $daysRemaining = 15 - $daysSinceLastChange;
+                    $nextAllowed = clone $lastChange;
+                    $nextAllowed->add(new DateInterval('P15D'));
+                    
+                    Response::error("Email change is on cooldown. You can change your email again in {$daysRemaining} days (after {$nextAllowed->format('Y-m-d H:i:s')})", 429, [
+                        'cooldownActive' => true,
+                        'daysRemaining' => $daysRemaining,
+                        'nextAllowedDate' => $nextAllowed->format('c'),
+                        'lastEmailChange' => $lastChange->format('c')
+                    ]);
+                    return;
+                }
             }
 
             // Generate verification token and OTP
@@ -487,11 +508,12 @@ class UserController {
             $oldEmail = $userData['email'];
             $newEmail = $userData['pendingEmail'];
 
-            // Update email and clear pending change data
+            // Update email and clear pending change data, set cooldown timestamp
             $stmt = $pdo->prepare("
                 UPDATE users 
                 SET email = ?, pendingEmail = NULL, emailChangeToken = NULL, 
-                    emailOTP = NULL, otpExpires = NULL, isEmailVerified = 1
+                    emailOTP = NULL, otpExpires = NULL, isEmailVerified = 1,
+                    lastEmailChange = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([$newEmail, $userData['id']]);
@@ -508,6 +530,295 @@ class UserController {
 
         } catch (Exception $e) {
             error_log('Verify email change error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // Secure password change - Step 1: Request password change and send verification
+    public function requestPasswordChange() {
+        try {
+            $user = AuthMiddleware::authenticate();
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $currentPassword = $input['currentPassword'] ?? null;
+            $newPassword = $input['newPassword'] ?? null;
+            
+            // Validation
+            if (!$newPassword) {
+                Response::error('New password is required', 400);
+                return;
+            }
+            
+            if (strlen($newPassword) < 6) {
+                Response::error('New password must be at least 6 characters long', 400);
+                return;
+            }
+
+            $pdo = Database::getConnection();
+
+            // Get current user data and check cooldown
+            $stmt = $pdo->prepare("SELECT username, email, password, authProvider, lastPasswordChange FROM users WHERE id = ?");
+            $stmt->execute([$user['id']]);
+            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$userData) {
+                Response::error('User not found', 404);
+                return;
+            }
+
+            // Check 48-hour cooldown period
+            if ($userData['lastPasswordChange']) {
+                $lastChange = new DateTime($userData['lastPasswordChange']);
+                $now = new DateTime();
+                $hoursSinceLastChange = $now->diff($lastChange)->h + ($now->diff($lastChange)->days * 24);
+                
+                if ($hoursSinceLastChange < 48) {
+                    $hoursRemaining = 48 - $hoursSinceLastChange;
+                    $nextAllowed = clone $lastChange;
+                    $nextAllowed->add(new DateInterval('PT48H'));
+                    
+                    Response::error("Password change is on cooldown. You can change your password again in {$hoursRemaining} hours (after {$nextAllowed->format('Y-m-d H:i:s')})", 429, [
+                        'cooldownActive' => true,
+                        'hoursRemaining' => $hoursRemaining,
+                        'nextAllowedDate' => $nextAllowed->format('c'),
+                        'lastPasswordChange' => $lastChange->format('c')
+                    ]);
+                    return;
+                }
+            }
+
+            // Handle Google users vs Email users
+            $isGoogleUser = $userData['authProvider'] === 'google';
+            
+            if (!$isGoogleUser) {
+                // For email users, verify current password
+                if (!$currentPassword) {
+                    Response::error('Current password is required', 400);
+                    return;
+                }
+                
+                if (!password_verify($currentPassword, $userData['password'])) {
+                    Response::error('Current password is incorrect', 400);
+                    return;
+                }
+            } else {
+                // For Google users setting password for first time, current password not needed
+                if ($currentPassword) {
+                    Response::error('This account was created with Google OAuth. Leave current password empty to set a new password.', 400);
+                    return;
+                }
+            }
+
+            // Generate verification token and OTP
+            $verificationToken = bin2hex(random_bytes(32));
+            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $otpExpires = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+
+            // Hash the new password and store it temporarily
+            $hashedNewPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+
+            // Store password change request
+            $stmt = $pdo->prepare("
+                UPDATE users 
+                SET pendingPassword = ?, passwordChangeToken = ?, emailOTP = ?, otpExpires = ? 
+                WHERE id = ?
+            ");
+            $stmt->execute([$hashedNewPassword, $verificationToken, $otp, $otpExpires, $user['id']]);
+
+            // Send verification email to user's current email
+            require_once __DIR__ . '/../utils/EmailService.php';
+            $emailService = new EmailService();
+            $emailSent = $emailService->sendPasswordChangeVerification($userData['email'], $otp, $userData['username'], $verificationToken, $isGoogleUser);
+
+            if ($emailSent) {
+                Response::json([
+                    'message' => 'Password change verification email sent',
+                    'email' => $userData['email'],
+                    'verificationToken' => $verificationToken,
+                    'isGoogleUser' => $isGoogleUser
+                ]);
+            } else {
+                Response::error('Failed to send verification email', 500);
+            }
+
+        } catch (Exception $e) {
+            error_log('Request password change error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // Secure password change - Step 2: Verify and complete password change
+    public function verifyPasswordChange() {
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $token = $input['token'] ?? null;
+            $otp = $input['otp'] ?? null;
+
+            if (!$token || !$otp) {
+                Response::error('Token and OTP are required', 400);
+                return;
+            }
+
+            $pdo = Database::getConnection();
+
+            // Find user with matching token and OTP
+            $stmt = $pdo->prepare("
+                SELECT id, username, email, pendingPassword, emailOTP, otpExpires, authProvider 
+                FROM users 
+                WHERE passwordChangeToken = ? AND emailOTP = ? AND otpExpires > NOW()
+            ");
+            $stmt->execute([$token, $otp]);
+            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$userData) {
+                Response::error('Invalid or expired verification code', 400);
+                return;
+            }
+
+            $newHashedPassword = $userData['pendingPassword'];
+            $isGoogleUser = $userData['authProvider'] === 'google';
+
+            // Update password and clear pending change data, set cooldown timestamp
+            $stmt = $pdo->prepare("
+                UPDATE users 
+                SET password = ?, pendingPassword = NULL, passwordChangeToken = NULL, 
+                    emailOTP = NULL, otpExpires = NULL, lastPasswordChange = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$newHashedPassword, $userData['id']]);
+
+            // Send confirmation email
+            require_once __DIR__ . '/../utils/EmailService.php';
+            $emailService = new EmailService();
+            $emailService->sendPasswordChangeNotification($userData['email'], $userData['username'], $isGoogleUser);
+
+            Response::json([
+                'message' => $isGoogleUser ? 'Password set successfully! You can now login with email/password.' : 'Password changed successfully!',
+                'isGoogleUser' => $isGoogleUser
+            ]);
+
+        } catch (Exception $e) {
+            error_log('Verify password change error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function getEmailChangeCooldown() {
+        try {
+            $user = AuthMiddleware::authenticate();
+            $pdo = Database::getConnection();
+
+            // Get user's last email change
+            $stmt = $pdo->prepare("SELECT lastEmailChange FROM users WHERE id = ?");
+            $stmt->execute([$user['id']]);
+            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$userData || !$userData['lastEmailChange']) {
+                Response::success([
+                    'cooldownActive' => false,
+                    'canChangeEmail' => true
+                ]);
+                return;
+            }
+
+            $lastChange = new DateTime($userData['lastEmailChange']);
+            $now = new DateTime();
+            $daysSinceLastChange = $now->diff($lastChange)->days;
+            $hoursSinceLastChange = $now->diff($lastChange)->h + ($daysSinceLastChange * 24);
+            $minutesSinceLastChange = $now->diff($lastChange)->i + ($hoursSinceLastChange * 60);
+            $secondsSinceLastChange = $now->diff($lastChange)->s + ($minutesSinceLastChange * 60);
+
+            if ($daysSinceLastChange < 15) {
+                $daysRemaining = 15 - $daysSinceLastChange;
+                $nextAllowed = clone $lastChange;
+                $nextAllowed->add(new DateInterval('P15D'));
+                
+                // Calculate precise time remaining
+                $timeRemaining = $now->diff($nextAllowed);
+                
+                Response::success([
+                    'cooldownActive' => true,
+                    'canChangeEmail' => false,
+                    'daysRemaining' => $daysRemaining,
+                    'timeRemaining' => [
+                        'days' => $timeRemaining->days,
+                        'hours' => $timeRemaining->h,
+                        'minutes' => $timeRemaining->i,
+                        'seconds' => $timeRemaining->s,
+                        'totalSeconds' => $secondsSinceLastChange
+                    ],
+                    'nextAllowedDate' => $nextAllowed->format('c'),
+                    'lastEmailChange' => $lastChange->format('c')
+                ]);
+            } else {
+                Response::success([
+                    'cooldownActive' => false,
+                    'canChangeEmail' => true
+                ]);
+            }
+
+        } catch (Exception $e) {
+            error_log('Get email change cooldown error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function getPasswordChangeCooldown() {
+        try {
+            $user = AuthMiddleware::authenticate();
+            $pdo = Database::getConnection();
+
+            // Get user's last password change
+            $stmt = $pdo->prepare("SELECT lastPasswordChange FROM users WHERE id = ?");
+            $stmt->execute([$user['id']]);
+            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$userData || !$userData['lastPasswordChange']) {
+                Response::success([
+                    'cooldownActive' => false,
+                    'canChangePassword' => true
+                ]);
+                return;
+            }
+
+            $lastChange = new DateTime($userData['lastPasswordChange']);
+            $now = new DateTime();
+            $hoursSinceLastChange = $now->diff($lastChange)->h + ($now->diff($lastChange)->days * 24);
+            $minutesSinceLastChange = $now->diff($lastChange)->i + ($hoursSinceLastChange * 60);
+            $secondsSinceLastChange = $now->diff($lastChange)->s + ($minutesSinceLastChange * 60);
+
+            if ($hoursSinceLastChange < 48) {
+                $hoursRemaining = 48 - $hoursSinceLastChange;
+                $nextAllowed = clone $lastChange;
+                $nextAllowed->add(new DateInterval('PT48H'));
+                
+                // Calculate precise time remaining
+                $timeRemaining = $now->diff($nextAllowed);
+                
+                Response::success([
+                    'cooldownActive' => true,
+                    'canChangePassword' => false,
+                    'hoursRemaining' => $hoursRemaining,
+                    'timeRemaining' => [
+                        'days' => $timeRemaining->days,
+                        'hours' => $timeRemaining->h,
+                        'minutes' => $timeRemaining->i,
+                        'seconds' => $timeRemaining->s,
+                        'totalSeconds' => $secondsSinceLastChange
+                    ],
+                    'nextAllowedDate' => $nextAllowed->format('c'),
+                    'lastPasswordChange' => $lastChange->format('c')
+                ]);
+            } else {
+                Response::success([
+                    'cooldownActive' => false,
+                    'canChangePassword' => true
+                ]);
+            }
+
+        } catch (Exception $e) {
+            error_log('Get password change cooldown error: ' . $e->getMessage());
             Response::error('Server error: ' . $e->getMessage(), 500);
         }
     }
