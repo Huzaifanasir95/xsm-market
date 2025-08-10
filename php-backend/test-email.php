@@ -13,12 +13,35 @@ if (file_exists(__DIR__ . '/.env')) {
     }
 }
 
-echo "Testing email configuration...\n";
-echo "GMAIL_USER: " . getenv('GMAIL_USER') . "\n";
-echo "GMAIL_APP_PASSWORD: " . (getenv('GMAIL_APP_PASSWORD') ? 'SET' : 'NOT SET') . "\n";
+echo "🧪 Testing Password Change OTP Email\n";
+echo "====================================\n\n";
 
 $emailService = new EmailService();
-$result = $emailService->sendOTPEmail('Tiktokwaalii2@gmail.com', '123456', 'testuser');
 
-echo "Email test result: " . ($result ? 'SUCCESS' : 'FAILED') . "\n";
+// Send password change verification email to the specified address
+$testEmail = 'malikhuzaifa7331@gmail.com';
+$testOTP = '567890';
+$testUsername = 'Huzaifa';
+$testToken = 'test-verification-token-123';
+$isGoogleUser = false;
+
+echo "📧 Sending password change OTP email to: $testEmail\n";
+echo "🔢 OTP Code: $testOTP\n";
+echo "👤 Username: $testUsername\n\n";
+
+$result = $emailService->sendPasswordChangeVerification($testEmail, $testOTP, $testUsername, $testToken, $isGoogleUser);
+
+if ($result) {
+    echo "✅ Password change OTP email sent successfully!\n";
+    echo "🔍 Check the following locations for the OTP:\n";
+    echo "   📋 Console output above\n";
+    echo "   📁 php-backend/logs/mock-emails.log\n";
+    echo "   🖥️  Backend server terminal\n\n";
+    echo "🔢 Your OTP for testing: $testOTP\n";
+} else {
+    echo "❌ Email sending failed!\n";
+}
+
+echo "\n💡 This email contains password change verification instructions and OTP.\n";
+echo "💡 In production, this would be sent to the actual email address.\n";
 ?>

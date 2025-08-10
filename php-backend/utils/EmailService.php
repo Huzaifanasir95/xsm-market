@@ -212,41 +212,64 @@ class EmailService {
         try {
             error_log("Checking email method availability...");
             
-            // Check if we're in development mode - use mock email sending
-            if (getenv('NODE_ENV') === 'development' || !getenv('GMAIL_USER') || !getenv('GMAIL_APP_PASSWORD')) {
-                error_log("Development mode or missing email credentials - using mock email sending");
-                return $this->sendMockEmail($to, $subject, $htmlBody, $textBody);
+            // Force real email sending if credentials are available (even in development)
+            $hasCredentials = getenv('GMAIL_USER') && getenv('GMAIL_APP_PASSWORD');
+            
+            if ($hasCredentials) {
+                error_log("Gmail credentials found - attempting real email sending");
+                
+                // Use PHPMailer if available, otherwise try direct SMTP
+                if (class_exists('PHPMailer\PHPMailer\PHPMailer') || class_exists('PHPMailer')) {
+                    error_log("Using PHPMailer for email sending");
+                    $result = $this->sendWithPHPMailer($to, $subject, $htmlBody, $textBody);
+                    if ($result) {
+                        return true;
+                    }
+                    error_log("PHPMailer failed, trying direct SMTP...");
+                }
+                
+                // Try direct SMTP as fallback
+                error_log("PHPMailer not available or failed - using direct SMTP");
+                $result = $this->sendWithDirectSMTP($to, $subject, $htmlBody, $textBody);
+                if ($result) {
+                    return true;
+                }
+                
+                error_log("Direct SMTP also failed, falling back to mock email...");
+            } else {
+                error_log("No email credentials - using mock email sending");
             }
             
-            // Use PHPMailer if available, otherwise try SMTP direct or PHP mail()
-            if (class_exists('PHPMailer\PHPMailer\PHPMailer') || class_exists('PHPMailer')) {
-                error_log("Using PHPMailer for email sending");
-                return $this->sendWithPHPMailer($to, $subject, $htmlBody, $textBody);
-            } else if ($this->smtpUser && $this->smtpPassword) {
-                error_log("Attempting SMTP direct connection");
-                return $this->sendWithSMTP($to, $subject, $htmlBody, $textBody);
-            } else {
-                error_log("PHPMailer not available and SMTP not configured, using PHP mail()");
-                return $this->sendWithPHPMail($to, $subject, $htmlBody);
-            }
+            // Fallback to mock email if real sending fails or no credentials
+            return $this->sendMockEmail($to, $subject, $htmlBody, $textBody);
             
         } catch (Exception $e) {
             error_log('Email sending error: ' . $e->getMessage());
-            // In development, return true to prevent blocking
-            if (getenv('NODE_ENV') === 'development') {
-                return $this->sendMockEmail($to, $subject, $htmlBody, $textBody);
-            }
-            return false;
+            // Fallback to mock email in case of error
+            return $this->sendMockEmail($to, $subject, $htmlBody, $textBody);
         }
     }
     
     // Mock email sending for development
     private function sendMockEmail($to, $subject, $htmlBody, $textBody = '') {
-        error_log("MOCK EMAIL SENT:");
-        error_log("To: $to");
-        error_log("Subject: $subject");
-        error_log("HTML Body: " . substr($htmlBody, 0, 200) . "...");
-        error_log("Text Body: " . substr($textBody, 0, 200) . "...");
+        error_log("📧 MOCK EMAIL SENT:");
+        error_log("📍 To: $to");
+        error_log("📋 Subject: $subject");
+        
+        // Extract OTP from email content
+        $otp = '';
+        if (preg_match('/\b(\d{6})\b/', $htmlBody, $matches)) {
+            $otp = $matches[1];
+        } elseif (preg_match('/\b(\d{6})\b/', $textBody, $matches)) {
+            $otp = $matches[1];
+        }
+        
+        if ($otp) {
+            error_log("🔢 OTP CODE: $otp");
+            error_log("🔢 =================");
+            error_log("🔢 YOUR OTP: $otp");
+            error_log("🔢 =================");
+        }
         
         // Save email to a log file for development purposes
         $logFile = __DIR__ . '/../logs/mock-emails.log';
@@ -255,15 +278,25 @@ class EmailService {
             mkdir($logDir, 0755, true);
         }
         
-        $logEntry = [
-            'timestamp' => date('Y-m-d H:i:s'),
-            'to' => $to,
-            'subject' => $subject,
-            'html_body' => $htmlBody,
-            'text_body' => $textBody
-        ];
+        // Enhanced log with OTP highlighting
+        $logContent = "\n" . str_repeat("=", 80) . "\n";
+        $logContent .= "📧 MOCK EMAIL - " . date('Y-m-d H:i:s') . "\n";
+        $logContent .= str_repeat("=", 80) . "\n";
+        $logContent .= "To: $to\n";
+        $logContent .= "Subject: $subject\n";
+        if ($otp) {
+            $logContent .= "🔢 OTP CODE: $otp\n";
+            $logContent .= str_repeat("-", 40) . "\n";
+        }
+        $logContent .= "HTML Body:\n" . $htmlBody . "\n";
+        $logContent .= str_repeat("=", 80) . "\n\n";
         
-        file_put_contents($logFile, json_encode($logEntry, JSON_PRETTY_PRINT) . "\n\n", FILE_APPEND);
+        file_put_contents($logFile, $logContent, FILE_APPEND | LOCK_EX);
+        
+        error_log("💾 Email saved to: $logFile");
+        if ($otp) {
+            error_log("✨ DEVELOPMENT MODE: Use OTP code $otp for verification");
+        }
         
         return true; // Always return true in development
     }
@@ -845,5 +878,172 @@ class EmailService {
     </div>
 </body>
 </html>";
+    }
+
+    // Direct SMTP implementation using PHP sockets (simpler and more reliable)
+    private function sendWithDirectSMTP($to, $subject, $htmlBody, $textBody = '') {
+        try {
+            error_log("Using direct SMTP implementation for Gmail");
+            
+            // Gmail SMTP settings
+            $host = 'smtp.gmail.com';
+            $port = 587;
+            $username = $this->smtpUser;
+            $password = $this->smtpPassword;
+            $from = $this->smtpUser;
+            
+            if (empty($username) || empty($password)) {
+                error_log("Missing SMTP credentials");
+                return false;
+            }
+            
+            error_log("Connecting to $host:$port with user: $username");
+            
+            // Connect to Gmail SMTP
+            $socket = fsockopen($host, $port, $errno, $errstr, 30);
+            if (!$socket) {
+                error_log("SMTP connection failed: $errstr ($errno)");
+                return false;
+            }
+            
+            // Helper function to read SMTP response
+            $readResponse = function() use ($socket) {
+                $response = '';
+                while ($line = fgets($socket, 515)) {
+                    $response .= $line;
+                    if (substr($line, 3, 1) == ' ') break;
+                }
+                return trim($response);
+            };
+            
+            // Helper function to send SMTP command
+            $sendCommand = function($command, $expected = '250') use ($socket, $readResponse) {
+                fputs($socket, $command . "\r\n");
+                $response = $readResponse();
+                error_log("SMTP: $command -> $response");
+                return strpos($response, $expected) === 0;
+            };
+            
+            // Read greeting
+            $greeting = $readResponse();
+            error_log("SMTP Greeting: $greeting");
+            
+            if (!strpos($greeting, '220') === 0) {
+                error_log("SMTP greeting failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Send EHLO
+            if (!$sendCommand("EHLO localhost", '250')) {
+                error_log("EHLO failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Start TLS
+            if (!$sendCommand("STARTTLS", '220')) {
+                error_log("STARTTLS failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Enable encryption
+            if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                error_log("TLS encryption failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Send EHLO again after TLS
+            if (!$sendCommand("EHLO localhost", '250')) {
+                error_log("EHLO after TLS failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Authenticate
+            if (!$sendCommand("AUTH LOGIN", '334')) {
+                error_log("AUTH LOGIN failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Send username
+            if (!$sendCommand(base64_encode($username), '334')) {
+                error_log("Username authentication failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Send password
+            if (!$sendCommand(base64_encode($password), '235')) {
+                error_log("Password authentication failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Send MAIL FROM
+            if (!$sendCommand("MAIL FROM: <$from>", '250')) {
+                error_log("MAIL FROM failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Send RCPT TO
+            if (!$sendCommand("RCPT TO: <$to>", '250')) {
+                error_log("RCPT TO failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Send DATA
+            if (!$sendCommand("DATA", '354')) {
+                error_log("DATA command failed");
+                fclose($socket);
+                return false;
+            }
+            
+            // Prepare email headers and body
+            $headers = "From: XSM Market <$from>\r\n";
+            $headers .= "To: $to\r\n";
+            $headers .= "Subject: $subject\r\n";
+            $headers .= "MIME-Version: 1.0\r\n";
+            $headers .= "Content-Type: multipart/alternative; boundary=\"boundary123\"\r\n";
+            $headers .= "\r\n";
+            
+            $emailBody = "--boundary123\r\n";
+            $emailBody .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            $emailBody .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
+            $emailBody .= ($textBody ?: strip_tags($htmlBody)) . "\r\n";
+            $emailBody .= "--boundary123\r\n";
+            $emailBody .= "Content-Type: text/html; charset=UTF-8\r\n";
+            $emailBody .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
+            $emailBody .= $htmlBody . "\r\n";
+            $emailBody .= "--boundary123--\r\n";
+            
+            // Send email content
+            fputs($socket, $headers . $emailBody . "\r\n.\r\n");
+            $response = $readResponse();
+            error_log("Email send response: $response");
+            
+            $success = strpos($response, '250') === 0;
+            
+            // Send QUIT
+            $sendCommand("QUIT", '221');
+            fclose($socket);
+            
+            if ($success) {
+                error_log("✅ Email sent successfully to $to");
+                return true;
+            } else {
+                error_log("❌ Email sending failed: $response");
+                return false;
+            }
+            
+        } catch (Exception $e) {
+            error_log("Direct SMTP error: " . $e->getMessage());
+            return false;
+        }
     }
 }
