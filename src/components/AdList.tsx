@@ -175,12 +175,6 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end mb-4">
-        <div className="text-sm text-xsm-light-gray">
-          {ads.length} {ads.length === 1 ? 'listing' : 'listings'} found
-        </div>
-      </div>
-
       {/* Ad Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {ads.map((ad) => (
