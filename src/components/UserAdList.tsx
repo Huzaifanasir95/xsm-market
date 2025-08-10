@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserAds, getUserAdsAlternative, deleteAd } from '../services/ads';
 import { useAuth } from '../context/useAuth';
-import { Star, Eye, Trash2, Edit, AlertCircle } from 'lucide-react';
+import { Star, Eye, Trash2, Edit, AlertCircle, TrendingUp, Pin, DollarSign, CheckCircle, XCircle } from 'lucide-react';
 
 interface UserAd {
   id: number;
@@ -11,10 +11,16 @@ interface UserAd {
   price: number;
   subscribers: number;
   monthlyIncome: number;
+  isMonetized: boolean;
   status: 'active' | 'pending' | 'sold' | 'suspended' | 'rejected';
   views: number;
   createdAt: string;
   updatedAt: string;
+  seller?: {
+    id: number;
+    username: string;
+    profilePicture?: string;
+  };
 }
 
 interface UserAdListProps {
@@ -72,6 +78,33 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
     } catch (err: any) {
       alert(err.message || 'Failed to delete ad');
     }
+  };
+
+  const handlePullUp = async (id: number, createdAt: string) => {
+    // Check if 4 days have passed since creation or last pull
+    const lastPull = new Date(createdAt);
+    const now = new Date();
+    const daysDiff = Math.floor((now.getTime() - lastPull.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysDiff < 4) {
+      alert(`You can pull up this listing in ${4 - daysDiff} more day(s). Listings can only be pulled up every 4 days.`);
+      return;
+    }
+
+    if (!window.confirm('Pull up this listing to show at the top of market listings?')) {
+      return;
+    }
+
+    try {
+      // TODO: Implement pull up API call
+      alert('Pull up functionality will be implemented soon!');
+    } catch (err: any) {
+      alert(err.message || 'Failed to pull up listing');
+    }
+  };
+
+  const handlePin = async (id: number) => {
+    alert('Pin listing feature coming soon!');
   };
 
   const formatPrice = (price: number) => {
@@ -183,54 +216,123 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
       ) : (
         <div className="space-y-4">
           {ads.map((ad) => (
-            <div key={ad.id} className="bg-xsm-black/50 rounded-lg p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex-1">
+            <div key={ad.id} className="bg-xsm-black/50 rounded-lg p-6 border border-xsm-medium-gray/20">
+              {/* Header with Profile Picture and Title */}
+              <div className="flex items-start gap-4 mb-4">
+                <div className="flex-shrink-0">
+                  <img
+                    src={ad.seller?.profilePicture || user?.profilePicture || '/default-avatar.png'}
+                    alt="Profile"
+                    className="w-12 h-12 rounded-full object-cover border-2 border-xsm-yellow/30"
+                  />
+                </div>
+                
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
-                    <h4 className="text-white font-semibold text-lg">{ad.title}</h4>
+                    <h4 className="text-white font-semibold text-lg truncate">{ad.title}</h4>
                     {getPlatformIcon(ad.platform)}
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(ad.status)}`}>
                       {ad.status.charAt(0).toUpperCase() + ad.status.slice(1)}
                     </span>
                   </div>
                   
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-xsm-light-gray mb-2">
-                    <span>{ad.category}</span>
-                    <span>{formatNumber(ad.subscribers)} subscribers</span>
-                    <span className="text-xsm-yellow font-semibold">{formatPrice(ad.price)}</span>
-                    {ad.monthlyIncome > 0 && (
-                      <span className="text-green-400">{formatPrice(ad.monthlyIncome)}/mo</span>
+                  <div className="text-sm text-xsm-light-gray">
+                    @{ad.seller?.username || user?.username}
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Metrics */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                {/* Subscribers */}
+                <div className="bg-xsm-dark-gray/50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Eye className="w-4 h-4 text-blue-400" />
+                    <span className="text-xs text-xsm-light-gray">Subscribers</span>
+                  </div>
+                  <div className="text-white font-semibold">{formatNumber(ad.subscribers)}</div>
+                </div>
+
+                {/* Price */}
+                <div className="bg-xsm-dark-gray/50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign className="w-4 h-4 text-xsm-yellow" />
+                    <span className="text-xs text-xsm-light-gray">Price</span>
+                  </div>
+                  <div className="text-xsm-yellow font-semibold">{formatPrice(ad.price)}</div>
+                </div>
+
+                {/* Monthly Income */}
+                <div className="bg-xsm-dark-gray/50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TrendingUp className="w-4 h-4 text-green-400" />
+                    <span className="text-xs text-xsm-light-gray">Monthly Income</span>
+                  </div>
+                  <div className="text-green-400 font-semibold">
+                    {ad.monthlyIncome > 0 ? formatPrice(ad.monthlyIncome) : 'N/A'}
+                  </div>
+                </div>
+
+                {/* Monetization Status */}
+                <div className="bg-xsm-dark-gray/50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    {ad.isMonetized ? (
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-400" />
                     )}
+                    <span className="text-xs text-xsm-light-gray">Monetized</span>
                   </div>
-
-                  <div className="flex items-center gap-4 text-xs text-xsm-light-gray">
-                    <span>Created: {new Date(ad.createdAt).toLocaleDateString()}</span>
-                    <span className="flex items-center gap-1">
-                      <Eye className="w-3 h-3" />
-                      {ad.views} views
-                    </span>
+                  <div className={`font-semibold ${ad.isMonetized ? 'text-green-400' : 'text-red-400'}`}>
+                    {ad.isMonetized ? 'Yes' : 'No'}
                   </div>
                 </div>
+              </div>
 
-                <div className="flex items-center gap-2">
-                  {onEditAd && (
-                    <button
-                      onClick={() => onEditAd(ad)}
-                      className="xsm-button-secondary flex items-center gap-2"
-                    >
-                      <Edit className="w-4 h-4" />
-                      Edit
-                    </button>
-                  )}
-                  
-                  <button
-                    onClick={() => handleDelete(ad.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
-                </div>
+              {/* Additional Info */}
+              <div className="flex flex-wrap items-center gap-4 text-sm text-xsm-light-gray mb-4">
+                <span>{ad.category}</span>
+                <span>Created: {new Date(ad.createdAt).toLocaleDateString()}</span>
+                <span className="flex items-center gap-1">
+                  <Eye className="w-3 h-3" />
+                  {ad.views} views
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => onEditAd && onEditAd(ad)}
+                  className="xsm-button-secondary flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </button>
+                
+                <button
+                  onClick={() => handleDelete(ad.id)}
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+
+                <button
+                  onClick={() => handlePullUp(ad.id, ad.createdAt)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Pull Up
+                </button>
+
+                <button
+                  onClick={() => handlePin(ad.id)}
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <Pin className="w-4 h-4" />
+                  Pin (Soon)
+                </button>
               </div>
             </div>
           ))}
