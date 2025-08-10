@@ -195,6 +195,14 @@ function handleUserRoutes($controller, $path, $method) {
             if ($method === 'PUT') $controller->changePassword();
             else methodNotAllowed();
             break;
+        case '/user/email/change-request':
+            if ($method === 'POST') $controller->requestEmailChange();
+            else methodNotAllowed();
+            break;
+        case '/user/email/verify-change':
+            if ($method === 'POST') $controller->verifyEmailChange();
+            else methodNotAllowed();
+            break;
         case '/user/profile-legacy':
             if ($method === 'GET') $controller->getProfile();
             else methodNotAllowed();

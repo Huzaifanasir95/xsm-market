@@ -224,6 +224,12 @@ function handleUserRoutes($controller, $path, $method) {
         case $path === '/user/password' && $method === 'PUT':
             $controller->changePassword();
             break;
+        case $path === '/user/email/change-request' && $method === 'POST':
+            $controller->requestEmailChange();
+            break;
+        case $path === '/user/email/verify-change' && $method === 'POST':
+            $controller->verifyEmailChange();
+            break;
         case preg_match('/^\/user\/(\d+)$/', $path, $matches) && $method === 'GET':
             $controller->getUserById($matches[1]);
             break;

@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { User as UserIcon, Edit, LogOut, Save, X, Camera, Pin, Crown, Settings } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
+import EmailVerificationModal from '@/components/EmailVerificationModal';
 import { useAuth } from '@/context/useAuth';
 import { User } from '@/context/AuthContext';
-import { updateProfile, getProfile, changePassword, logout } from '@/services/auth';
+import { updateProfile, getProfile, changePassword, logout, requestEmailChange } from '@/services/auth';
 
 // Get API URL from environment variables
 const getApiUrl = () => {
@@ -57,6 +58,13 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     newPassword: '',
     confirmPassword: '',
   });
+  
+  // Email verification modal state
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [emailVerificationToken, setEmailVerificationToken] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
   const [editForm, setEditForm] = useState({
     username: '',
     email: '',
@@ -420,21 +428,21 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       user,
       authProvider: (user as any)?.authProvider,
       isGoogleUser: (user as any)?.authProvider === 'google',
-      currentPassword: passwordForm.currentPassword,
-      newPassword: passwordForm.newPassword ? '***' : ''
+      currentPassword: settingsPasswordForm.currentPassword,
+      newPassword: settingsPasswordForm.newPassword ? '***' : ''
     });
 
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    if (settingsPasswordForm.newPassword !== settingsPasswordForm.confirmPassword) {
       alert('New passwords do not match!');
       return;
     }
     
-    if (!passwordForm.newPassword) {
+    if (!settingsPasswordForm.newPassword) {
       alert('Please enter a new password!');
       return;
     }
     
-    if (passwordForm.newPassword.length < 6) {
+    if (settingsPasswordForm.newPassword.length < 6) {
       alert('New password must be at least 6 characters long!');
       return;
     }
@@ -461,7 +469,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         
         // For Google users, they don't need to enter current password (first time setting password)
         // For email users, they need current password
-        if (!isGoogleUser && !passwordForm.currentPassword) {
+        if (!isGoogleUser && !settingsPasswordForm.currentPassword) {
           alert('Please enter your current password!');
           setIsChangingPassword(false);
           return;
@@ -469,8 +477,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         
         // For Google users, send empty current password; for email users, send the current password
         await changePassword(
-          isGoogleUser ? '' : passwordForm.currentPassword, 
-          passwordForm.newPassword
+          isGoogleUser ? '' : settingsPasswordForm.currentPassword, 
+          settingsPasswordForm.newPassword
         );
         
         if (isGoogleUser) {
@@ -479,7 +487,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           alert('Password changed successfully!');
         }
         
-        setPasswordForm({
+        setSettingsPasswordForm({
           currentPassword: '',
           newPassword: '',
           confirmPassword: '',
@@ -955,10 +963,22 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                         return;
                       }
                       
-                      const updatedUser = await updateProfile({ email: settingsForm.email });
-                      setProfile(prev => ({ ...prev, email: updatedUser.email }));
-                      setUser({ ...updatedUser, id: String(updatedUser.id) });
-                      alert('Email updated successfully!');
+                      // Request email change with verification
+                      const result = await requestEmailChange(settingsForm.email);
+                      
+                      // Store verification data for the modal
+                      setPendingEmail(result.newEmail);
+                      setEmailVerificationToken(result.verificationToken || 'temp-token');
+                      setShowEmailVerification(true);
+                      setShowSettings(false);
+                      
+                      // Development mode message
+                      if (import.meta.env.DEV) {
+                        alert('Development Mode: Verification email sent! Check the browser console or backend logs for the verification code. In production, this would be sent to your email.');
+                      } else {
+                        alert('Verification email sent! Please check your new email address.');
+                      }
+                      
                       
                     } else if (activeSettingsTab === 'password') {
                       // Password validation
@@ -1084,6 +1104,25 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           </div>
         </div>
       )}
+
+      {/* Email Verification Modal */}
+      <EmailVerificationModal
+        isOpen={showEmailVerification}
+        onClose={() => setShowEmailVerification(false)}
+        onSuccess={(newEmail) => {
+          // Update profile and user context with new email
+          setProfile(prev => ({ ...prev, email: newEmail }));
+          setUser(prev => prev ? { ...prev, email: newEmail } : prev);
+          alert('Email address changed successfully!');
+          
+          // Reset form
+          setSettingsForm(prev => ({ ...prev, email: newEmail }));
+          setPendingEmail('');
+          setEmailVerificationToken('');
+        }}
+        newEmail={pendingEmail}
+        verificationToken={emailVerificationToken}
+      />
     </div>
   );
 };

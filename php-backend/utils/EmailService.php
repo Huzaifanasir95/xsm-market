@@ -123,10 +123,57 @@ class EmailService {
         }
     }
     
+    // Send email change verification - new method for email change functionality
+    public function sendEmailChangeVerification($newEmail, $otp, $username, $verificationToken) {
+        try {
+            error_log("Attempting to send email change verification to: $newEmail with OTP: $otp");
+            
+            $subject = 'XSM Market - Verify Your New Email Address';
+            $htmlBody = $this->getEmailChangeVerificationTemplate($otp, $username, $verificationToken);
+            $textBody = "Hello $username,\n\nYou requested to change your email address on XSM Market.\n\nYour verification code is: $otp\n\nThis code expires in 15 minutes.\n\nIf you didn't request this change, please ignore this email.\n\nBest regards,\nXSM Market Team";
+            
+            $result = $this->sendEmail($newEmail, $subject, $htmlBody, $textBody);
+            error_log("Email change verification send result: " . ($result ? 'SUCCESS' : 'FAILED'));
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log('Failed to send email change verification: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // Send email change notification to old email - new method for email change functionality
+    public function sendEmailChangeNotification($oldEmail, $newEmail, $username) {
+        try {
+            error_log("Sending email change notification to old email: $oldEmail");
+            
+            $subject = 'XSM Market - Email Address Changed';
+            $htmlBody = $this->getEmailChangeNotificationTemplate($oldEmail, $newEmail, $username);
+            $textBody = "Hello $username,\n\nYour email address on XSM Market has been successfully changed.\n\nOld email: $oldEmail\nNew email: $newEmail\n\nIf you didn't make this change, please contact our support team immediately.\n\nBest regards,\nXSM Market Team";
+            
+            $result = $this->sendEmail($oldEmail, $subject, $htmlBody, $textBody);
+            error_log("Email change notification send result: " . ($result ? 'SUCCESS' : 'FAILED'));
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log('Failed to send email change notification: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
     // Core email sending function - made public for use by other controllers
     public function sendEmail($to, $subject, $htmlBody, $textBody = '') {
         try {
             error_log("Checking email method availability...");
+            
+            // Check if we're in development mode - use mock email sending
+            if (getenv('NODE_ENV') === 'development' || !getenv('GMAIL_USER') || !getenv('GMAIL_APP_PASSWORD')) {
+                error_log("Development mode or missing email credentials - using mock email sending");
+                return $this->sendMockEmail($to, $subject, $htmlBody, $textBody);
+            }
+            
             // Use PHPMailer if available, otherwise try SMTP direct or PHP mail()
             if (class_exists('PHPMailer\PHPMailer\PHPMailer') || class_exists('PHPMailer')) {
                 error_log("Using PHPMailer for email sending");
@@ -141,8 +188,40 @@ class EmailService {
             
         } catch (Exception $e) {
             error_log('Email sending error: ' . $e->getMessage());
+            // In development, return true to prevent blocking
+            if (getenv('NODE_ENV') === 'development') {
+                return $this->sendMockEmail($to, $subject, $htmlBody, $textBody);
+            }
             return false;
         }
+    }
+    
+    // Mock email sending for development
+    private function sendMockEmail($to, $subject, $htmlBody, $textBody = '') {
+        error_log("MOCK EMAIL SENT:");
+        error_log("To: $to");
+        error_log("Subject: $subject");
+        error_log("HTML Body: " . substr($htmlBody, 0, 200) . "...");
+        error_log("Text Body: " . substr($textBody, 0, 200) . "...");
+        
+        // Save email to a log file for development purposes
+        $logFile = __DIR__ . '/../logs/mock-emails.log';
+        $logDir = dirname($logFile);
+        if (!is_dir($logDir)) {
+            mkdir($logDir, 0755, true);
+        }
+        
+        $logEntry = [
+            'timestamp' => date('Y-m-d H:i:s'),
+            'to' => $to,
+            'subject' => $subject,
+            'html_body' => $htmlBody,
+            'text_body' => $textBody
+        ];
+        
+        file_put_contents($logFile, json_encode($logEntry, JSON_PRETTY_PRINT) . "\n\n", FILE_APPEND);
+        
+        return true; // Always return true in development
     }
     
     // Send with PHPMailer (preferred method)
@@ -519,6 +598,96 @@ class EmailService {
         
         <p style='color: #888; font-size: 14px; margin-top: 30px;'>
             Received at: " . date('Y-m-d H:i:s') . "
+        </p>
+    </div>
+</body>
+</html>";
+    }
+    
+    private function getEmailChangeVerificationTemplate($otp, $username, $verificationToken) {
+        return "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Email Change Verification</title>
+</head>
+<body style='font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1);'>
+        <div style='text-align: center; margin-bottom: 30px;'>
+            <h1 style='color: #333; margin: 0;'>XSM Market</h1>
+            <p style='color: #666; margin: 5px 0 0 0;'>Social Media Marketplace</p>
+        </div>
+        
+        <h2 style='color: #17a2b8; margin-bottom: 20px;'>Verify Your New Email Address</h2>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Hello <strong>$username</strong>,</p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>You requested to change your email address on XSM Market. To complete this change, please verify your new email address using the verification code below:</p>
+        
+        <div style='text-align: center; margin: 30px 0;'>
+            <div style='background-color: #17a2b8; color: white; padding: 15px 30px; border-radius: 5px; font-size: 24px; font-weight: bold; letter-spacing: 3px; display: inline-block;'>
+                $otp
+            </div>
+        </div>
+        
+        <p style='color: #555; margin-bottom: 20px;'>This verification code expires in <strong>15 minutes</strong>.</p>
+        
+        <div style='background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <p style='color: #0c5460; margin: 0; font-weight: bold;'>📧 Security Notice:</p>
+            <p style='color: #0c5460; margin: 10px 0 0 0;'>If you didn't request this email change, please ignore this message. Your current email address will remain unchanged.</p>
+        </div>
+        
+        <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+        
+        <p style='color: #888; font-size: 14px; margin: 0;'>
+            Best regards,<br>
+            The XSM Market Team
+        </p>
+    </div>
+</body>
+</html>";
+    }
+    
+    private function getEmailChangeNotificationTemplate($oldEmail, $newEmail, $username) {
+        return "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Email Address Changed</title>
+</head>
+<body style='font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1);'>
+        <div style='text-align: center; margin-bottom: 30px;'>
+            <h1 style='color: #333; margin: 0;'>XSM Market</h1>
+            <p style='color: #666; margin: 5px 0 0 0;'>Social Media Marketplace</p>
+        </div>
+        
+        <h2 style='color: #28a745; margin-bottom: 20px;'>Email Address Successfully Changed</h2>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Hello <strong>$username</strong>,</p>
+        
+        <p style='color: #555; margin-bottom: 20px;'>Your email address on XSM Market has been successfully changed.</p>
+        
+        <div style='background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;'>
+            <p style='color: #333; margin: 0;'><strong>Previous email:</strong> $oldEmail</p>
+            <p style='color: #333; margin: 10px 0 0 0;'><strong>New email:</strong> $newEmail</p>
+        </div>
+        
+        <div style='background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <p style='color: #721c24; margin: 0; font-weight: bold;'>🚨 Important Security Notice:</p>
+            <p style='color: #721c24; margin: 10px 0 0 0;'>If you didn't make this change, please contact our support team immediately. Your account security may have been compromised.</p>
+        </div>
+        
+        <p style='color: #555; margin-bottom: 20px;'>All future communications will be sent to your new email address.</p>
+        
+        <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+        
+        <p style='color: #888; font-size: 14px; margin: 0;'>
+            Best regards,<br>
+            The XSM Market Team<br>
+            Changed on: " . date('Y-m-d H:i:s') . "
         </p>
     </div>
 </body>

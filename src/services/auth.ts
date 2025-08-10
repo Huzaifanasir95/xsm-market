@@ -680,3 +680,41 @@ export const createChannelListing = async (channelData: any): Promise<any> => {
     }
   }
 };
+
+// Email change functionality
+export const requestEmailChange = async (newEmail: string): Promise<{ message: string; newEmail: string; verificationToken: string }> => {
+  try {
+    const response = await authenticatedFetch(`${API_URL}/user/email/change-request`, {
+      method: 'POST',
+      body: JSON.stringify({ newEmail }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to request email change');
+    }
+  }
+};
+
+export const verifyEmailChange = async (token: string, otp: string): Promise<{ message: string; newEmail: string }> => {
+  try {
+    const response = await fetch(`${API_URL}/user/email/verify-change`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, otp }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to verify email change');
+    }
+  }
+};

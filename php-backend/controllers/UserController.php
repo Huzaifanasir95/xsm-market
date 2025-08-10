@@ -381,5 +381,135 @@ class UserController {
             Response::error('Server error: ' . $e->getMessage(), 500);
         }
     }
+
+    // Change email - Step 1: Request email change and send verification
+    public function requestEmailChange() {
+        try {
+            $user = AuthMiddleware::authenticate();
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $newEmail = $input['newEmail'] ?? null;
+            
+            if (!$newEmail) {
+                Response::error('New email is required', 400);
+                return;
+            }
+
+            $newEmail = filter_var(trim($newEmail), FILTER_VALIDATE_EMAIL);
+            if (!$newEmail) {
+                Response::error('Invalid email format', 400);
+                return;
+            }
+
+            $pdo = Database::getConnection();
+
+            // Check if new email is already in use
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+            $stmt->execute([$newEmail, $user['id']]);
+            if ($stmt->fetch()) {
+                Response::error('Email is already in use', 400);
+                return;
+            }
+
+            // Get current user info
+            $stmt = $pdo->prepare("SELECT username, email FROM users WHERE id = ?");
+            $stmt->execute([$user['id']]);
+            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$userData) {
+                Response::error('User not found', 404);
+                return;
+            }
+
+            // Generate verification token and OTP
+            $verificationToken = bin2hex(random_bytes(32));
+            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $otpExpires = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+
+            // Store email change request
+            $stmt = $pdo->prepare("
+                UPDATE users 
+                SET pendingEmail = ?, emailChangeToken = ?, emailOTP = ?, otpExpires = ? 
+                WHERE id = ?
+            ");
+            $stmt->execute([$newEmail, $verificationToken, $otp, $otpExpires, $user['id']]);
+
+            // Send verification email to new email address
+            require_once __DIR__ . '/../utils/EmailService.php';
+            $emailService = new EmailService();
+            $emailSent = $emailService->sendEmailChangeVerification($newEmail, $otp, $userData['username'], $verificationToken);
+
+            if ($emailSent) {
+                Response::json([
+                    'message' => 'Verification email sent to new email address',
+                    'newEmail' => $newEmail,
+                    'verificationToken' => $verificationToken
+                ]);
+            } else {
+                Response::error('Failed to send verification email', 500);
+            }
+
+        } catch (Exception $e) {
+            error_log('Request email change error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // Change email - Step 2: Verify and complete email change
+    public function verifyEmailChange() {
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $token = $input['token'] ?? null;
+            $otp = $input['otp'] ?? null;
+
+            if (!$token || !$otp) {
+                Response::error('Token and OTP are required', 400);
+                return;
+            }
+
+            $pdo = Database::getConnection();
+
+            // Find user with matching token and OTP
+            $stmt = $pdo->prepare("
+                SELECT id, username, email, pendingEmail, emailOTP, otpExpires 
+                FROM users 
+                WHERE emailChangeToken = ? AND emailOTP = ? AND otpExpires > NOW()
+            ");
+            $stmt->execute([$token, $otp]);
+            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$userData) {
+                Response::error('Invalid or expired verification code', 400);
+                return;
+            }
+
+            $oldEmail = $userData['email'];
+            $newEmail = $userData['pendingEmail'];
+
+            // Update email and clear pending change data
+            $stmt = $pdo->prepare("
+                UPDATE users 
+                SET email = ?, pendingEmail = NULL, emailChangeToken = NULL, 
+                    emailOTP = NULL, otpExpires = NULL, isEmailVerified = 1
+                WHERE id = ?
+            ");
+            $stmt->execute([$newEmail, $userData['id']]);
+
+            // Send confirmation email to old email
+            require_once __DIR__ . '/../utils/EmailService.php';
+            $emailService = new EmailService();
+            $emailService->sendEmailChangeNotification($oldEmail, $newEmail, $userData['username']);
+
+            Response::json([
+                'message' => 'Email address successfully changed',
+                'newEmail' => $newEmail
+            ]);
+
+        } catch (Exception $e) {
+            error_log('Verify email change error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+    }
 }
 ?>
