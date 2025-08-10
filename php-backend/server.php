@@ -215,6 +215,14 @@ function handleAdRoutes($controller, $path, $method) {
         if ($method === 'GET') $controller->searchAds();
         else methodNotAllowed();
     }
+    elseif ($path === '/ads/my-ads') {
+        if ($method === 'GET') $controller->getMyAds();
+        else methodNotAllowed();
+    }
+    elseif ($path === '/ads/user/my-ads') {
+        if ($method === 'GET') $controller->getMyAds();
+        else methodNotAllowed();
+    }
     elseif ($path === '/ads/user') {
         if ($method === 'GET') $controller->getUserAds();
         else methodNotAllowed();

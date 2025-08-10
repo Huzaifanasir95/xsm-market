@@ -80,7 +80,7 @@ export const createAd = async (adData) => {
 };
 
 // Get user's ads (protected)
-export const getUserAds = async (filters = {}) => {
+export const getUserAds = async (filters: any = {}) => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -103,8 +103,18 @@ export const getUserAds = async (filters = {}) => {
       }
     });
 
+    // Check if response is actually JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      // If not JSON, get the text to see what error occurred
+      const text = await response.text();
+      console.error('Non-JSON response from /ads/my-ads:', text);
+      throw new Error('Server returned invalid response format');
+    }
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch user ads: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to fetch user ads: ${response.statusText}`);
     }
 
     return await response.json();
@@ -193,7 +203,7 @@ export const getPlatformStats = async () => {
 };
 
 // Alternative method to get user's ads using a different endpoint
-export const getUserAdsAlternative = async (filters = {}) => {
+export const getUserAdsAlternative = async (filters: any = {}) => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -250,14 +260,14 @@ export const getUserAdsAlternative = async (filters = {}) => {
     const allAdsData = await allAdsResponse.json();
     
     // Filter ads by user ID (check both userId and user_id fields)
-    const userAds = allAdsData.ads.filter(ad => 
+    const userAds = allAdsData.ads.filter((ad: any) => 
       ad.userId == userId || ad.user_id == userId || ad.createdBy == userId
     );
     
     // Apply additional filters if provided
     let filteredAds = userAds;
     if (filters.status) {
-      filteredAds = userAds.filter(ad => ad.status === filters.status);
+      filteredAds = userAds.filter((ad: any) => ad.status === filters.status);
     }
 
     return {

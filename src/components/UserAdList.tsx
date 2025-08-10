@@ -28,14 +28,7 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
   const [filter, setFilter] = useState('all');
   const { user } = useAuth();
 
-  // Debug logging
-  console.log('🔍 UserAdList render - User data:', user);
-  console.log('🔍 UserAdList render - User ID:', user?.id);
-  console.log('🔍 UserAdList render - Is logged in:', !!user);
-
   useEffect(() => {
-    console.log('🔍 UserAdList mounted with user:', user);
-    console.log('🔍 Filter changed to:', filter);
     fetchUserAds();
   }, [filter, user]);
 
@@ -48,75 +41,15 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
       if (!user?.id) {
         throw new Error('User not logged in');
       }
-
-      console.log('🔍 Fetching ads for user ID:', user.id);
       
-      // Simple approach: Get all ads and filter by current user ID
-      const API_URL = import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api';
-      const allAdsResponse = await fetch(`${API_URL}/ads`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!allAdsResponse.ok) {
-        throw new Error('Failed to fetch ads from server');
-      }
-
-      const allAdsData = await allAdsResponse.json();
-      console.log('📊 All ads received:', allAdsData);
-      
-      // Log the structure of the first ad to see what fields are available
-      if (allAdsData.ads && allAdsData.ads.length > 0) {
-        console.log('🔍 First ad structure:', allAdsData.ads[0]);
-        console.log('🔍 All field names in first ad:', Object.keys(allAdsData.ads[0]));
-      }
-      
-      // Filter ads by current user ID (check multiple possible field names)
-      const userAds = allAdsData.ads.filter((ad: any) => {
-        console.log('🔍 Checking ad:', ad.id, 'User fields:', {
-          userId: ad.userId,
-          user_id: ad.user_id,
-          createdBy: ad.createdBy,
-          created_by: ad.created_by,
-          owner_id: ad.owner_id,
-          author_id: ad.author_id,
-          currentUserId: user.id,
-          allFields: Object.keys(ad)
-        });
-        return ad.userId == user.id || 
-               ad.user_id == user.id || 
-               ad.createdBy == user.id ||
-               ad.created_by == user.id ||
-               ad.owner_id == user.id ||
-               ad.author_id == user.id;
-      });
-      
-      console.log('✅ Filtered user ads:', userAds);
-      
-      // Apply status filter if provided
-      let filteredAds = userAds;
-      if (filter !== 'all') {
-        filteredAds = userAds.filter((ad: any) => ad.status === filter);
-      }
-
-      console.log('🎯 Final filtered ads:', filteredAds);
-
-      const response = {
-        ads: filteredAds,
-        pagination: {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: filteredAds.length,
-          itemsPerPage: filteredAds.length
-        }
-      };
+      // Use the alternative method which is more reliable
+      const filters = filter !== 'all' ? { status: filter } : {};
+      const response = await getUserAdsAlternative(filters);
       
       setAds(response.ads || []);
       setError(null);
     } catch (err: any) {
-      console.error('❌ Failed to fetch user ads:', err);
+      console.error('Failed to fetch user ads:', err);
       setError(err.message || 'Failed to fetch your ads');
       setAds([]);
     } finally {
@@ -235,19 +168,6 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </button>
         ))}
-      </div>
-
-      {/* Debug Info */}
-      <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 text-sm">
-        <div className="text-blue-300 font-semibold mb-2">Debug Info:</div>
-        <div className="text-blue-200 space-y-1">
-          <div>User ID: {user?.id || 'Not available'}</div>
-          <div>Username: {user?.username || 'Not available'}</div>
-          <div>Ads Count: {ads.length}</div>
-          <div>Filter: {filter}</div>
-          <div>Loading: {loading ? 'Yes' : 'No'}</div>
-          <div>Error: {error || 'None'}</div>
-        </div>
       </div>
 
       {/* Ad List */}

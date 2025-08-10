@@ -46,11 +46,16 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState('username');
   const [settingsForm, setSettingsForm] = useState({
     username: '',
     email: '',
+  });
+  const [settingsPasswordForm, setSettingsPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
   const [editForm, setEditForm] = useState({
     username: '',
@@ -58,21 +63,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     profilePicture: '',
     description: ''
   });
-  // Initialize password form with empty values and ensure it stays empty
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-
-  // Ensure password form stays empty (prevent auto-fill)
-  useEffect(() => {
-    setPasswordForm({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
-  }, [user]); // Reset when user changes
+  
   const [listedChannels] = useState([
     {
       id: '1',
@@ -642,9 +633,15 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   <button
                     onClick={() => {
                       setShowSettings(true);
+                      setActiveSettingsTab('username');
                       setSettingsForm({
                         username: profile.username,
                         email: profile.email,
+                      });
+                      setSettingsPasswordForm({
+                        currentPassword: '',
+                        newPassword: '',
+                        confirmPassword: '',
                       });
                     }}
                     className="xsm-button-secondary flex items-center space-x-2 text-sm"
@@ -730,85 +727,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               </div>
             </div>
 
-            {/* Password Change */}
-            <div className="xsm-card">
-              <h3 className="text-xl font-bold text-xsm-yellow mb-6">
-                {(user as any)?.authProvider === 'google' ? 'Set Password' : 'Change Password'}
-              </h3>
-              
-              {(user as any)?.authProvider === 'google' && (
-                <div className="bg-blue-500/10 rounded-lg p-4 mb-6">
-                  <h4 className="text-blue-400 font-semibold mb-2">Google Account</h4>
-                  <p className="text-white text-sm mb-2">
-                    You signed in with Google. You can set a password to enable email/password login as an alternative to Google sign-in.
-                  </p>
-                  <p className="text-xsm-light-gray text-xs">
-                    Setting a password won't affect your Google sign-in - you'll be able to use both methods.
-                  </p>
-                </div>
-              )}
-              
-              <div className="space-y-4">
-                {(user as any)?.authProvider !== 'google' && (
-                  <div>
-                    <label className="block text-white font-medium mb-2">Current Password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder="Enter current password"
-                      autoComplete="current-password"
-                      autoFocus={false}
-                    />
-                  </div>
-                )}
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-white font-medium mb-2">
-                      {(user as any)?.authProvider === 'google' ? 'New Password' : 'New Password'}
-                    </label>
-                    <input
-                      type="password"
-                      value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder={(user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password'}
-                      autoComplete="new-password"
-                      autoFocus={false}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white font-medium mb-2">Confirm Password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder="Confirm password"
-                      autoComplete="new-password"
-                      autoFocus={false}
-                    />
-                  </div>
-                </div>
-                <button
-                  onClick={handlePasswordChange}
-                  disabled={isChangingPassword}
-                  className={`xsm-button ${isChangingPassword ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {isChangingPassword ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
-                      {(user as any)?.authProvider === 'google' ? 'Setting Password...' : 'Updating Password...'}
-                    </>
-                  ) : (
-                    (user as any)?.authProvider === 'google' ? 'Set Password' : 'Update Password'
-                  )}
-                </button>
-              </div>
-            </div>
-
             {/* My Ads */}
             <div className="xsm-card">
               <h3 className="text-xl font-bold text-xsm-yellow mb-6">My Listings</h3>
@@ -823,7 +741,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-xsm-dark-gray rounded-lg border border-xsm-yellow/20 p-6 w-full max-w-md">
+          <div className="bg-xsm-dark-gray rounded-lg border border-xsm-yellow/20 p-6 w-full max-w-lg">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-xsm-yellow">Settings</h3>
               <button
@@ -834,65 +752,298 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-white font-medium mb-2">Username</label>
-                <input
-                  type="text"
-                  value={settingsForm.username}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, username: e.target.value })}
-                  className="xsm-input w-full"
-                  placeholder="Enter username (3-50 chars, letters, numbers, underscores only)"
-                />
-              </div>
-
-              <div>
-                <label className="block text-white font-medium mb-2">Email</label>
-                <input
-                  type="email"
-                  value={settingsForm.email}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
-                  className="xsm-input w-full opacity-60"
-                  disabled={true}
-                  title="Email cannot be changed here. Contact support if you need to update your email."
-                />
-              </div>
+            {/* Tab Navigation */}
+            <div className="flex space-x-1 mb-6 bg-xsm-black/50 rounded-lg p-1">
+              <button
+                onClick={() => {
+                  setActiveSettingsTab('username');
+                  setSettingsForm({ ...settingsForm, username: profile.username });
+                }}
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                  activeSettingsTab === 'username'
+                    ? 'bg-xsm-yellow text-xsm-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Username
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSettingsTab('email');
+                  setSettingsForm({ ...settingsForm, email: profile.email });
+                }}
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                  activeSettingsTab === 'email'
+                    ? 'bg-xsm-yellow text-xsm-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Email
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSettingsTab('password');
+                  setSettingsPasswordForm({
+                    currentPassword: '',
+                    newPassword: '',
+                    confirmPassword: '',
+                  });
+                }}
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                  activeSettingsTab === 'password'
+                    ? 'bg-xsm-yellow text-xsm-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Password
+              </button>
             </div>
 
+            {/* Tab Content */}
+            <div className="min-h-[200px]">
+              {/* Username Tab */}
+              {activeSettingsTab === 'username' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-white font-medium mb-2">Current Username</label>
+                    <input
+                      type="text"
+                      value={profile.username}
+                      disabled
+                      className="xsm-input w-full opacity-60"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white font-medium mb-2">New Username</label>
+                    <input
+                      type="text"
+                      value={settingsForm.username}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, username: e.target.value })}
+                      className="xsm-input w-full"
+                      placeholder="Enter new username (3-50 chars, letters, numbers, underscores only)"
+                    />
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    Username must be 3-50 characters long and can only contain letters, numbers, and underscores.
+                  </div>
+                </div>
+              )}
+
+              {/* Email Tab */}
+              {activeSettingsTab === 'email' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-white font-medium mb-2">Current Email</label>
+                    <input
+                      type="email"
+                      value={profile.email}
+                      disabled
+                      className="xsm-input w-full opacity-60"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white font-medium mb-2">New Email</label>
+                    <input
+                      type="email"
+                      value={settingsForm.email}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
+                      className="xsm-input w-full"
+                      placeholder="Enter new email address"
+                    />
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    You will need to verify your new email address before the change takes effect.
+                  </div>
+                </div>
+              )}
+
+              {/* Password Tab */}
+              {activeSettingsTab === 'password' && (
+                <div className="space-y-4">
+                  {(user as any)?.authProvider === 'google' && (
+                    <div className="bg-blue-500/10 rounded-lg p-4 mb-4">
+                      <h4 className="text-blue-400 font-semibold mb-2">Google Account</h4>
+                      <p className="text-white text-sm mb-2">
+                        You signed in with Google. You can set a password to enable email/password login as an alternative to Google sign-in.
+                      </p>
+                      <p className="text-xsm-light-gray text-xs">
+                        Setting a password won't affect your Google sign-in - you'll be able to use both methods.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {(user as any)?.authProvider !== 'google' && (
+                    <div>
+                      <label className="block text-white font-medium mb-2">Current Password</label>
+                      <input
+                        type="password"
+                        value={settingsPasswordForm.currentPassword}
+                        onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, currentPassword: e.target.value })}
+                        className="xsm-input w-full"
+                        placeholder="Enter current password"
+                        autoComplete="current-password"
+                      />
+                    </div>
+                  )}
+                  
+                  <div>
+                    <label className="block text-white font-medium mb-2">
+                      {(user as any)?.authProvider === 'google' ? 'New Password' : 'New Password'}
+                    </label>
+                    <input
+                      type="password"
+                      value={settingsPasswordForm.newPassword}
+                      onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, newPassword: e.target.value })}
+                      className="xsm-input w-full"
+                      placeholder={(user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password'}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white font-medium mb-2">Confirm Password</label>
+                    <input
+                      type="password"
+                      value={settingsPasswordForm.confirmPassword}
+                      onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, confirmPassword: e.target.value })}
+                      className="xsm-input w-full"
+                      placeholder="Confirm password"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    Password must be at least 6 characters long.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
             <div className="flex space-x-3 mt-6">
               <button
                 onClick={async () => {
                   try {
                     setIsUpdating(true);
                     
-                    const updateData: any = {};
-                    if (settingsForm.username !== profile.username) {
-                      updateData.username = settingsForm.username;
-                    }
+                    if (activeSettingsTab === 'username') {
+                      if (settingsForm.username === profile.username) {
+                        alert('Username is the same as current. No changes to save.');
+                        return;
+                      }
+                      
+                      if (settingsForm.username.length < 3 || settingsForm.username.length > 50) {
+                        alert('Username must be between 3 and 50 characters.');
+                        return;
+                      }
+                      
+                      if (!/^[a-zA-Z0-9_]+$/.test(settingsForm.username)) {
+                        alert('Username can only contain letters, numbers, and underscores.');
+                        return;
+                      }
+                      
+                      const updatedUser = await updateProfile({ username: settingsForm.username });
+                      setProfile(prev => ({ ...prev, username: updatedUser.username }));
+                      setUser({ ...updatedUser, id: String(updatedUser.id) });
+                      alert('Username updated successfully!');
+                      
+                    } else if (activeSettingsTab === 'email') {
+                      if (settingsForm.email === profile.email) {
+                        alert('Email is the same as current. No changes to save.');
+                        return;
+                      }
+                      
+                      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settingsForm.email)) {
+                        alert('Please enter a valid email address.');
+                        return;
+                      }
+                      
+                      const updatedUser = await updateProfile({ email: settingsForm.email });
+                      setProfile(prev => ({ ...prev, email: updatedUser.email }));
+                      setUser({ ...updatedUser, id: String(updatedUser.id) });
+                      alert('Email updated successfully!');
+                      
+                    } else if (activeSettingsTab === 'password') {
+                      // Password validation
+                      if (settingsPasswordForm.newPassword !== settingsPasswordForm.confirmPassword) {
+                        alert('New passwords do not match!');
+                        return;
+                      }
+                      
+                      if (!settingsPasswordForm.newPassword) {
+                        alert('Please enter a new password!');
+                        return;
+                      }
+                      
+                      if (settingsPasswordForm.newPassword.length < 6) {
+                        alert('New password must be at least 6 characters long!');
+                        return;
+                      }
 
-                    if (Object.keys(updateData).length > 0) {
-                      const updatedUser = await updateProfile(updateData);
-                      
-                      // Update local states
-                      setProfile(prev => ({
-                        ...prev,
-                        username: updatedUser.username,
-                      }));
-                      
-                      setUser({
-                        ...updatedUser,
-                        id: String(updatedUser.id),
+                      // Get the latest user profile from backend to check authProvider
+                      const token = localStorage.getItem('token');
+                      const profileResponse = await fetch(`${getApiUrl()}/user/profile`, {
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json'
+                        }
                       });
-
-                      alert('Settings updated successfully!');
-                    } else {
-                      alert('No changes to save!');
+                      
+                      if (!profileResponse.ok) {
+                        throw new Error('Failed to fetch user profile');
+                      }
+                      
+                      const profileData = await profileResponse.json();
+                      const backendUser = profileData.user;
+                      const isGoogleUser = backendUser?.authProvider === 'google';
+                      
+                      // For Google users, they don't need current password
+                      // For email users, they need current password
+                      if (!isGoogleUser && !settingsPasswordForm.currentPassword) {
+                        alert('Please enter your current password!');
+                        return;
+                      }
+                      
+                      // Change password using the same logic as Profile
+                      await changePassword(
+                        isGoogleUser ? '' : settingsPasswordForm.currentPassword, 
+                        settingsPasswordForm.newPassword
+                      );
+                      
+                      setSettingsPasswordForm({
+                        currentPassword: '',
+                        newPassword: '',
+                        confirmPassword: '',
+                      });
+                      
+                      if (isGoogleUser) {
+                        alert('Password set successfully! You can now login with email/password in addition to Google.');
+                      } else {
+                        alert('Password changed successfully!');
+                      }
                     }
                     
                     setShowSettings(false);
-                  } catch (error) {
+                  } catch (error: any) {
                     console.error('❌ Failed to update settings:', error);
-                    alert('Failed to update settings. Please try again.');
+                    
+                    let errorMessage = 'Failed to update settings. Please try again.';
+                    
+                    if (activeSettingsTab === 'password' && error instanceof Error) {
+                      if (error.message.includes('Current password is incorrect')) {
+                        errorMessage = 'Current password is incorrect.';
+                      } else if (error.message.includes('must be at least 6 characters')) {
+                        errorMessage = 'New password must be at least 6 characters long.';
+                      } else if (error.message.includes('Google OAuth. Please use "Sign in with Google"')) {
+                        errorMessage = 'This account was created with Google OAuth. Please use "Sign in with Google" instead. To set a password for email login, leave the current password field empty.';
+                      } else if (error.message.includes('Google account users don\'t have a current password')) {
+                        errorMessage = 'For Google accounts, leave current password empty to set a new password.';
+                      } else {
+                        errorMessage = error.message;
+                      }
+                    } else if (error instanceof Error) {
+                      errorMessage = error.message;
+                    }
+                    
+                    alert(errorMessage);
                   } finally {
                     setIsUpdating(false);
                   }
@@ -903,12 +1054,22 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                 {isUpdating ? (
                   <>
                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                    <span>Saving...</span>
+                    <span>
+                      {activeSettingsTab === 'password' 
+                        ? ((user as any)?.authProvider === 'google' ? 'Setting Password...' : 'Changing Password...')
+                        : 'Saving...'
+                      }
+                    </span>
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    <span>Save Changes</span>
+                    <span>
+                      {activeSettingsTab === 'password' 
+                        ? ((user as any)?.authProvider === 'google' ? 'Set Password' : 'Change Password')
+                        : 'Save Changes'
+                      }
+                    </span>
                   </>
                 )}
               </button>
