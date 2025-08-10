@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, Edit, LogOut, Save, X, Camera } from 'lucide-react';
+import { User as UserIcon, Edit, LogOut, Save, X, Camera, Pin, Crown, Settings } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
 import { useAuth } from '@/context/useAuth';
@@ -47,6 +47,11 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({
+    username: '',
+    email: '',
+  });
   const [editForm, setEditForm] = useState({
     username: '',
     email: '',
@@ -613,141 +618,115 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
             <div className="xsm-card">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-xsm-yellow">Profile Information</h3>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={async () => {
-                      try {
-                        console.log('🔄 Manual refresh triggered...');
-                        const freshProfile = await getProfile();
-                        console.log('✅ Manual fresh profile data:', freshProfile);
-                        
-                        setProfile({
-                          username: freshProfile.username,
-                          email: freshProfile.email,
-                          profilePicture: freshProfile.profilePicture || '',
-                          description: freshProfile.description || '',
-                          joinDate: (freshProfile as any)?.joinDate || '2025-01-15',
-                        });
-                        alert('Profile refreshed! Description: ' + (freshProfile.description || 'No description'));
-                      } catch (error) {
-                        console.error('❌ Manual refresh failed:', error);
-                        alert('Failed to refresh profile');
-                      }
-                    }}
-                    className="xsm-button-secondary text-sm px-3 py-1"
-                  >
-                    🔄 Refresh
-                  </button>
-                  {!isEditing ? (
+                <div className="flex space-x-3">
                   <button
                     onClick={() => {
-                      setIsEditing(true);
-                      setEditForm({ 
+                      // TODO: Implement Pin Your Listing functionality
+                      alert('Pin Your Listing feature coming soon!');
+                    }}
+                    className="xsm-button-secondary flex items-center space-x-2 text-sm"
+                  >
+                    <Pin className="w-4 h-4" />
+                    <span>Pin Your Listing</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      // TODO: Implement Get Membership functionality
+                      alert('Get Membership feature coming soon!');
+                    }}
+                    className="xsm-button-secondary flex items-center space-x-2 text-sm"
+                  >
+                    <Crown className="w-4 h-4" />
+                    <span>Get Membership</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSettings(true);
+                      setSettingsForm({
                         username: profile.username,
                         email: profile.email,
-                        profilePicture: profile.profilePicture,
-                        description: profile.description
                       });
                     }}
-                    className="xsm-button-secondary flex items-center space-x-2"
+                    className="xsm-button-secondary flex items-center space-x-2 text-sm"
                   >
-                    <Edit className="w-4 h-4" />
-                    <span>Edit</span>
+                    <Settings className="w-4 h-4" />
+                    <span>Settings</span>
                   </button>
-                ) : (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={handleSaveProfile}
-                      disabled={isUpdating}
-                      className={`xsm-button flex items-center space-x-2 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {isUpdating ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                          <span>Saving...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4" />
-                          <span>Save</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsEditing(false);
-                        setEditForm({ 
-                          username: profile.username,
-                          email: profile.email,
-                          profilePicture: profile.profilePicture,
-                          description: profile.description
-                        });
-                      }}
-                      disabled={isUpdating}
-                      className="xsm-button-secondary flex items-center space-x-2"
-                    >
-                      <X className="w-4 h-4" />
-                      <span>Cancel</span>
-                    </button>
-                  </div>
-                  )}
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-white font-medium mb-2">Username</label>
-                  <input
-                    type="text"
-                    value={isEditing ? editForm.username : profile.username}
-                    onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                    disabled={!isEditing}
-                    className={`xsm-input w-full ${!isEditing ? 'opacity-60' : ''}`}
-                    placeholder="Enter username (3-50 chars, letters, numbers, underscores only)"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={isEditing ? editForm.email : profile.email}
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    disabled={true}
-                    className={`xsm-input w-full opacity-60`}
-                    title="Email cannot be changed here. Contact support if you need to update your email."
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-white font-medium mb-2">Profile Bio / Description</label>
+              <div>
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="block text-white font-medium text-lg">Profile Bio / Description</label>
+                    {!isEditing ? (
+                      <button
+                        onClick={() => {
+                          setIsEditing(true);
+                          setEditForm({ 
+                            username: profile.username,
+                            email: profile.email,
+                            profilePicture: profile.profilePicture,
+                            description: profile.description
+                          });
+                        }}
+                        className="xsm-button-secondary flex items-center space-x-2 text-sm"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Edit</span>
+                      </button>
+                    ) : (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={handleSaveProfile}
+                          disabled={isUpdating}
+                          className={`xsm-button flex items-center space-x-2 text-sm ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {isUpdating ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                              <span>Saving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4" />
+                              <span>Save</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditing(false);
+                            setEditForm({ 
+                              username: profile.username,
+                              email: profile.email,
+                              profilePicture: profile.profilePicture,
+                              description: profile.description
+                            });
+                          }}
+                          disabled={isUpdating}
+                          className="xsm-button-secondary flex items-center space-x-2 text-sm"
+                        >
+                          <X className="w-4 h-4" />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <textarea
                     value={isEditing ? editForm.description : profile.description}
                     onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                     disabled={!isEditing}
-                    className={`xsm-input w-full min-h-[100px] resize-y ${!isEditing ? 'opacity-60' : ''}`}
+                    className={`xsm-input w-full min-h-[120px] resize-y ${!isEditing ? 'opacity-60' : ''}`}
                     placeholder="Tell others about yourself..."
                     maxLength={500}
                   />
                   {isEditing && (
-                    <p className="text-gray-400 text-sm mt-1">
+                    <p className="text-gray-400 text-sm mt-2">
                       {editForm.description?.length || 0}/500 characters
                     </p>
                   )}
                 </div>
-                {isEditing && (
-                  <div className="md:col-span-2">
-                    <label className="block text-white font-medium mb-2">Profile Picture URL (Optional)</label>
-                    <input
-                      type="url"
-                      value={editForm.profilePicture}
-                      onChange={(e) => setEditForm({ ...editForm, profilePicture: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder="Enter image URL or upload an image above"
-                    />
-                    <p className="text-xs text-xsm-light-gray mt-1">
-                      You can either upload an image above or enter an image URL here.
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -840,6 +819,111 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           </div>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-xsm-dark-gray rounded-lg border border-xsm-yellow/20 p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-xsm-yellow">Settings</h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white font-medium mb-2">Username</label>
+                <input
+                  type="text"
+                  value={settingsForm.username}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, username: e.target.value })}
+                  className="xsm-input w-full"
+                  placeholder="Enter username (3-50 chars, letters, numbers, underscores only)"
+                />
+              </div>
+
+              <div>
+                <label className="block text-white font-medium mb-2">Email</label>
+                <input
+                  type="email"
+                  value={settingsForm.email}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
+                  className="xsm-input w-full opacity-60"
+                  disabled={true}
+                  title="Email cannot be changed here. Contact support if you need to update your email."
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={async () => {
+                  try {
+                    setIsUpdating(true);
+                    
+                    const updateData: any = {};
+                    if (settingsForm.username !== profile.username) {
+                      updateData.username = settingsForm.username;
+                    }
+
+                    if (Object.keys(updateData).length > 0) {
+                      const updatedUser = await updateProfile(updateData);
+                      
+                      // Update local states
+                      setProfile(prev => ({
+                        ...prev,
+                        username: updatedUser.username,
+                      }));
+                      
+                      setUser({
+                        ...updatedUser,
+                        id: String(updatedUser.id),
+                      });
+
+                      alert('Settings updated successfully!');
+                    } else {
+                      alert('No changes to save!');
+                    }
+                    
+                    setShowSettings(false);
+                  } catch (error) {
+                    console.error('❌ Failed to update settings:', error);
+                    alert('Failed to update settings. Please try again.');
+                  } finally {
+                    setIsUpdating(false);
+                  }
+                }}
+                disabled={isUpdating}
+                className={`xsm-button flex items-center space-x-2 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isUpdating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Save Changes</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowSettings(false)}
+                disabled={isUpdating}
+                className="xsm-button-secondary flex items-center space-x-2"
+              >
+                <X className="w-4 h-4" />
+                <span>Cancel</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
