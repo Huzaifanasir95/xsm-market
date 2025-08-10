@@ -25,12 +25,11 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
   const [ads, setAds] = useState<UserAd[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState('all');
   const { user } = useAuth();
 
   useEffect(() => {
     fetchUserAds();
-  }, [filter, user]);
+  }, [user]);
 
   const fetchUserAds = async () => {
     try {
@@ -42,9 +41,14 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
         throw new Error('User not logged in');
       }
       
-      // Use the alternative method which is more reliable
-      const filters = filter !== 'all' ? { status: filter } : {};
-      const response = await getUserAdsAlternative(filters);
+      console.log('🔍 Fetching ads for user:', user.id, user.username);
+      
+      // Use the alternative method which is more reliable (no filters)
+      const response = await getUserAdsAlternative({});
+      
+      console.log('📊 User ads response:', response);
+      console.log('📊 Ads array:', response.ads);
+      console.log('📊 Ads count:', response.ads?.length || 0);
       
       setAds(response.ads || []);
       setError(null);
@@ -153,35 +157,20 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
 
   return (
     <div className="space-y-6">
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-2">
-        {['all', 'active'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setFilter(status)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === status
-                ? 'bg-xsm-yellow text-xsm-black'
-                : 'bg-xsm-black/50 text-white hover:bg-xsm-medium-gray'
-            }`}
-          >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </button>
-        ))}
-      </div>
-
       {/* Ad List */}
       {ads.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">📭</div>
           <h3 className="text-xl font-bold text-white mb-2">No ads found</h3>
           <p className="text-xsm-light-gray mb-4">
-            {filter === 'all' 
-              ? "You haven't created any listings yet." 
-              : `No ads with status "${filter}"`
-            }
+            You haven't created any listings yet.
           </p>
-          
+          <div className="text-sm text-blue-400 mt-4">
+            <p>Debug: User ID = {user?.id}</p>
+            <p>Debug: User logged in = {user ? 'Yes' : 'No'}</p>
+            <p>Debug: Ads count = {ads.length}</p>
+            <p>Debug: Error = {error || 'None'}</p>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">

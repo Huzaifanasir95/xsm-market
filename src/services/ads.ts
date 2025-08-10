@@ -214,10 +214,14 @@ export const getUserAdsAlternative = async (filters: any = {}) => {
     const userDataString = localStorage.getItem('userData');
     let userId = null;
     
+    console.log('📊 getUserAdsAlternative: localStorage userData:', userDataString);
+    
     if (userDataString) {
       try {
         const userData = JSON.parse(userDataString);
         userId = userData.id;
+        console.log('📊 getUserAdsAlternative: Parsed user data:', userData);
+        console.log('📊 getUserAdsAlternative: User ID from localStorage:', userId);
       } catch (e) {
         console.log('Failed to parse user data from localStorage');
       }
@@ -245,6 +249,8 @@ export const getUserAdsAlternative = async (filters: any = {}) => {
       throw new Error('Could not determine user ID');
     }
 
+    console.log('📊 getUserAdsAlternative: User ID determined:', userId);
+
     // Get all ads and filter by user ID on the client side temporarily
     const allAdsResponse = await fetch(`${API_URL}/ads`, {
       method: 'GET',
@@ -258,11 +264,18 @@ export const getUserAdsAlternative = async (filters: any = {}) => {
     }
 
     const allAdsData = await allAdsResponse.json();
+    console.log('📊 All ads received:', allAdsData);
+    console.log('📊 All ads count:', allAdsData.ads?.length || 0);
     
-    // Filter ads by user ID (check both userId and user_id fields)
-    const userAds = allAdsData.ads.filter((ad: any) => 
-      ad.userId == userId || ad.user_id == userId || ad.createdBy == userId
-    );
+    // Filter ads by user ID (check seller.id which contains the userId)
+    const userAds = allAdsData.ads.filter((ad: any) => {
+      const match = ad.seller?.id == userId;
+      console.log(`📊 Ad ${ad.id}: seller.id=${ad.seller?.id}, expected userId=${userId}, match=${match}`);
+      return match;
+    });
+    
+    console.log('📊 Filtered user ads:', userAds);
+    console.log('📊 User ads count:', userAds.length);
     
     // Apply additional filters if provided
     let filteredAds = userAds;
