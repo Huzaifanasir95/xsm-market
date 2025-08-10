@@ -126,19 +126,15 @@ class EmailService {
     // Send email change verification - new method for email change functionality
     public function sendEmailChangeVerification($newEmail, $otp, $username, $verificationToken) {
         try {
-            error_log("Attempting to send email change verification to: $newEmail with OTP: $otp");
-            
             $subject = 'XSM Market - Verify Your New Email Address';
             $htmlBody = $this->getEmailChangeVerificationTemplate($otp, $username, $verificationToken);
             $textBody = "Hello $username,\n\nYou requested to change your email address on XSM Market.\n\nYour verification code is: $otp\n\nThis code expires in 15 minutes.\n\nIf you didn't request this change, please ignore this email.\n\nBest regards,\nXSM Market Team";
             
             $result = $this->sendEmail($newEmail, $subject, $htmlBody, $textBody);
-            error_log("Email change verification send result: " . ($result ? 'SUCCESS' : 'FAILED'));
             
             return $result;
             
         } catch (Exception $e) {
-            error_log('Failed to send email change verification: ' . $e->getMessage());
             return false;
         }
     }
@@ -166,8 +162,6 @@ class EmailService {
     // Send password change verification - new method for secure password change
     public function sendPasswordChangeVerification($email, $otp, $username, $verificationToken, $isGoogleUser = false) {
         try {
-            error_log("Attempting to send password change verification to: $email with OTP: $otp");
-            
             $subject = $isGoogleUser ? 'XSM Market - Set Your Password' : 'XSM Market - Verify Password Change';
             $htmlBody = $this->getPasswordChangeVerificationTemplate($otp, $username, $verificationToken, $isGoogleUser);
             $textBody = $isGoogleUser 
@@ -175,12 +169,10 @@ class EmailService {
                 : "Hello $username,\n\nYou requested to change your password on XSM Market.\n\nYour verification code is: $otp\n\nThis code expires in 15 minutes.\n\nIf you didn't request this change, please ignore this email.\n\nBest regards,\nXSM Market Team";
             
             $result = $this->sendEmail($email, $subject, $htmlBody, $textBody);
-            error_log("Password change verification send result: " . ($result ? 'SUCCESS' : 'FAILED'));
             
             return $result;
             
         } catch (Exception $e) {
-            error_log('Failed to send password change verification: ' . $e->getMessage());
             return false;
         }
     }
@@ -210,41 +202,29 @@ class EmailService {
     // Core email sending function - made public for use by other controllers
     public function sendEmail($to, $subject, $htmlBody, $textBody = '') {
         try {
-            error_log("Checking email method availability...");
-            
-            // Force real email sending if credentials are available (even in development)
+            // Check email method availability
             $hasCredentials = getenv('GMAIL_USER') && getenv('GMAIL_APP_PASSWORD');
             
             if ($hasCredentials) {
-                error_log("Gmail credentials found - attempting real email sending");
-                
                 // Use PHPMailer if available, otherwise try direct SMTP
                 if (class_exists('PHPMailer\PHPMailer\PHPMailer') || class_exists('PHPMailer')) {
-                    error_log("Using PHPMailer for email sending");
                     $result = $this->sendWithPHPMailer($to, $subject, $htmlBody, $textBody);
                     if ($result) {
                         return true;
                     }
-                    error_log("PHPMailer failed, trying direct SMTP...");
                 }
                 
                 // Try direct SMTP as fallback
-                error_log("PHPMailer not available or failed - using direct SMTP");
                 $result = $this->sendWithDirectSMTP($to, $subject, $htmlBody, $textBody);
                 if ($result) {
                     return true;
                 }
-                
-                error_log("Direct SMTP also failed, falling back to mock email...");
-            } else {
-                error_log("No email credentials - using mock email sending");
             }
             
             // Fallback to mock email if real sending fails or no credentials
             return $this->sendMockEmail($to, $subject, $htmlBody, $textBody);
             
         } catch (Exception $e) {
-            error_log('Email sending error: ' . $e->getMessage());
             // Fallback to mock email in case of error
             return $this->sendMockEmail($to, $subject, $htmlBody, $textBody);
         }
@@ -252,23 +232,12 @@ class EmailService {
     
     // Mock email sending for development
     private function sendMockEmail($to, $subject, $htmlBody, $textBody = '') {
-        error_log("📧 MOCK EMAIL SENT:");
-        error_log("📍 To: $to");
-        error_log("📋 Subject: $subject");
-        
-        // Extract OTP from email content
+        // Extract OTP from email content for development
         $otp = '';
         if (preg_match('/\b(\d{6})\b/', $htmlBody, $matches)) {
             $otp = $matches[1];
         } elseif (preg_match('/\b(\d{6})\b/', $textBody, $matches)) {
             $otp = $matches[1];
-        }
-        
-        if ($otp) {
-            error_log("🔢 OTP CODE: $otp");
-            error_log("🔢 =================");
-            error_log("🔢 YOUR OTP: $otp");
-            error_log("🔢 =================");
         }
         
         // Save email to a log file for development purposes
@@ -278,7 +247,6 @@ class EmailService {
             mkdir($logDir, 0755, true);
         }
         
-        // Enhanced log with OTP highlighting
         $logContent = "\n" . str_repeat("=", 80) . "\n";
         $logContent .= "📧 MOCK EMAIL - " . date('Y-m-d H:i:s') . "\n";
         $logContent .= str_repeat("=", 80) . "\n";
@@ -292,11 +260,6 @@ class EmailService {
         $logContent .= str_repeat("=", 80) . "\n\n";
         
         file_put_contents($logFile, $logContent, FILE_APPEND | LOCK_EX);
-        
-        error_log("💾 Email saved to: $logFile");
-        if ($otp) {
-            error_log("✨ DEVELOPMENT MODE: Use OTP code $otp for verification");
-        }
         
         return true; // Always return true in development
     }
@@ -336,7 +299,6 @@ class EmailService {
             return true;
             
         } catch (Exception $e) {
-            error_log('PHPMailer error: ' . $mail->ErrorInfo);
             return false;
         }
     }
@@ -883,8 +845,6 @@ class EmailService {
     // Direct SMTP implementation using PHP sockets (simpler and more reliable)
     private function sendWithDirectSMTP($to, $subject, $htmlBody, $textBody = '') {
         try {
-            error_log("Using direct SMTP implementation for Gmail");
-            
             // Gmail SMTP settings
             $host = 'smtp.gmail.com';
             $port = 587;
@@ -893,16 +853,12 @@ class EmailService {
             $from = $this->smtpUser;
             
             if (empty($username) || empty($password)) {
-                error_log("Missing SMTP credentials");
                 return false;
             }
-            
-            error_log("Connecting to $host:$port with user: $username");
             
             // Connect to Gmail SMTP
             $socket = fsockopen($host, $port, $errno, $errstr, 30);
             if (!$socket) {
-                error_log("SMTP connection failed: $errstr ($errno)");
                 return false;
             }
             
@@ -920,7 +876,6 @@ class EmailService {
             $sendCommand = function($command, $expected = '250') use ($socket, $readResponse) {
                 fputs($socket, $command . "\r\n");
                 $response = $readResponse();
-                error_log("SMTP: $command -> $response");
                 return strpos($response, $expected) === 0;
             };
             

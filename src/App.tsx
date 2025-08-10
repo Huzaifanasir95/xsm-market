@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/context/AuthProvider';
+import { NotificationProvider } from '@/context/NotificationContext';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MessageCircle } from 'lucide-react';
@@ -177,9 +178,11 @@ const App: React.FC = () => {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
       <AuthProvider>
-        <TooltipProvider>
-          <AppContent />
-        </TooltipProvider>
+        <NotificationProvider>
+          <TooltipProvider>
+            <AppContent />
+          </TooltipProvider>
+        </NotificationProvider>
       </AuthProvider>
     </GoogleOAuthProvider>
   );

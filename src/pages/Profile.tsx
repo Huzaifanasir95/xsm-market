@@ -7,6 +7,7 @@ import PasswordVerificationModal from '@/components/PasswordVerificationModal';
 import EmailChangeCooldownTimer from '@/components/EmailChangeCooldownTimer';
 import PasswordChangeCooldownTimer from '@/components/PasswordChangeCooldownTimer';
 import { useAuth } from '@/context/useAuth';
+import { useNotifications } from '@/context/NotificationContext';
 import { User } from '@/context/AuthContext';
 import { updateProfile, getProfile, changePassword, logout, requestEmailChange, requestPasswordChange } from '@/services/auth';
 
@@ -39,6 +40,7 @@ interface ExtendedUser extends User {
 
 const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const { user, isLoggedIn, setUser, setIsLoggedIn } = useAuth();
+  const { showSuccess, showError, showInfo, showWarning } = useNotifications();
   const typedUser = user as ExtendedUser;
 
   // Debug logging
@@ -307,13 +309,13 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     if (file) {
       // Check file size (limit to 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
+        showError('File too large', 'File size must be less than 5MB');
         return;
       }
       
       // Check file type
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+        showError('Invalid file type', 'Please select an image file');
         return;
       }
       
@@ -347,11 +349,11 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
             profilePicture: updatedUser.profilePicture || ''
           }));
           
-          alert('Profile picture updated successfully!');
+          showSuccess('Profile picture updated', 'Your profile picture has been updated successfully!');
           
         } catch (error) {
           console.error('❌ Failed to update profile picture:', error);
-          alert('Failed to update profile picture. Please try again.');
+          showError('Update failed', 'Failed to update profile picture. Please try again.');
         }
       };
       reader.readAsDataURL(file);
@@ -405,9 +407,9 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           description: updatedUser.description || '',
         }));
         
-        alert('Profile updated successfully!');
+        showSuccess('Profile updated', 'Your profile has been updated successfully!');
       } else {
-        alert('No changes to save!');
+        showInfo('No changes', 'No changes were made to save.');
       }
       
       setIsEditing(false);
@@ -428,7 +430,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         }
       }
       
-      alert(errorMessage);
+      showError('Update failed', errorMessage);
     } finally {
       setIsUpdating(false);
     }
@@ -445,17 +447,17 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     });
 
     if (settingsPasswordForm.newPassword !== settingsPasswordForm.confirmPassword) {
-      alert('New passwords do not match!');
+      showError('Password mismatch', 'New passwords do not match!');
       return;
     }
     
     if (!settingsPasswordForm.newPassword) {
-      alert('Please enter a new password!');
+      showError('Missing password', 'Please enter a new password!');
       return;
     }
     
     if (settingsPasswordForm.newPassword.length < 6) {
-      alert('New password must be at least 6 characters long!');
+      showError('Password too short', 'New password must be at least 6 characters long!');
       return;
     }
 
@@ -482,7 +484,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         // For Google users, they don't need to enter current password (first time setting password)
         // For email users, they need current password
         if (!isGoogleUser && !settingsPasswordForm.currentPassword) {
-          alert('Please enter your current password!');
+          showError('Current password required', 'Please enter your current password!');
           setIsChangingPassword(false);
           return;
         }
@@ -494,9 +496,9 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         );
         
         if (isGoogleUser) {
-          alert('Password set successfully! You can now login with email/password in addition to Google.');
+          showSuccess('Password set successfully!', 'You can now login with email/password in addition to Google.');
         } else {
-          alert('Password changed successfully!');
+          showSuccess('Password changed successfully!', 'Your password has been updated.');
         }
         
         setSettingsPasswordForm({
@@ -526,7 +528,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         }
       }
       
-      alert(errorMessage);
+      showError('Password change failed', errorMessage);
     } finally {
       setIsChangingPassword(false);
     }
@@ -633,7 +635,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   <button
                     onClick={() => {
                       // TODO: Implement Pin Your Listing functionality
-                      alert('Pin Your Listing feature coming soon!');
+                      showInfo('Feature coming soon', 'Pin Your Listing feature will be available soon!');
                     }}
                     className="xsm-button-secondary flex items-center space-x-2 text-sm"
                   >
@@ -643,7 +645,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   <button
                     onClick={() => {
                       // TODO: Implement Get Membership functionality
-                      alert('Get Membership feature coming soon!');
+                      showInfo('Feature coming soon', 'Get Membership feature will be available soon!');
                     }}
                     className="xsm-button-secondary flex items-center space-x-2 text-sm"
                   >
@@ -969,39 +971,39 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     
                     if (activeSettingsTab === 'username') {
                       if (settingsForm.username === profile.username) {
-                        alert('Username is the same as current. No changes to save.');
+                        showInfo('No changes', 'Username is the same as current. No changes to save.');
                         return;
                       }
                       
                       if (settingsForm.username.length < 3 || settingsForm.username.length > 50) {
-                        alert('Username must be between 3 and 50 characters.');
+                        showError('Invalid username', 'Username must be between 3 and 50 characters.');
                         return;
                       }
                       
                       if (!/^[a-zA-Z0-9_]+$/.test(settingsForm.username)) {
-                        alert('Username can only contain letters, numbers, and underscores.');
+                        showError('Invalid characters', 'Username can only contain letters, numbers, and underscores.');
                         return;
                       }
                       
                       const updatedUser = await updateProfile({ username: settingsForm.username });
                       setProfile(prev => ({ ...prev, username: updatedUser.username }));
                       setUser({ ...updatedUser, id: String(updatedUser.id) });
-                      alert('Username updated successfully!');
+                      showSuccess('Username updated', 'Your username has been updated successfully!');
                       
                     } else if (activeSettingsTab === 'email') {
                       // Check if email change is on cooldown
                       if (emailCooldownActive) {
-                        alert('Email change is currently on cooldown. Please wait for the cooldown period to end.');
+                        showWarning('Email change on cooldown', 'Please wait for the cooldown period to end before changing your email again.');
                         return;
                       }
                       
                       if (settingsForm.email === profile.email) {
-                        alert('Email is the same as current. No changes to save.');
+                        showInfo('No changes', 'Email is the same as current. No changes to save.');
                         return;
                       }
                       
                       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settingsForm.email)) {
-                        alert('Please enter a valid email address.');
+                        showError('Invalid email', 'Please enter a valid email address.');
                         return;
                       }
                       
@@ -1014,34 +1016,34 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       setShowEmailVerification(true);
                       setShowSettings(false);
                       
-                      // Development mode message
+                      // Show success notification
                       if (import.meta.env.DEV) {
-                        alert('Development Mode: Verification email sent! Check the browser console or backend logs for the verification code. In production, this would be sent to your email.');
+                        showInfo('Verification email sent', 'Check your email for the verification code. In development, also check browser console or backend logs.');
                       } else {
-                        alert('Verification email sent! Please check your new email address.');
+                        showSuccess('Verification email sent', 'Please check your new email address for the verification code.');
                       }
                       
                       
                     } else if (activeSettingsTab === 'password') {
                       // Check if password change is on cooldown
                       if (passwordCooldownActive) {
-                        alert('Password change is currently on cooldown. Please wait for the cooldown period to end.');
+                        showWarning('Password change on cooldown', 'Please wait for the cooldown period to end before changing your password again.');
                         return;
                       }
                       
                       // Password validation
                       if (settingsPasswordForm.newPassword !== settingsPasswordForm.confirmPassword) {
-                        alert('New passwords do not match!');
+                        showError('Password mismatch', 'New passwords do not match!');
                         return;
                       }
                       
                       if (!settingsPasswordForm.newPassword) {
-                        alert('Please enter a new password!');
+                        showError('Missing password', 'Please enter a new password!');
                         return;
                       }
                       
                       if (settingsPasswordForm.newPassword.length < 6) {
-                        alert('New password must be at least 6 characters long!');
+                        showError('Password too short', 'New password must be at least 6 characters long!');
                         return;
                       }
 
@@ -1065,7 +1067,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       // For Google users, they don't need current password
                       // For email users, they need current password
                       if (!isGoogleUser && !settingsPasswordForm.currentPassword) {
-                        alert('Please enter your current password!');
+                        showError('Current password required', 'Please enter your current password!');
                         return;
                       }
                       
@@ -1082,11 +1084,11 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       setShowPasswordVerification(true);
                       setShowSettings(false);
                       
-                      // Development mode message
+                      // Show success notification
                       if (import.meta.env.DEV) {
-                        alert('Development Mode: Password change verification email sent! Check the browser console or backend logs for the verification code.');
+                        showInfo('Verification email sent', 'Check your email for the verification code. In development, also check browser console or backend logs.');
                       } else {
-                        alert('Password change verification email sent! Please check your email.');
+                        showSuccess('Verification email sent', 'Please check your email for the verification code.');
                       }
                     }
                     
@@ -1112,7 +1114,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       errorMessage = error.message;
                     }
                     
-                    alert(errorMessage);
+                    showError('Update failed', errorMessage);
                   } finally {
                     setIsUpdating(false);
                   }
@@ -1163,7 +1165,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           // Update profile and user context with new email
           setProfile(prev => ({ ...prev, email: newEmail }));
           setUser(prev => prev ? { ...prev, email: newEmail } : prev);
-          alert('Email address changed successfully!');
+          // Success notification is already handled by EmailVerificationModal
           
           // Reset form
           setSettingsForm(prev => ({ ...prev, email: newEmail }));
@@ -1186,11 +1188,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
             confirmPassword: '',
           });
           
-          if (isGoogleUserPassword) {
-            alert('Password set successfully! You can now login with email/password in addition to Google.');
-          } else {
-            alert('Password changed successfully!');
-          }
+          // Success notification is already handled by PasswordVerificationModal
+          // No need for additional alerts here
           
           // Clear verification data
           setPendingPasswordEmail('');
