@@ -27,7 +27,7 @@ class UserController {
             $user = AuthMiddleware::authenticate();
             
             $stmt = Database::getConnection()->prepare("
-                SELECT id, username, email, profilePicture, isEmailVerified, authProvider, createdAt 
+                SELECT id, username, email, profilePicture, description, isEmailVerified, authProvider, createdAt 
                 FROM users WHERE id = ?
             ");
             $stmt->execute([$user['id']]);
@@ -44,6 +44,7 @@ class UserController {
                     'username' => $userData['username'],
                     'email' => $userData['email'],
                     'profilePicture' => $userData['profilePicture'],
+                    'description' => $userData['description'],
                     'isEmailVerified' => (bool)$userData['isEmailVerified'],
                     'authProvider' => $userData['authProvider'],
                     'createdAt' => $userData['createdAt']
@@ -92,7 +93,7 @@ class UserController {
             
             // Get updated user data
             $stmt = $pdo->prepare("
-                SELECT id, username, email, profilePicture, isEmailVerified, authProvider 
+                SELECT id, username, email, profilePicture, description, isEmailVerified, authProvider 
                 FROM users WHERE id = ?
             ");
             $stmt->execute([$user['id']]);
@@ -107,6 +108,7 @@ class UserController {
                     'username' => $userData['username'],
                     'email' => $userData['email'],
                     'profilePicture' => $userData['profilePicture'],
+                    'description' => $userData['description'],
                     'isEmailVerified' => (bool)$userData['isEmailVerified'],
                     'authProvider' => $userData['authProvider']
                 ]
@@ -134,7 +136,7 @@ class UserController {
             
             // Get updated user data
             $stmt = $pdo->prepare("
-                SELECT id, username, email, profilePicture, isEmailVerified, authProvider 
+                SELECT id, username, email, profilePicture, description, isEmailVerified, authProvider 
                 FROM users WHERE id = ?
             ");
             $stmt->execute([$user['id']]);
@@ -149,6 +151,7 @@ class UserController {
                     'username' => $userData['username'],
                     'email' => $userData['email'],
                     'profilePicture' => $userData['profilePicture'],
+                    'description' => $userData['description'],
                     'isEmailVerified' => (bool)$userData['isEmailVerified'],
                     'authProvider' => $userData['authProvider']
                 ]
@@ -167,6 +170,7 @@ class UserController {
             
             $username = $input['username'] ?? null;
             $profilePicture = $input['profilePicture'] ?? null;
+            $description = $input['description'] ?? null;
             
             $updates = [];
             $params = [];
@@ -175,7 +179,7 @@ class UserController {
             $pdo = Database::getConnection();
             
             // Get current user data
-            $stmt = $pdo->prepare("SELECT username, profilePicture FROM users WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT username, profilePicture, description FROM users WHERE id = ?");
             $stmt->execute([$user['id']]);
             $currentUser = $stmt->fetch(PDO::FETCH_ASSOC);
             
@@ -209,6 +213,13 @@ class UserController {
                 $params[] = $profilePicture;
                 $changes[] = 'profile picture updated';
             }
+
+            // Update description if provided and different
+            if ($description !== null && $description !== $currentUser['description']) {
+                $updates[] = "description = ?";
+                $params[] = $description;
+                $changes[] = 'description updated';
+            }
             
             // Apply updates if any
             if (!empty($updates)) {
@@ -222,7 +233,7 @@ class UserController {
             
             // Get updated user data
             $stmt = $pdo->prepare("
-                SELECT id, username, email, profilePicture, isEmailVerified, authProvider 
+                SELECT id, username, email, profilePicture, description, isEmailVerified, authProvider 
                 FROM users WHERE id = ?
             ");
             $stmt->execute([$user['id']]);
@@ -235,6 +246,7 @@ class UserController {
                     'username' => $userData['username'],
                     'email' => $userData['email'],
                     'profilePicture' => $userData['profilePicture'],
+                    'description' => $userData['description'],
                     'isEmailVerified' => (bool)$userData['isEmailVerified'],
                     'authProvider' => $userData['authProvider']
                 ]

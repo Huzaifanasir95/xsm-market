@@ -4,7 +4,7 @@ import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
 import { useAuth } from '@/context/useAuth';
 import { User } from '@/context/AuthContext';
-import { updateProfile, changePassword, logout } from '@/services/auth';
+import { updateProfile, getProfile, changePassword, logout } from '@/services/auth';
 
 // Get API URL from environment variables
 const getApiUrl = () => {
@@ -25,6 +25,7 @@ interface ProfileProps {
 interface UpdateData {
   username?: string;
   profilePicture?: string;
+  description?: string;
 }
 
 interface ExtendedUser extends User {
@@ -49,7 +50,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const [editForm, setEditForm] = useState({
     username: '',
     email: '',
-    profilePicture: ''
+    profilePicture: '',
+    description: ''
   });
   // Initialize password form with empty values and ensure it stays empty
   const [passwordForm, setPasswordForm] = useState({
@@ -94,7 +96,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
     joinDate: (user as ExtendedUser)?.joinDate || '2025-01-15', // Keep the date format as is
-    profilePicture: user?.profilePicture || ''
+    profilePicture: user?.profilePicture || '',
+    description: user?.description || ''
   });
 
   // Update profile when user data changes
@@ -103,7 +106,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       console.log('🔍 User data in Profile component:', {
         user,
         authProvider: (user as any)?.authProvider,
-        keys: Object.keys(user)
+        keys: Object.keys(user),
+        description: user.description
       });
       
       setProfile(prev => ({
@@ -111,8 +115,11 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         username: user.username,
         email: user.email,
         profilePicture: user.profilePicture || '',
+        description: user.description || '',
         joinDate: (user as any)?.joinDate || prev.joinDate
       }));
+      
+      console.log('🔄 Updated profile state with description:', user.description);
     }
   }, [user]);
 
@@ -122,6 +129,43 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       setCurrentPage('login');
     }
   }, [isLoggedIn, setCurrentPage]);
+
+  // Fetch fresh profile data when component mounts
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (isLoggedIn && user) {
+        try {
+          console.log('🔄 Fetching fresh profile data...');
+          const freshProfile = await getProfile();
+          console.log('✅ Fresh profile data:', freshProfile);
+          
+          // Update the user context with fresh data
+          setUser({
+            ...freshProfile,
+            id: String(freshProfile.id),
+          });
+          
+          // Directly set profile with fresh data including description
+          setProfile({
+            username: freshProfile.username,
+            email: freshProfile.email,
+            profilePicture: freshProfile.profilePicture || '',
+            description: freshProfile.description || '',
+            joinDate: (freshProfile as any)?.joinDate || '2025-01-15',
+          });
+          
+          console.log('🔄 Profile state updated with fresh data:', {
+            description: freshProfile.description,
+            username: freshProfile.username
+          });
+        } catch (error) {
+          console.error('❌ Failed to fetch fresh profile data:', error);
+        }
+      }
+    };
+
+    fetchProfileData();
+  }, [isLoggedIn]); // Only run when login status changes
 
   const handleLogout = () => {
     logout();
@@ -306,9 +350,14 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       // Prepare the data to send to the API
       const updateData: UpdateData = {};
       
-      // Only include username if it has changed (profile picture is handled separately)
+      // Only include username if it has changed
       if (editForm.username !== user.username) {
         updateData.username = editForm.username;
+      }
+
+      // Only include description if it has changed
+      if (editForm.description !== profile.description) {
+        updateData.description = editForm.description;
       }
       
       // Only make API call if there are changes
@@ -326,16 +375,18 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           id: String(updatedUser.id),
         });
         
-        // Update local profile state
+        // Update local profile state with saved data
         setProfile(prev => ({
           ...prev,
           username: updatedUser.username,
+          description: updatedUser.description || '',
         }));
         
         // Update the edit form to match the saved data
         setEditForm(prev => ({
           ...prev,
           username: updatedUser.username,
+          description: updatedUser.description || '',
         }));
         
         alert('Profile updated successfully!');
@@ -562,9 +613,42 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
             <div className="xsm-card">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-xsm-yellow">Profile Information</h3>
-                {!isEditing ? (
+                <div className="flex space-x-2">
                   <button
-                    onClick={() => setIsEditing(true)}
+                    onClick={async () => {
+                      try {
+                        console.log('🔄 Manual refresh triggered...');
+                        const freshProfile = await getProfile();
+                        console.log('✅ Manual fresh profile data:', freshProfile);
+                        
+                        setProfile({
+                          username: freshProfile.username,
+                          email: freshProfile.email,
+                          profilePicture: freshProfile.profilePicture || '',
+                          description: freshProfile.description || '',
+                          joinDate: (freshProfile as any)?.joinDate || '2025-01-15',
+                        });
+                        alert('Profile refreshed! Description: ' + (freshProfile.description || 'No description'));
+                      } catch (error) {
+                        console.error('❌ Manual refresh failed:', error);
+                        alert('Failed to refresh profile');
+                      }
+                    }}
+                    className="xsm-button-secondary text-sm px-3 py-1"
+                  >
+                    🔄 Refresh
+                  </button>
+                  {!isEditing ? (
+                  <button
+                    onClick={() => {
+                      setIsEditing(true);
+                      setEditForm({ 
+                        username: profile.username,
+                        email: profile.email,
+                        profilePicture: profile.profilePicture,
+                        description: profile.description
+                      });
+                    }}
                     className="xsm-button-secondary flex items-center space-x-2"
                   >
                     <Edit className="w-4 h-4" />
@@ -592,7 +676,12 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     <button
                       onClick={() => {
                         setIsEditing(false);
-                        setEditForm({ ...profile });
+                        setEditForm({ 
+                          username: profile.username,
+                          email: profile.email,
+                          profilePicture: profile.profilePicture,
+                          description: profile.description
+                        });
                       }}
                       disabled={isUpdating}
                       className="xsm-button-secondary flex items-center space-x-2"
@@ -601,7 +690,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       <span>Cancel</span>
                     </button>
                   </div>
-                )}
+                  )}
+                </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
@@ -626,6 +716,22 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     className={`xsm-input w-full opacity-60`}
                     title="Email cannot be changed here. Contact support if you need to update your email."
                   />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-white font-medium mb-2">Profile Bio / Description</label>
+                  <textarea
+                    value={isEditing ? editForm.description : profile.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    disabled={!isEditing}
+                    className={`xsm-input w-full min-h-[100px] resize-y ${!isEditing ? 'opacity-60' : ''}`}
+                    placeholder="Tell others about yourself..."
+                    maxLength={500}
+                  />
+                  {isEditing && (
+                    <p className="text-gray-400 text-sm mt-1">
+                      {editForm.description?.length || 0}/500 characters
+                    </p>
+                  )}
                 </div>
                 {isEditing && (
                   <div className="md:col-span-2">

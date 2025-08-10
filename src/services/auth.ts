@@ -16,6 +16,7 @@ interface User {
   fullName?: string;
   email: string;
   profilePicture?: string;
+  description?: string;
   authProvider?: string;
   isEmailVerified?: boolean;
   isAdmin?: boolean;

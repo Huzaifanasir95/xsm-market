@@ -6,6 +6,7 @@ export interface User {
   username: string;
   email: string;
   profilePicture?: string;
+  description?: string;
 }
 
 export interface AuthContextType {
