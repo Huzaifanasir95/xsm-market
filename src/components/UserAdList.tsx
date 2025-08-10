@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getUserAds, getUserAdsAlternative, deleteAd } from '../services/ads';
 import { useAuth } from '../context/useAuth';
 import { Star, Eye, Trash2, Edit, AlertCircle, TrendingUp, Pin, DollarSign, CheckCircle, XCircle } from 'lucide-react';
+import EditListingModal from './EditListingModal';
 
 interface UserAd {
   id: number;
@@ -16,6 +17,15 @@ interface UserAd {
   views: number;
   createdAt: string;
   updatedAt: string;
+  channelUrl: string;
+  description: string;
+  contentType?: string;
+  contentCategory?: string;
+  incomeDetails: string;
+  promotionDetails: string;
+  thumbnail?: string;
+  screenshots?: any[];
+  tags?: string[];
   seller?: {
     id: number;
     username: string;
@@ -31,6 +41,8 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
   const [ads, setAds] = useState<UserAd[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingAd, setEditingAd] = useState<UserAd | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -65,6 +77,25 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (ad: UserAd) => {
+    setEditingAd(ad);
+    setShowEditModal(true);
+  };
+
+  const handleEditModalClose = () => {
+    setShowEditModal(false);
+    setEditingAd(null);
+  };
+
+  const handleAdUpdate = (updatedAd: UserAd) => {
+    // Update the ad in the local state
+    setAds(prevAds => 
+      prevAds.map(ad => 
+        ad.id === updatedAd.id ? { ...ad, ...updatedAd } : ad
+      )
+    );
   };
 
   const handleDelete = async (id: number) => {
@@ -302,7 +333,7 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => onEditAd && onEditAd(ad)}
+                  onClick={() => handleEdit(ad)}
                   className="xsm-button-secondary flex items-center gap-2"
                 >
                   <Edit className="w-4 h-4" />
@@ -337,6 +368,16 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Edit Listing Modal */}
+      {editingAd && (
+        <EditListingModal
+          ad={editingAd}
+          isOpen={showEditModal}
+          onClose={handleEditModalClose}
+          onUpdate={handleAdUpdate}
+        />
       )}
     </div>
   );
