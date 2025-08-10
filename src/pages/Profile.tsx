@@ -760,25 +760,25 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-xsm-dark-gray rounded-lg border border-xsm-yellow/20 p-6 w-full max-w-lg">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-xsm-yellow">Settings</h3>
+          <div className="bg-xsm-dark-gray rounded-lg border border-xsm-yellow/20 p-4 w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-xsm-yellow">Settings</h3>
               <button
                 onClick={() => setShowSettings(false)}
                 className="text-gray-400 hover:text-white transition-colors"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex space-x-1 mb-6 bg-xsm-black/50 rounded-lg p-1">
+            <div className="flex space-x-1 mb-4 bg-xsm-black/50 rounded-lg p-1">
               <button
                 onClick={() => {
                   setActiveSettingsTab('username');
                   setSettingsForm({ ...settingsForm, username: profile.username });
                 }}
-                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
                   activeSettingsTab === 'username'
                     ? 'bg-xsm-yellow text-xsm-black'
                     : 'text-gray-400 hover:text-white'
@@ -791,7 +791,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   setActiveSettingsTab('email');
                   setSettingsForm({ ...settingsForm, email: profile.email });
                 }}
-                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
                   activeSettingsTab === 'email'
                     ? 'bg-xsm-yellow text-xsm-black'
                     : 'text-gray-400 hover:text-white'
@@ -808,7 +808,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     confirmPassword: '',
                   });
                 }}
-                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
                   activeSettingsTab === 'password'
                     ? 'bg-xsm-yellow text-xsm-black'
                     : 'text-gray-400 hover:text-white'
@@ -819,21 +819,21 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
             </div>
 
             {/* Tab Content */}
-            <div className="min-h-[200px]">
+            <div className="min-h-[180px]">
               {/* Username Tab */}
               {activeSettingsTab === 'username' && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div>
-                    <label className="block text-white font-medium mb-2">Current Username</label>
+                    <label className="block text-white font-medium mb-1 text-sm">Current Username</label>
                     <input
                       type="text"
                       value={profile.username}
                       disabled
-                      className="xsm-input w-full opacity-60"
+                      className="xsm-input w-full opacity-60 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-white font-medium mb-2">New Username</label>
+                    <label className="block text-white font-medium mb-1 text-sm">New Username</label>
                     <input
                       type="text"
                       value={settingsForm.username}
@@ -850,31 +850,31 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
 
               {/* Email Tab */}
               {activeSettingsTab === 'email' && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {/* Email Change Cooldown Timer */}
                   <EmailChangeCooldownTimer
                     onCooldownEnd={() => setEmailCooldownActive(false)}
                     onCooldownStatusChange={setEmailCooldownActive}
-                    className="mb-4"
+                    className="mb-2"
                   />
                   
                   <div>
-                    <label className="block text-white font-medium mb-2">Current Email</label>
+                    <label className="block text-white font-medium mb-1 text-sm">Current Email</label>
                     <input
                       type="email"
                       value={profile.email}
                       disabled
-                      className="xsm-input w-full opacity-60"
+                      className="xsm-input w-full opacity-60 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-white font-medium mb-2">New Email</label>
+                    <label className="block text-white font-medium mb-1 text-sm">New Email</label>
                     <input
                       type="email"
                       value={settingsForm.email}
                       onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
                       disabled={emailCooldownActive}
-                      className={`xsm-input w-full ${emailCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`xsm-input w-full text-sm ${emailCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                       placeholder={emailCooldownActive ? "Email change is on cooldown" : "Enter new email address"}
                     />
                   </div>
@@ -889,18 +889,18 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
 
               {/* Password Tab */}
               {activeSettingsTab === 'password' && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {/* Password Change Cooldown Timer */}
                   <PasswordChangeCooldownTimer
                     onCooldownEnd={() => setPasswordCooldownActive(false)}
                     onCooldownStatusChange={setPasswordCooldownActive}
-                    className="mb-4"
+                    className="mb-2"
                   />
                   
                   {(user as any)?.authProvider === 'google' && (
-                    <div className="bg-blue-500/10 rounded-lg p-4 mb-4">
-                      <h4 className="text-blue-400 font-semibold mb-2">Google Account</h4>
-                      <p className="text-white text-sm mb-2">
+                    <div className="bg-blue-500/10 rounded-lg p-3 mb-3">
+                      <h4 className="text-blue-400 font-semibold mb-1 text-sm">Google Account</h4>
+                      <p className="text-white text-xs mb-1">
                         You signed in with Google. You can set a password to enable email/password login as an alternative to Google sign-in.
                       </p>
                       <p className="text-xsm-light-gray text-xs">
@@ -911,13 +911,13 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                   
                   {(user as any)?.authProvider !== 'google' && (
                     <div>
-                      <label className="block text-white font-medium mb-2">Current Password</label>
+                      <label className="block text-white font-medium mb-1 text-sm">Current Password</label>
                       <input
                         type="password"
                         value={settingsPasswordForm.currentPassword}
                         onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, currentPassword: e.target.value })}
                         disabled={passwordCooldownActive}
-                        className={`xsm-input w-full ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`xsm-input w-full text-sm ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                         placeholder={passwordCooldownActive ? "Password change is on cooldown" : "Enter current password"}
                         autoComplete="current-password"
                       />
