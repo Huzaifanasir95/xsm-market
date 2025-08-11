@@ -46,7 +46,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
   const { toast } = useToast();
   const [sortBy, setSortBy] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPlatform, setSelectedPlatform] = useState<string>('YouTube');
+  const [selectedPlatform, setSelectedPlatform] = useState<string>('All Platforms');
   const [monetizationEnabled, setMonetizationEnabled] = useState(false);
   const [subscriberRange, setSubscriberRange] = useState({ min: '', max: '' });
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
@@ -651,10 +651,19 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
           
           {/* Main Content */}
           <div className="w-full">
-            {/* Ad List - Using real database data */}
+            {/* Ad List - Using real database data with filters */}
             <AdList 
               onShowMore={handleShowMore} 
               onNavigateToChat={() => setCurrentPage && setCurrentPage('chat')}
+              // Pass all the filter states to AdList
+              searchQuery={searchQuery}
+              selectedPlatform={selectedPlatform}
+              selectedCategories={selectedCategories}
+              selectedTypes={selectedTypes}
+              subscriberRange={subscriberRange}
+              priceRange={priceRange}
+              incomeRange={incomeRange}
+              monetizationEnabled={monetizationEnabled}
             />
           </div>
         </div>

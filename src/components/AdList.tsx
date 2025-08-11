@@ -33,22 +33,38 @@ interface Ad {
 interface AdListProps {
   onShowMore: (ad: Ad) => void;
   onNavigateToChat?: (chatId: string) => void;
+  // Filter props from Home component
+  searchQuery?: string;
+  selectedPlatform?: string;
+  selectedCategories?: string[];
+  selectedTypes?: string[];
+  subscriberRange?: { min: string; max: string };
+  priceRange?: { min: string; max: string };
+  incomeRange?: { min: string; max: string };
+  monetizationEnabled?: boolean;
 }
 
-const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
-  const [ads, setAds] = useState<Ad[]>([]);
+const AdList: React.FC<AdListProps> = ({ 
+  onShowMore, 
+  onNavigateToChat,
+  searchQuery = '',
+  selectedPlatform = 'All Platforms',
+  selectedCategories = [],
+  selectedTypes = [],
+  subscriberRange = { min: '', max: '' },
+  priceRange = { min: '', max: '' },
+  incomeRange = { min: '', max: '' },
+  monetizationEnabled = false
+}) => {
+  const [allAds, setAllAds] = useState<Ad[]>([]);
+  const [filteredAds, setFilteredAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDealModal, setShowDealModal] = useState(false);
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
   const { user, isLoggedIn } = useAuth();
-  const [filters, setFilters] = useState({
-    platform: 'all',
-    category: 'all',
-    sortBy: 'createdAt',
-    sortOrder: 'DESC'
-  });
 
+  // Fetch all ads once on component mount
   useEffect(() => {
     const fetchAds = async () => {
       try {
@@ -56,7 +72,12 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
         setLoading(true);
         setError(null);
         
-        const response = await getAllAds(filters);
+        const response = await getAllAds({
+          platform: 'all',
+          category: 'all',
+          sortBy: 'createdAt',
+          sortOrder: 'DESC'
+        });
         console.log('📡 AdList: Response received:', response);
         
         if (response && response.ads) {
@@ -72,22 +93,121 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
           }));
           
           console.log('📡 AdList: Formatted ads:', formattedAds.length);
-          setAds(formattedAds);
+          setAllAds(formattedAds);
         } else {
           console.warn('📡 AdList: No ads in response');
-          setAds([]);
+          setAllAds([]);
         }
       } catch (err: any) {
         console.error('❌ AdList: Error fetching ads:', err);
         setError(err.message || 'Failed to fetch ads');
-        setAds([]);
+        setAllAds([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchAds();
-  }, [filters]);
+  }, []); // Only fetch once on mount
+
+  // Apply filters whenever filter props change
+  useEffect(() => {
+    console.log('🔍 AdList: Applying filters...', {
+      searchQuery,
+      selectedPlatform,
+      selectedCategories,
+      selectedTypes,
+      subscriberRange,
+      priceRange,
+      incomeRange,
+      monetizationEnabled
+    });
+
+    let filtered = [...allAds];
+
+    // Apply search query filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(ad => 
+        ad.title.toLowerCase().includes(query) ||
+        ad.category.toLowerCase().includes(query) ||
+        ad.description.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply platform filter
+    if (selectedPlatform && selectedPlatform !== 'All Platforms') {
+      filtered = filtered.filter(ad => 
+        ad.platform.toLowerCase() === selectedPlatform.toLowerCase()
+      );
+    }
+
+    // Apply category filters
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(ad => 
+        selectedCategories.includes(ad.category)
+      );
+    }
+
+    // Apply type filters
+    if (selectedTypes.length > 0) {
+      filtered = filtered.filter(ad => {
+        return selectedTypes.some(type => {
+          if (type === 'Non Monitied') return !ad.isMonetized;
+          if (type === 'Premium') return ad.premium;
+          if (type === 'Monetized') return ad.isMonetized && ad.monthlyIncome > 0;
+          if (type === 'New') return true; // Would filter for new ads in a real app
+          return false;
+        });
+      });
+    }
+
+    // Apply monetization filter
+    if (monetizationEnabled) {
+      filtered = filtered.filter(ad => ad.isMonetized && ad.monthlyIncome > 0);
+    }
+
+    // Subscriber range filter
+    if (subscriberRange.min || subscriberRange.max) {
+      filtered = filtered.filter(ad => {
+        const min = subscriberRange.min ? parseInt(subscriberRange.min) : 0;
+        const max = subscriberRange.max ? parseInt(subscriberRange.max) : Infinity;
+        return ad.subscribers >= min && ad.subscribers <= max;
+      });
+    }
+
+    // Price range filter
+    if (priceRange.min || priceRange.max) {
+      filtered = filtered.filter(ad => {
+        const min = priceRange.min ? parseInt(priceRange.min) : 0;
+        const max = priceRange.max ? parseInt(priceRange.max) : Infinity;
+        return ad.price >= min && ad.price <= max;
+      });
+    }
+
+    // Income range filter
+    if (incomeRange.min || incomeRange.max) {
+      filtered = filtered.filter(ad => {
+        if (!ad.monthlyIncome) return false;
+        const min = incomeRange.min ? parseInt(incomeRange.min) : 0;
+        const max = incomeRange.max ? parseInt(incomeRange.max) : Infinity;
+        return ad.monthlyIncome >= min && ad.monthlyIncome <= max;
+      });
+    }
+
+    console.log('📊 AdList: Filtered results:', filtered.length, 'out of', allAds.length);
+    setFilteredAds(filtered);
+  }, [
+    allAds,
+    searchQuery,
+    selectedPlatform,
+    selectedCategories,
+    selectedTypes,
+    subscriberRange,
+    priceRange,
+    incomeRange,
+    monetizationEnabled
+  ]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) {
@@ -163,7 +283,7 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
     );
   }
 
-  if (ads.length === 0) {
+  if (allAds.length === 0 && !loading) {
     return (
       <div className="text-center py-16">
         <div className="text-6xl mb-4">📭</div>
@@ -173,11 +293,23 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
     );
   }
 
+  const displayAds = filteredAds.length > 0 ? filteredAds : allAds;
+
+  if (displayAds.length === 0 && allAds.length > 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="text-6xl mb-4">🔍</div>
+        <h3 className="text-2xl font-bold text-white mb-2">No ads match your filters</h3>
+        <p className="text-xsm-light-gray">Try adjusting your search criteria</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Ad Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {ads.map((ad) => (
+        {displayAds.map((ad) => (
           <div 
             key={ad.id} 
             className="xsm-card group transition-all duration-300 cursor-pointer"
