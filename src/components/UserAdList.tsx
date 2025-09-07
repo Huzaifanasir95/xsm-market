@@ -91,6 +91,8 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
   }>>({});
   const [showPullModal, setShowPullModal] = useState(false);
   const [selectedAdForPull, setSelectedAdForPull] = useState<UserAd | null>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [selectedAdForPin, setSelectedAdForPin] = useState<UserAd | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -231,7 +233,6 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
         await fetchUserAds();
         setShowPullModal(false);
         setSelectedAdForPull(null);
-        alert('Listing pulled up successfully! It will now appear at the top of market listings.');
       }
     } catch (err: any) {
       // Keep modal open to show error
@@ -240,26 +241,38 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
   };
 
   const handlePin = async (id: number) => {
+    // Find the ad
+    const ad = ads.find(a => a.id === id);
+    if (!ad) return;
+    
+    // Set the selected ad and show modal
+    setSelectedAdForPin(ad);
+    setShowPinModal(true);
+  };
+
+  const confirmPin = async () => {
+    if (!selectedAdForPin) return;
+    
     try {
-      const result = await togglePinAd(id);
+      const result = await togglePinAd(selectedAdForPin.id);
       
       // Update the local ads state to reflect the change
       setAds(prevAds => 
         prevAds.map(ad => 
-          ad.id === id 
+          ad.id === selectedAdForPin.id 
             ? { ...ad, pinned: result.pinned, pinnedAt: result.pinnedAt }
             : ad
         )
       );
       
-      // Show success message
-      alert(result.message);
-      
-      // Refresh the ads list to get updated order (pinned ads appear first)
+      // Close modal and refresh the ads list to get updated order
+      setShowPinModal(false);
+      setSelectedAdForPin(null);
       await fetchUserAds();
       
     } catch (err: any) {
-      alert(err.message || 'Failed to pin/unpin listing');
+      console.error('Pin error:', err);
+      // Keep modal open to show error
     }
   };
 
@@ -618,6 +631,59 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
                     Pull Up
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pin/Unpin Modal */}
+      {showPinModal && selectedAdForPin && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
+            <div className="text-center">
+              <div className="mb-4">
+                <Pin className="w-16 h-16 text-xsm-yellow mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {selectedAdForPin.pinned ? 'Unpin Listing' : 'Pin Listing'}
+                </h3>
+                <p className="text-sm text-gray-300 mb-4">
+                  "{selectedAdForPin.title}"
+                </p>
+              </div>
+
+              {/* Confirmation message */}
+              <div className="mb-6">
+                <p className="text-gray-300">
+                  {selectedAdForPin.pinned 
+                    ? 'Are you sure you want to unpin this listing? It will no longer appear at the top of your listings.'
+                    : 'Are you sure you want to pin this listing? It will appear at the top of your listings.'
+                  }
+                </p>
+                {selectedAdForPin.pinnedAt && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    Pinned on: {new Date(selectedAdForPin.pinnedAt).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowPinModal(false);
+                    setSelectedAdForPin(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors border border-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmPin}
+                  className="flex-1 px-4 py-2 bg-xsm-yellow text-xsm-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors"
+                >
+                  {selectedAdForPin.pinned ? 'Unpin' : 'Pin'}
+                </button>
               </div>
             </div>
           </div>
