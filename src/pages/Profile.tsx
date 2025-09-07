@@ -53,7 +53,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [activeSettingsTab, setActiveSettingsTab] = useState('username');
+  const [activeSettingsTab, setActiveSettingsTab] = useState('email');
   const [settingsForm, setSettingsForm] = useState({
     username: '',
     email: '',
@@ -826,7 +826,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               {activeSettingsTab === 'username' && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-white font-medium mb-1 text-sm">Current Username</label>
+                    <label className="block text-white font-medium mb-1 text-sm">Username</label>
                     <input
                       type="text"
                       value={profile.username}
@@ -834,18 +834,11 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       className="xsm-input w-full opacity-60 text-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-white font-medium mb-1 text-sm">New Username</label>
-                    <input
-                      type="text"
-                      value={settingsForm.username}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, username: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder="Enter new username (3-50 chars, letters, numbers, underscores only)"
-                    />
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    Username must be 3-50 characters long and can only contain letters, numbers, and underscores.
+                  <div className="text-sm text-yellow-400 bg-yellow-400/10 p-3 rounded-lg border border-yellow-400/20">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-yellow-400">⚠️</span>
+                      <span>Username cannot be changed</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -970,25 +963,9 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     setIsUpdating(true);
                     
                     if (activeSettingsTab === 'username') {
-                      if (settingsForm.username === profile.username) {
-                        showInfo('No changes', 'Username is the same as current. No changes to save.');
-                        return;
-                      }
-                      
-                      if (settingsForm.username.length < 3 || settingsForm.username.length > 50) {
-                        showError('Invalid username', 'Username must be between 3 and 50 characters.');
-                        return;
-                      }
-                      
-                      if (!/^[a-zA-Z0-9_]+$/.test(settingsForm.username)) {
-                        showError('Invalid characters', 'Username can only contain letters, numbers, and underscores.');
-                        return;
-                      }
-                      
-                      const updatedUser = await updateProfile({ username: settingsForm.username });
-                      setProfile(prev => ({ ...prev, username: updatedUser.username }));
-                      setUser({ ...updatedUser, id: String(updatedUser.id) });
-                      showSuccess('Username updated', 'Your username has been updated successfully!');
+                      // Username cannot be changed - this tab is read-only
+                      showInfo('Username locked', 'Username cannot be changed for security reasons.');
+                      return;
                       
                     } else if (activeSettingsTab === 'email') {
                       // Check if email change is on cooldown
@@ -1116,8 +1093,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     setIsUpdating(false);
                   }
                 }}
-                disabled={isUpdating || (activeSettingsTab === 'email' && emailCooldownActive) || (activeSettingsTab === 'password' && passwordCooldownActive)}
-                className={`xsm-button flex items-center space-x-2 ${isUpdating || (activeSettingsTab === 'email' && emailCooldownActive) || (activeSettingsTab === 'password' && passwordCooldownActive) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isUpdating || (activeSettingsTab === 'email' && emailCooldownActive) || (activeSettingsTab === 'password' && passwordCooldownActive) || activeSettingsTab === 'username'}
+                className={`xsm-button flex items-center space-x-2 ${isUpdating || (activeSettingsTab === 'email' && emailCooldownActive) || (activeSettingsTab === 'password' && passwordCooldownActive) || activeSettingsTab === 'username' ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {isUpdating ? (
                   <>
