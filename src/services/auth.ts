@@ -1,5 +1,5 @@
-// API URL - automatically switches between development and production
-export const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:5000/api');
+// API URL - use the proxy in development  
+export const API_URL = import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api';
 
 console.log('🌐 API_URL configured as:', API_URL);
 
@@ -11,12 +11,15 @@ const USER_KEY = 'userData';
 
 // Import User interface
 interface User {
-  id: number;
+  id: string;
   username: string;
   fullName?: string;
   email: string;
   profilePicture?: string;
+  description?: string;
   authProvider?: string;
+  isEmailVerified?: boolean;
+  isAdmin?: boolean;
 }
 
 // Token management interface
@@ -33,12 +36,14 @@ export interface AuthResponse {
   refreshToken?: string;
   expiresIn?: number;
   user?: {
-    id: number;
+    id: string;
     username: string;
     fullName?: string;
     email: string;
     profilePicture?: string;
     authProvider?: string;
+    isEmailVerified?: boolean;
+    isAdmin?: boolean;
   };
   message?: string;
   requiresVerification?: boolean;
@@ -204,7 +209,7 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}): Promi
   return response;
 };
 
-export const login = async (email: string, password: string): Promise<AuthResponse> => {
+export const login = async (email: string, password: string, recaptchaToken?: string): Promise<AuthResponse> => {
   try {
     console.log('🔄 Starting login process for:', email);
     
@@ -213,7 +218,7 @@ export const login = async (email: string, password: string): Promise<AuthRespon
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, recaptchaToken }),
       credentials: 'include'
     });
 
@@ -274,7 +279,7 @@ export const login = async (email: string, password: string): Promise<AuthRespon
   }
 };
 
-export const register = async (username: string, email: string, password: string, fullName?: string): Promise<AuthResponse> => {
+export const register = async (username: string, email: string, password: string, recaptchaToken?: string, fullName?: string): Promise<AuthResponse> => {
   try {
     console.log('Attempting to register with:', { 
       username, 
@@ -316,6 +321,7 @@ export const register = async (username: string, email: string, password: string
         username: username.trim(),
         email: email.trim().toLowerCase(),
         password,
+        recaptchaToken,
         fullName: fullName?.trim() || ''
       }),
       mode: 'cors',
@@ -676,23 +682,228 @@ export const createChannelListing = async (channelData: any): Promise<any> => {
   }
 };
 
-// Add this function after updateProfile
-export const updateProfilePicture = async (profilePicture: string): Promise<User> => {
+// Email change functionality - Updated for dual verification
+export const requestEmailChange = async (newEmail: string): Promise<{ 
+  message: string; 
+  step: string;
+  currentEmail: string;
+  pendingEmail: string;
+  verificationToken: string 
+}> => {
   try {
-    const response = await authenticatedFetch(`${API_URL}/user/profile-picture`, {
-      method: 'PUT',
-      body: JSON.stringify({ profilePicture }),
+    const response = await authenticatedFetch(`${API_URL}/user/email/change-request`, {
+      method: 'POST',
+      body: JSON.stringify({ newEmail }),
     });
     const data = await handleFetchError(response);
-    if (data.user) {
-      localStorage.setItem('userData', JSON.stringify(data.user));
-    }
-    return data.user;
+    return data;
   } catch (error) {
     if (error instanceof Error) {
       throw error;
     } else {
-      throw new Error('Failed to update profile picture');
+      throw new Error('Failed to request email change');
+    }
+  }
+};
+
+// Step 1: Verify current email
+export const verifyCurrentEmail = async (token: string, otp: string): Promise<{ 
+  message: string; 
+  step: string;
+  newEmail: string;
+  verificationToken: string 
+}> => {
+  try {
+    const response = await fetch(`${API_URL}/user/email/verify-current`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, otp }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to verify current email');
+    }
+  }
+};
+
+// Step 2: Verify new email
+export const verifyNewEmail = async (token: string, otp: string): Promise<{ 
+  message: string; 
+  oldEmail: string;
+  newEmail: string 
+}> => {
+  try {
+    const response = await fetch(`${API_URL}/user/email/verify-new`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, otp }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to verify new email');
+    }
+  }
+};
+
+// Legacy function for backward compatibility
+export const verifyEmailChange = async (token: string, otp: string): Promise<{ message: string; newEmail: string }> => {
+  try {
+    const response = await fetch(`${API_URL}/user/email/verify-change`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, otp }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to verify email change');
+    }
+  }
+};
+
+// Secure password change functionality
+export const requestPasswordChange = async (currentPassword: string, newPassword: string): Promise<{ message: string; email: string; verificationToken: string; isGoogleUser: boolean }> => {
+  try {
+    const response = await authenticatedFetch(`${API_URL}/user/password/change-request`, {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to request password change');
+    }
+  }
+};
+
+export const verifyPasswordChange = async (token: string, otp: string): Promise<{ message: string; isGoogleUser: boolean }> => {
+  try {
+    const response = await fetch(`${API_URL}/user/password/verify-change`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, otp }),
+    });
+    const data = await handleFetchError(response);
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to verify password change');
+    }
+  }
+};
+
+// Email Change Cooldown Status
+export interface EmailChangeCooldownStatus {
+  cooldownActive: boolean;
+  canChangeEmail: boolean;
+  daysRemaining?: number;
+  timeRemaining?: {
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    totalSeconds: number;
+  };
+  nextAllowedDate?: string;
+  lastEmailChange?: string;
+}
+
+export const getEmailChangeCooldownStatus = async (): Promise<EmailChangeCooldownStatus> => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/user/email/cooldown-status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to get cooldown status');
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to get email change cooldown status');
+    }
+  }
+};
+
+// Password Change Cooldown Status
+export interface PasswordChangeCooldownStatus {
+  cooldownActive: boolean;
+  canChangePassword: boolean;
+  hoursRemaining?: number;
+  timeRemaining?: {
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    totalSeconds: number;
+  };
+  nextAllowedDate?: string;
+  lastPasswordChange?: string;
+}
+
+export const getPasswordChangeCooldownStatus = async (): Promise<PasswordChangeCooldownStatus> => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/user/password/cooldown-status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to get cooldown status');
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to get password change cooldown status');
     }
   }
 };

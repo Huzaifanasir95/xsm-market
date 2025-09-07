@@ -80,7 +80,7 @@ export const createAd = async (adData) => {
 };
 
 // Get user's ads (protected)
-export const getUserAds = async (filters = {}) => {
+export const getUserAds = async (filters: any = {}) => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -95,7 +95,7 @@ export const getUserAds = async (filters = {}) => {
       }
     });
 
-    const response = await fetch(`${API_URL}/ads/user/my-ads?${queryParams}`, {
+    const response = await fetch(`${API_URL}/ads/my-ads?${queryParams}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -103,8 +103,18 @@ export const getUserAds = async (filters = {}) => {
       }
     });
 
+    // Check if response is actually JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      // If not JSON, get the text to see what error occurred
+      const text = await response.text();
+      console.error('Non-JSON response from /ads/my-ads:', text);
+      throw new Error('Server returned invalid response format');
+    }
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch user ads: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to fetch user ads: ${response.statusText}`);
     }
 
     return await response.json();
@@ -192,21 +202,155 @@ export const getPlatformStats = async () => {
   }
 };
 
-// Upload ad image
-export const uploadAdImage = async (file: File): Promise<string> => {
-  const formData = new FormData();
-  formData.append('image', file);
+// Alternative method to get user's ads using a different endpoint
+export const getUserAdsAlternative = async (filters: any = {}) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Authentication required');
+    }
 
-  const response = await fetch(`${API_URL}/ads/upload`, {
-    method: 'POST',
-    body: formData
-  });
+    // Try to get user data from localStorage first
+    const userDataString = localStorage.getItem('userData');
+    let userId = null;
+    
+    console.log('📊 getUserAdsAlternative: localStorage userData:', userDataString);
+    
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        userId = userData.id;
+        console.log('📊 getUserAdsAlternative: Parsed user data:', userData);
+        console.log('📊 getUserAdsAlternative: User ID from localStorage:', userId);
+      } catch (e) {
+        console.log('Failed to parse user data from localStorage');
+      }
+    }
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to upload image: ${response.statusText}`);
+    // If no user ID from localStorage, try to get from profile endpoint
+    if (!userId) {
+      const userResponse = await fetch(`${API_URL}/user/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!userResponse.ok) {
+        throw new Error('Failed to get user profile');
+      }
+
+      const userData = await userResponse.json();
+      userId = userData.user?.id || userData.id;
+    }
+
+    if (!userId) {
+      throw new Error('Could not determine user ID');
+    }
+
+    console.log('📊 getUserAdsAlternative: User ID determined:', userId);
+
+    // Get all ads and filter by user ID on the client side temporarily
+    const allAdsResponse = await fetch(`${API_URL}/ads`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!allAdsResponse.ok) {
+      throw new Error('Failed to fetch ads');
+    }
+
+    const allAdsData = await allAdsResponse.json();
+    console.log('📊 All ads received:', allAdsData);
+    console.log('📊 All ads count:', allAdsData.ads?.length || 0);
+    
+    // Filter ads by user ID (check seller.id which contains the userId)
+    const userAds = allAdsData.ads.filter((ad: any) => {
+      const match = ad.seller?.id == userId;
+      console.log(`📊 Ad ${ad.id}: seller.id=${ad.seller?.id}, expected userId=${userId}, match=${match}`);
+      return match;
+    });
+    
+    console.log('📊 Filtered user ads:', userAds);
+    console.log('📊 User ads count:', userAds.length);
+    
+    // Apply additional filters if provided
+    let filteredAds = userAds;
+    if (filters.status) {
+      filteredAds = userAds.filter((ad: any) => ad.status === filters.status);
+    }
+
+    return {
+      ads: filteredAds,
+      pagination: {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: filteredAds.length,
+        itemsPerPage: filteredAds.length
+      }
+    };
+
+  } catch (error) {
+    console.error('Get user ads alternative error:', error);
+    throw error;
   }
+};
 
-  const data = await response.json();
-  return data.url;
+// Pin/Unpin ad functionality
+export const togglePinAd = async (adId: number) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_URL}/ads/${adId}/pin`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to toggle pin status: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Toggle pin ad error:', error);
+    throw error;
+  }
+};
+
+// Pull up ad functionality
+export const pullUpAd = async (adId: number) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_URL}/ads/${adId}/pull-up`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to pull up ad: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Pull up ad error:', error);
+    throw error;
+  }
 };

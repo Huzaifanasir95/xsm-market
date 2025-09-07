@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test My Ads API</title>
+</head>
+<body>
+    <h1>Test My Ads API</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testMyAdsAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                // Get token from localStorage
+                const token = localStorage.getItem('token');
+                const userData = localStorage.getItem('userData');
+                
+                console.log('Token exists:', !!token);
+                console.log('User data:', userData);
+                
+                if (!token) {
+                    resultsDiv.innerHTML = '<p style="color: red;">No authentication token found. Please log in first.</p>';
+                    return;
+                }
+                
+                // Test the /ads/my-ads endpoint
+                const response = await fetch('/api/ads/my-ads', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.log('Error response:', errorText);
+                    resultsDiv.innerHTML = `<p style="color: red;">API Error (${response.status}): ${errorText}</p>`;
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                resultsDiv.innerHTML = `
+                    <h2>Success!</h2>
+                    <p><strong>User Data:</strong> ${userData}</p>
+                    <p><strong>Ads Count:</strong> ${data.ads ? data.ads.length : 0}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Test error:', error);
+                resultsDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Run test when page loads
+        window.onload = testMyAdsAPI;
+    </script>
+</body>
+</html>

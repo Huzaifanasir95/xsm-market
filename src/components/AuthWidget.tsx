@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/useAuth';
 import { login, register, googleSignIn } from '@/services/auth';
-import { User, Mail, Lock, X } from 'lucide-react';
+import { User, Mail, Lock, X, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
+import ReCAPTCHA from 'react-google-recaptcha';
 import OTPVerification from './OTPVerification';
+import ForgotPassword from './ForgotPassword';
 
 interface AuthWidgetProps {
   onClose: () => void;
+  onNavigate?: (page: string) => void;
 }
 
 const isValidEmail = (email: string): boolean => {
@@ -19,28 +22,56 @@ const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
-const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
+const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose, onNavigate }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [registrationEmail, setRegistrationEmail] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
   
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   const { toast } = useToast();
   const { setIsLoggedIn, setUser } = useAuth();
+
+  const handleRecaptchaChange = (token: string | null) => {
+    setRecaptchaToken(token);
+  };
+
+  const resetRecaptcha = () => {
+    if (recaptchaRef.current) {
+      recaptchaRef.current.reset();
+    }
+    setRecaptchaToken(null);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please complete the reCAPTCHA verification",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await login(email, password);
+      const response = await login(email, password, recaptchaToken);
       
       if (response.user) {
         setIsLoggedIn(true);
@@ -54,6 +85,9 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
         throw new Error('Login succeeded but user data is missing');
       }
     } catch (err) {
+      // Reset reCAPTCHA on error
+      resetRecaptcha();
+      
       const errorMessage = err instanceof Error ? err.message : 'Failed to login';
       
       // Check if it's an email verification error
@@ -87,9 +121,32 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
     console.log("Signup form submitted");
     setError('');
 
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please complete the reCAPTCHA verification",
+      });
+      return;
+    }
+
     // Form validation
     if (!username || !email || !password || !confirmPassword) {
       const errorMsg = "Username, email, password, and confirm password are required";
+      setError(errorMsg);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMsg,
+      });
+      return;
+    }
+
+    // Check if user agreed to terms
+    if (!agreeToTerms) {
+      const errorMsg = "Please agree to the Terms and Conditions to continue";
       setError(errorMsg);
       toast({
         variant: "destructive",
@@ -150,7 +207,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
 
     try {
       console.log("Sending registration request to backend...");
-      const response = await register(username, email, password, fullName);
+      const response = await register(username, email, password, recaptchaToken);
       console.log("Registration response:", response);
       
       // Check if response indicates verification is required
@@ -178,6 +235,9 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
         setIsLogin(true);
       }
     } catch (err) {
+      // Reset reCAPTCHA on error
+      resetRecaptcha();
+      
       console.error("Registration failed:", err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to register';
       
@@ -248,6 +308,32 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
     onClose();
   };
 
+  if (showForgotPassword) {
+    return (
+      <div 
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+      >
+        <Card className="w-full max-w-sm mx-4 bg-xsm-dark-gray border-xsm-medium-gray relative animate-scaleIn max-h-[90vh] overflow-y-auto">
+          <button
+            onClick={onClose}
+            className="absolute top-2 right-2 text-gray-400 hover:text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <ForgotPassword 
+            onBack={() => setShowForgotPassword(false)}
+            onClose={onClose}
+          />
+        </Card>
+      </div>
+    );
+  }
+
   if (showOTPVerification) {
     return (
       <div 
@@ -278,26 +364,26 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
         }
       }}
     >
-      <Card className="w-full max-w-sm mx-4 bg-xsm-dark-gray border-xsm-medium-gray relative animate-scaleIn max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-sm mx-4 bg-xsm-dark-gray border-xsm-medium-gray relative animate-scaleIn">
         <button
           onClick={onClose}
-          className="absolute top-2 right-2 text-gray-400 hover:text-white"
+          className="absolute top-2 right-2 text-gray-400 hover:text-white z-10"
         >
           <X className="w-4 h-4" />
         </button>
         
-        <div className="p-3">
-          <h2 className="text-lg font-bold text-xsm-yellow mb-3 text-center">
+        <div className="p-2">
+          <h2 className="text-base font-bold text-xsm-yellow mb-2 text-center">
             {isLogin ? 'Sign in to your account' : 'Create your account'}
           </h2>
 
           {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertDescription>{error}</AlertDescription>
+            <Alert variant="destructive" className="mb-2">
+              <AlertDescription className="text-xs">{error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-2" noValidate>
+          <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-1.5" noValidate>
             {!isLogin && (
               <>
                 <div>
@@ -313,23 +399,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Choose a username"
                     disabled={isLoading}
-                    className="bg-xsm-black"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="fullName" className="block text-xs font-medium text-white mb-0.5">
-                    Full Name (Optional)
-                  </label>
-                  <Input
-                    id="fullName"
-                    name="fullName"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Enter your full name"
-                    disabled={isLoading}
-                    className="bg-xsm-black"
+                    className="bg-xsm-black h-8 text-sm"
                   />
                 </div>
               </>
@@ -349,7 +419,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 disabled={isLoading}
-                className="bg-xsm-black"
+                className="bg-xsm-black h-8 text-sm"
               />
             </div>
 
@@ -357,36 +427,85 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
               <label htmlFor="password" className="block text-xs font-medium text-white mb-0.5">
                 Password
               </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete={isLogin ? "current-password" : "new-password"}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={isLogin ? "Enter your password" : "Create a password"}
-                disabled={isLoading}
-                className="bg-xsm-black"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={isLogin ? "Enter your password" : "Create a password"}
+                  disabled={isLoading}
+                  className="bg-xsm-black pr-10 h-8 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                </button>
+              </div>
             </div>
 
             {!isLogin && (
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-white mb-0.5">
+                <label htmlFor="confirmPassword" className="block text-xs font-medium text-white mb-0.5">
                   Confirm Password
                 </label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm your password"
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm your password"
+                    disabled={isLoading}
+                    className="bg-xsm-black pr-10 h-8 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                    disabled={isLoading}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!isLogin && (
+              <div className="flex items-start space-x-2">
+                <input
+                  type="checkbox"
+                  id="agreeToTerms"
+                  checked={agreeToTerms}
+                  onChange={(e) => setAgreeToTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-xsm-yellow focus:ring-xsm-yellow"
                   disabled={isLoading}
-                  className="bg-xsm-black"
+                  required
                 />
+                <label htmlFor="agreeToTerms" className="text-sm text-white">
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onNavigate) {
+                        onNavigate('terms');
+                        onClose();
+                      }
+                    }}
+                    className="text-xsm-yellow hover:text-yellow-500 underline"
+                  >
+                    Terms and Conditions
+                  </button>
+                </label>
               </div>
             )}
 
@@ -394,10 +513,7 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => {
-                    onClose();
-                    // Handle forgot password navigation
-                  }}
+                  onClick={() => setShowForgotPassword(true)}
                   className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
                   disabled={isLoading}
                 >
@@ -406,10 +522,20 @@ const AuthWidget: React.FC<AuthWidgetProps> = ({ onClose }) => {
               </div>
             )}
 
+            {/* reCAPTCHA */}
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                onChange={handleRecaptchaChange}
+                theme="dark"
+              />
+            </div>
+
             <Button 
               type="submit" 
               className="w-full bg-xsm-yellow hover:bg-yellow-500 text-black"
-              disabled={isLoading}
+              disabled={isLoading || !recaptchaToken}
             >
               {isLoading ? (
                 isLogin ? 'Signing in...' : 'Creating account...'

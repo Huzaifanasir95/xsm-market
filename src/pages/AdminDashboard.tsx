@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Users, ShoppingBag, Settings, Bell, Search, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Activity, Users, ShoppingBag, Settings, MessageSquare, FileText } from 'lucide-react';
 import ManageUsers from '@/components/admin/ManageUsers';
 import ReviewListings from '@/components/admin/ReviewListings';
 import ReviewChats from '@/components/admin/ReviewChats';
-import { getDashboardStats, getRecentActivities } from '@/services/admin';
+import ReviewDeals from '@/components/admin/ReviewDeals';
+import { getDashboardStats } from '@/services/admin';
 
 interface AdminDashboardProps {
-  setCurrentPage: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = () => {
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState<string>('dashboard');
   const [stats, setStats] = useState([
     { title: 'Total Users', value: '-', icon: Users },
@@ -18,9 +21,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
   ]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
-  const [recentLoading, setRecentLoading] = useState(true);
-  const [recentError, setRecentError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -38,18 +38,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
         setError(err.message || 'Failed to fetch dashboard stats');
         setLoading(false);
       });
-    // Fetch recent activities
-    setRecentLoading(true);
-    setRecentError(null);
-    getRecentActivities()
-      .then((data) => {
-        setRecentActivities(data);
-        setRecentLoading(false);
-      })
-      .catch((err) => {
-        setRecentError(err.message || 'Failed to fetch recent activities');
-        setRecentLoading(false);
-      });
   }, []);
 
   const renderContent = () => {
@@ -60,6 +48,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
         return <ReviewListings />;
       case 'review-chats':
         return <ReviewChats />;
+      case 'review-deals':
+        return <ReviewDeals />;
       default:
         return (
           <>
@@ -82,37 +72,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
               )}
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-xsm-dark-gray rounded-xl border border-xsm-medium-gray p-6">
-              <h2 className="text-xl font-bold mb-6 text-xsm-yellow">Recent Activity</h2>
-              {recentLoading ? (
-                <div className="text-center text-xsm-light-gray py-8">Loading recent activity...</div>
-              ) : recentError ? (
-                <div className="text-center text-red-400 py-8">{recentError}</div>
-              ) : (
-                <div className="space-y-4">
-                  {recentActivities.map((activity, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 hover:bg-xsm-medium-gray/50 rounded-lg transition-colors"
-                    >
-                      <div>
-                        <p className="font-medium">{activity.user}</p>
-                        <p className="text-sm text-xsm-light-gray">{activity.action}</p>
-                      </div>
-                      <span className="text-sm text-xsm-light-gray">{new Date(activity.time).toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Quick Actions */}
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               { [
                 { name: 'Manage Users', view: 'manage-users' },
                 { name: 'Review Listings', view: 'review-listings' },
-                { name: 'Review Chats', view: 'review-chats', icon: MessageSquare }
+                { name: 'Review Chats', view: 'review-chats', icon: MessageSquare },
+                { name: 'Review Deals', view: 'review-deals', icon: FileText }
               ].map((action, index) => (
                 <button
                   key={index}
@@ -137,20 +103,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
           {activeView === 'dashboard' ? 'Admin Dashboard' : 'Admin Dashboard / ' + activeView.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
         </h1>
         <div className="flex items-center space-x-4">
-          {activeView === 'dashboard' && (
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search..."
-                className="bg-xsm-dark-gray border border-xsm-medium-gray rounded-lg px-4 py-2 pl-10 focus:outline-none focus:border-xsm-yellow"
-              />
-              <Search className="absolute left-3 top-2.5 h-5 w-5 text-xsm-medium-gray" />
-            </div>
-          )}
-          <button className="relative p-2 hover:bg-xsm-medium-gray rounded-lg transition-colors">
-            <Bell className="h-6 w-6" />
-            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-          </button>
           {activeView !== 'dashboard' && (
             <button
               onClick={() => setActiveView('dashboard')}

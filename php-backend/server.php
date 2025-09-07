@@ -21,7 +21,8 @@ require_once __DIR__ . '/middleware/auth.php';
 // Load controllers
 require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/UserController.php';
-require_once __DIR__ . '/controllers/AdController-complete.php';
+require_once __DIR__ . '/controllers/AdController.php';
+require_once __DIR__ . '/controllers/AdUploadController.php';
 require_once __DIR__ . '/controllers/ChatController-complete.php';
 require_once __DIR__ . '/controllers/AdminController-complete.php';
 
@@ -60,10 +61,38 @@ try {
         $chatController = new ChatController();
         handleChatRoutes($chatController, $path, $method);
     }
+    // Deals routes
+    elseif (strpos($path, '/deals') === 0) {
+        handleDealsRoutes($path, $method);
+    }
     // Admin routes
     elseif (strpos($path, '/admin') === 0) {
         $adminController = new AdminController();
         handleAdminRoutes($adminController, $path, $method);
+    }
+    // Webhook routes
+    elseif (strpos($path, '/webhooks/nowpayments') === 0) {
+        include 'webhooks/nowpayments.php';
+        exit;
+    }
+    // Crypto payments routes
+    elseif (strpos($path, '/crypto-payments') === 0) {
+        include 'api/crypto-payments.php';
+        exit;
+    }
+    // Serve uploaded files
+    elseif (strpos($path, '/uploads/') === 0) {
+        $filePath = __DIR__ . $path;
+        if (file_exists($filePath) && is_file($filePath)) {
+            $mimeType = mime_content_type($filePath);
+            header('Content-Type: ' . $mimeType);
+            header('Content-Length: ' . filesize($filePath));
+            readfile($filePath);
+            exit;
+        } else {
+            http_response_code(404);
+            echo json_encode(['message' => 'File not found']);
+        }
     }
     // Health check
     elseif ($path === '/health' || $path === '/' || $path === '') {
@@ -77,6 +106,7 @@ try {
                 'users' => '/user/*',
                 'ads' => '/ads/*',
                 'chat' => '/chat/*',
+                'deals' => '/deals/*',
                 'admin' => '/admin/*'
             ]
         ]);
@@ -165,6 +195,38 @@ function handleUserRoutes($controller, $path, $method) {
             if ($method === 'PUT') $controller->changePassword();
             else methodNotAllowed();
             break;
+        case '/user/password/change-request':
+            if ($method === 'POST') $controller->requestPasswordChange();
+            else methodNotAllowed();
+            break;
+        case '/user/password/verify-change':
+            if ($method === 'POST') $controller->verifyPasswordChange();
+            else methodNotAllowed();
+            break;
+        case '/user/password/cooldown-status':
+            if ($method === 'GET') $controller->getPasswordChangeCooldown();
+            else methodNotAllowed();
+            break;
+        case '/user/email/change-request':
+            if ($method === 'POST') $controller->requestEmailChange();
+            else methodNotAllowed();
+            break;
+        case '/user/email/verify-current':
+            if ($method === 'POST') $controller->verifyCurrentEmail();
+            else methodNotAllowed();
+            break;
+        case '/user/email/verify-new':
+            if ($method === 'POST') $controller->verifyNewEmail();
+            else methodNotAllowed();
+            break;
+        case '/user/email/verify-change':
+            if ($method === 'POST') $controller->verifyEmailChange();
+            else methodNotAllowed();
+            break;
+        case '/user/email/cooldown-status':
+            if ($method === 'GET') $controller->getEmailChangeCooldown();
+            else methodNotAllowed();
+            break;
         case '/user/profile-legacy':
             if ($method === 'GET') $controller->getProfile();
             else methodNotAllowed();
@@ -185,6 +247,14 @@ function handleAdRoutes($controller, $path, $method) {
         if ($method === 'GET') $controller->searchAds();
         else methodNotAllowed();
     }
+    elseif ($path === '/ads/my-ads') {
+        if ($method === 'GET') $controller->getMyAds();
+        else methodNotAllowed();
+    }
+    elseif ($path === '/ads/user/my-ads') {
+        if ($method === 'GET') $controller->getMyAds();
+        else methodNotAllowed();
+    }
     elseif ($path === '/ads/user') {
         if ($method === 'GET') $controller->getUserAds();
         else methodNotAllowed();
@@ -200,6 +270,28 @@ function handleAdRoutes($controller, $path, $method) {
         $adId = $matches[1];
         if ($method === 'POST') $controller->contactSeller($adId);
         else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/ads\/(\d+)\/pin$/', $path, $matches)) {
+        $adId = $matches[1];
+        if ($method === 'PUT') $controller->togglePin($adId);
+        else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/ads\/(\d+)\/pull-up$/', $path, $matches)) {
+        $adId = $matches[1];
+        if ($method === 'PUT') $controller->pullUpAd($adId);
+        else methodNotAllowed();
+    }
+    elseif ($path === '/ads/upload/screenshots' && $method === 'POST') {
+        $uploadController = new AdUploadController();
+        $uploadController->uploadScreenshots();
+    }
+    elseif ($path === '/ads/upload/thumbnail' && $method === 'POST') {
+        $uploadController = new AdUploadController();
+        $uploadController->uploadThumbnail();
+    }
+    elseif ($path === '/ads/upload/test' && $method === 'GET') {
+        http_response_code(200);
+        echo json_encode(['message' => 'Upload route working', 'timestamp' => date('Y-m-d H:i:s')]);
     }
     else {
         routeNotFound();
@@ -219,15 +311,7 @@ function handleChatRoutes($controller, $path, $method) {
     }
     elseif ($path === '/chat/check-existing') {
         if ($method === 'POST') {
-            // Check if chat exists between users
-            $input = json_decode(file_get_contents('php://input'), true);
-            $sellerId = (int)($input['sellerId'] ?? 0);
-            $adId = (int)($input['adId'] ?? 0);
-            $buyerId = (int)$_SESSION['user_id'] ?? 0; // This would need proper auth middleware
-            
-            // Implementation would go here - for now return basic response
-            http_response_code(200);
-            echo json_encode(['exists' => false]);
+            $controller->checkExistingChat();
         } else methodNotAllowed();
     }
     elseif (preg_match('/^\/chat\/chats\/(\d+)\/messages$/', $path, $matches)) {
@@ -241,6 +325,44 @@ function handleChatRoutes($controller, $path, $method) {
         if ($method === 'PUT') $controller->markMessagesAsRead($chatId);
         else methodNotAllowed();
     }
+    elseif (preg_match('/^\/chat\/admin\/chats\/(\d+)\/messages$/', $path, $matches)) {
+        $chatId = $matches[1];
+        if ($method === 'POST') $controller->adminSendMessage($chatId);
+        else methodNotAllowed();
+    }
+    elseif ($path === '/chat/admin/find-deal-chat') {
+        if ($method === 'POST') $controller->adminFindDealChat();
+        else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/chat\/admin\/messages\/(\d+)$/', $path, $matches)) {
+        $messageId = $matches[1];
+        if ($method === 'DELETE') $controller->adminDeleteMessage($messageId);
+        else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/chat\/admin\/chats\/(\d+)$/', $path, $matches)) {
+        $chatId = $matches[1];
+        if ($method === 'DELETE') $controller->adminDeleteChat($chatId);
+        else methodNotAllowed();
+    }
+    // Chat upload routes
+    elseif (preg_match('/^\/chat\/chats\/(\d+)\/upload$/', $path, $matches)) {
+        $chatId = $matches[1];
+        if ($method === 'POST') {
+            require_once __DIR__ . '/controllers/ChatUploadController.php';
+            $_GET['chatId'] = $chatId;
+            $uploadController = new ChatUploadController();
+            $uploadController->uploadFile();
+        } else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/chat\/(\d+)\/upload$/', $path, $matches)) {
+        $chatId = $matches[1];
+        if ($method === 'POST') {
+            require_once __DIR__ . '/controllers/ChatUploadController.php';
+            $_GET['chatId'] = $chatId;
+            $uploadController = new ChatUploadController();
+            $uploadController->uploadFile();
+        } else methodNotAllowed();
+    }
     else {
         routeNotFound();
     }
@@ -248,7 +370,15 @@ function handleChatRoutes($controller, $path, $method) {
 
 // Admin route handler
 function handleAdminRoutes($controller, $path, $method) {
-    if ($path === '/admin/users' || $path === '/admin/users/') {
+    if ($path === '/admin/email') {
+        if ($method === 'GET') $controller->getAdminEmail();
+        else methodNotAllowed();
+    }
+    elseif ($path === '/admin/deals') {
+        if ($method === 'GET') $controller->getAllDeals();
+        else methodNotAllowed();
+    }
+    elseif ($path === '/admin/users' || $path === '/admin/users/') {
         if ($method === 'GET') $controller->getAllUsers();
         else methodNotAllowed();
     }
@@ -263,8 +393,17 @@ function handleAdminRoutes($controller, $path, $method) {
         if ($method === 'PUT') $controller->updateUserStatus($userId);
         else methodNotAllowed();
     }
+    elseif (preg_match('/^\/admin\/users\/(\d+)\/role$/', $path, $matches)) {
+        $userId = $matches[1];
+        if ($method === 'PUT') $controller->updateUserRole($userId);
+        else methodNotAllowed();
+    }
     elseif ($path === '/admin/chats') {
         if ($method === 'GET') $controller->getAllChats();
+        else methodNotAllowed();
+    }
+    elseif ($path === '/admin/dashboard') {
+        if ($method === 'GET') $controller->getDashboardStats();
         else methodNotAllowed();
     }
     elseif ($path === '/admin/dashboard-stats') {
@@ -273,6 +412,16 @@ function handleAdminRoutes($controller, $path, $method) {
     }
     elseif ($path === '/admin/recent-activities') {
         if ($method === 'GET') $controller->getRecentActivities();
+        else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/admin\/ads\/(\d+)$/', $path, $matches)) {
+        $adId = $matches[1];
+        if ($method === 'DELETE') $controller->deleteAdAsAdmin($adId);
+        else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/admin\/deals\/(\d+)\/confirm-primary-owner$/', $path, $matches)) {
+        $dealId = $matches[1];
+        if ($method === 'POST') $controller->confirmPrimaryOwnerMade($dealId);
         else methodNotAllowed();
     }
     else {
@@ -289,5 +438,12 @@ function methodNotAllowed() {
 function routeNotFound() {
     http_response_code(404);
     echo json_encode(['message' => 'Route not found']);
+}
+
+function handleDealsRoutes($path, $method) {
+    // Make path and method available globally for the deals route
+    $GLOBALS['path'] = $path;
+    $GLOBALS['method'] = $method;
+    require_once __DIR__ . '/routes/deals.php';
 }
 ?>

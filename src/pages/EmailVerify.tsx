@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/useAuth';
 import { useToast } from "@/components/ui/use-toast";
 import OTPVerification from '@/components/OTPVerification';
+import { scrollToTop } from '@/utils/navigation';
 
 interface EmailVerifyProps {
-  setCurrentPage: (page: string) => void;
   email?: string;
 }
 
-const EmailVerify: React.FC<EmailVerifyProps> = ({ setCurrentPage, email }) => {
+const EmailVerify: React.FC<EmailVerifyProps> = ({ email }) => {
+  const navigate = useNavigate();
   const { setIsLoggedIn, setUser } = useAuth();
   const { toast } = useToast();
   
@@ -31,12 +33,14 @@ const EmailVerify: React.FC<EmailVerifyProps> = ({ setCurrentPage, email }) => {
     });
     
     setTimeout(() => {
-      setCurrentPage('home');
+      navigate('/');
+      scrollToTop();
     }, 2000);
   };
 
   const handleBackToLogin = () => {
-    setCurrentPage('login');
+    navigate('/login');
+    scrollToTop();
   };
 
   return (

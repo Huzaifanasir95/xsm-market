@@ -3,7 +3,7 @@ import { isAuthenticated, getCurrentUser } from '../services/auth';
 
 // Define user type based on your backend User model
 export interface User {
-  id: number;
+  id: string;
   username: string;
   fullName?: string;
   email: string;
@@ -11,7 +11,6 @@ export interface User {
   authProvider?: string;
   isEmailVerified?: boolean;
   isAdmin?: boolean;
-  createdAt?: string;
 }
 
 export interface AuthContextType {

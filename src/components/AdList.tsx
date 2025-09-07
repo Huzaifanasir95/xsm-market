@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAllAds } from '../services/ads';
 import { Star, Users, DollarSign, Shield, X, CreditCard, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
+import DealCreationModal from './DealCreationModal';
 
 interface Ad {
   id: number;
@@ -15,6 +16,9 @@ interface Ad {
   isMonetized: boolean;
   views: number;
   thumbnail: string;
+  primary_image?: string;
+  additional_images?: any[];
+  screenshots?: any[];
   verified: boolean;
   premium: boolean;
   rating: number;
@@ -24,42 +28,43 @@ interface Ad {
     profilePicture: string;
   };
   createdAt: string;
-  screenshots?: string[];
 }
 
 interface AdListProps {
   onShowMore: (ad: Ad) => void;
-  onNavigateToChat?: () => void;
+  onNavigateToChat?: (chatId: string) => void;
+  // Filter props from Home component
+  searchQuery?: string;
+  selectedPlatform?: string;
+  selectedCategories?: string[];
+  selectedTypes?: string[];
+  subscriberRange?: { min: string; max: string };
+  priceRange?: { min: string; max: string };
+  incomeRange?: { min: string; max: string };
+  monetizationEnabled?: boolean;
 }
 
-const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
-  const [ads, setAds] = useState<Ad[]>([]);
+const AdList: React.FC<AdListProps> = ({ 
+  onShowMore, 
+  onNavigateToChat,
+  searchQuery = '',
+  selectedPlatform = 'All Platforms',
+  selectedCategories = [],
+  selectedTypes = [],
+  subscriberRange = { min: '', max: '' },
+  priceRange = { min: '', max: '' },
+  incomeRange = { min: '', max: '' },
+  monetizationEnabled = false
+}) => {
+  const [allAds, setAllAds] = useState<Ad[]>([]);
+  const [filteredAds, setFilteredAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showPayment, setShowPayment] = useState(false);
+  const [showDealModal, setShowDealModal] = useState(false);
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
   const { user, isLoggedIn } = useAuth();
-  const [paymentData, setPaymentData] = useState({
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    name: '',
-  });
-  const [filters, setFilters] = useState({
-    platform: 'all',
-    category: 'all',
-    sortBy: 'createdAt',
-    sortOrder: 'DESC'
-  });
 
-  const BACKEND_URL = import.meta.env.VITE_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
-  const getImageUrl = (url?: string) => {
-    if (url && url.startsWith('/uploads')) {
-      return BACKEND_URL + url;
-    }
-    return url || '/placeholder.svg';
-  };
-
+  // Fetch all ads once on component mount
   useEffect(() => {
     const fetchAds = async () => {
       try {
@@ -67,7 +72,12 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
         setLoading(true);
         setError(null);
         
-        const response = await getAllAds(filters);
+        const response = await getAllAds({
+          platform: 'all',
+          category: 'all',
+          sortBy: 'createdAt',
+          sortOrder: 'DESC'
+        });
         console.log('📡 AdList: Response received:', response);
         
         if (response && response.ads) {
@@ -83,22 +93,121 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
           }));
           
           console.log('📡 AdList: Formatted ads:', formattedAds.length);
-          setAds(formattedAds);
+          setAllAds(formattedAds);
         } else {
           console.warn('📡 AdList: No ads in response');
-          setAds([]);
+          setAllAds([]);
         }
       } catch (err: any) {
         console.error('❌ AdList: Error fetching ads:', err);
         setError(err.message || 'Failed to fetch ads');
-        setAds([]);
+        setAllAds([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchAds();
-  }, [filters]);
+  }, []); // Only fetch once on mount
+
+  // Apply filters whenever filter props change
+  useEffect(() => {
+    console.log('🔍 AdList: Applying filters...', {
+      searchQuery,
+      selectedPlatform,
+      selectedCategories,
+      selectedTypes,
+      subscriberRange,
+      priceRange,
+      incomeRange,
+      monetizationEnabled
+    });
+
+    let filtered = [...allAds];
+
+    // Apply search query filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(ad => 
+        ad.title.toLowerCase().includes(query) ||
+        ad.category.toLowerCase().includes(query) ||
+        ad.description.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply platform filter
+    if (selectedPlatform && selectedPlatform !== 'All Platforms') {
+      filtered = filtered.filter(ad => 
+        ad.platform.toLowerCase() === selectedPlatform.toLowerCase()
+      );
+    }
+
+    // Apply category filters
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(ad => 
+        selectedCategories.includes(ad.category)
+      );
+    }
+
+    // Apply type filters
+    if (selectedTypes.length > 0) {
+      filtered = filtered.filter(ad => {
+        return selectedTypes.some(type => {
+          if (type === 'Non Monitied') return !ad.isMonetized;
+          if (type === 'Premium') return ad.premium;
+          if (type === 'Monetized') return ad.isMonetized && ad.monthlyIncome > 0;
+          if (type === 'New') return true; // Would filter for new ads in a real app
+          return false;
+        });
+      });
+    }
+
+    // Apply monetization filter
+    if (monetizationEnabled) {
+      filtered = filtered.filter(ad => ad.isMonetized && ad.monthlyIncome > 0);
+    }
+
+    // Subscriber range filter
+    if (subscriberRange.min || subscriberRange.max) {
+      filtered = filtered.filter(ad => {
+        const min = subscriberRange.min ? parseInt(subscriberRange.min) : 0;
+        const max = subscriberRange.max ? parseInt(subscriberRange.max) : Infinity;
+        return ad.subscribers >= min && ad.subscribers <= max;
+      });
+    }
+
+    // Price range filter
+    if (priceRange.min || priceRange.max) {
+      filtered = filtered.filter(ad => {
+        const min = priceRange.min ? parseInt(priceRange.min) : 0;
+        const max = priceRange.max ? parseInt(priceRange.max) : Infinity;
+        return ad.price >= min && ad.price <= max;
+      });
+    }
+
+    // Income range filter
+    if (incomeRange.min || incomeRange.max) {
+      filtered = filtered.filter(ad => {
+        if (!ad.monthlyIncome) return false;
+        const min = incomeRange.min ? parseInt(incomeRange.min) : 0;
+        const max = incomeRange.max ? parseInt(incomeRange.max) : Infinity;
+        return ad.monthlyIncome >= min && ad.monthlyIncome <= max;
+      });
+    }
+
+    console.log('📊 AdList: Filtered results:', filtered.length, 'out of', allAds.length);
+    setFilteredAds(filtered);
+  }, [
+    allAds,
+    searchQuery,
+    selectedPlatform,
+    selectedCategories,
+    selectedTypes,
+    subscriberRange,
+    priceRange,
+    incomeRange,
+    monetizationEnabled
+  ]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) {
@@ -121,21 +230,17 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
 
   const handlePurchase = (ad: Ad, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
+    if (!isLoggedIn) {
+      alert('Please log in to start a deal');
+      return;
+    }
     setSelectedAd(ad);
-    setShowPayment(true);
+    setShowDealModal(true);
   };
 
-  const handlePayment = () => {
-    // Placeholder for payment processing
-    alert('Payment processed! Admin will facilitate the channel transfer. You will be contacted within 24 hours.');
-    setShowPayment(false);
+  const handleCloseDealModal = () => {
+    setShowDealModal(false);
     setSelectedAd(null);
-    setPaymentData({
-      cardNumber: '',
-      expiryDate: '',
-      cvv: '',
-      name: '',
-    });
   };
 
   const getPlatformIcon = (platform: string) => {
@@ -178,7 +283,7 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
     );
   }
 
-  if (ads.length === 0) {
+  if (allAds.length === 0 && !loading) {
     return (
       <div className="text-center py-16">
         <div className="text-6xl mb-4">📭</div>
@@ -188,20 +293,26 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
     );
   }
 
+  const displayAds = filteredAds.length > 0 ? filteredAds : allAds;
+
+  if (displayAds.length === 0 && allAds.length > 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="text-6xl mb-4">🔍</div>
+        <h3 className="text-2xl font-bold text-white mb-2">No ads match your filters</h3>
+        <p className="text-xsm-light-gray">Try adjusting your search criteria</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-end mb-4">
-        <div className="text-sm text-xsm-light-gray">
-          {ads.length} {ads.length === 1 ? 'listing' : 'listings'} found
-        </div>
-      </div>
-
       {/* Ad Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {ads.map((ad) => (
+        {displayAds.map((ad) => (
           <div 
             key={ad.id} 
-            className="xsm-card group hover:scale-105 transition-all duration-300 cursor-pointer"
+            className="xsm-card group transition-all duration-300 cursor-pointer"
             onClick={() => onShowMore(ad)}
           >
             {/* Thumbnail */}
@@ -209,12 +320,13 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
               <div className="w-full h-full overflow-hidden">
                 <img 
                   src={
-                    (Array.isArray(ad.screenshots) && ad.screenshots.length > 0)
-                      ? getImageUrl(ad.screenshots[0])
-                      : getImageUrl(ad.thumbnail)
-                  }
+                    ad.primary_image || 
+                    (ad.screenshots && ad.screenshots.length > 0 ? ad.screenshots[0].url || ad.screenshots[0] : null) || 
+                    ad.thumbnail || 
+                    '/placeholder.svg'
+                  } 
                   alt={ad.title}
-                  className="w-full h-full object-cover transition-all duration-500 ease-in-out group-hover:scale-105 group-hover/image:scale-110"
+                  className="w-full h-full object-cover transition-all duration-500 ease-in-out"
                   style={{ objectPosition: 'center' }}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
@@ -317,96 +429,16 @@ const AdList: React.FC<AdListProps> = ({ onShowMore, onNavigateToChat }) => {
         ))}
       </div>
 
-      {/* Payment Modal */}
-      {showPayment && selectedAd && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-xsm-dark-gray rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-xsm-dark-gray border-b border-xsm-medium-gray p-6 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-xsm-yellow">Complete Payment</h2>
-              <button
-                onClick={() => {
-                  setShowPayment(false);
-                  setSelectedAd(null);
-                }}
-                className="text-white hover:text-xsm-yellow transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <div className="text-center mb-6">
-                <p className="text-white text-lg mb-2">Admin fee: {formatPrice(selectedAd.price * 0.075)}</p>
-                <p className="text-sm text-xsm-light-gray">
-                  This fee secures your purchase and initiates the transfer process
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-white font-medium mb-2">Cardholder Name</label>
-                  <input
-                    type="text"
-                    value={paymentData.name}
-                    onChange={(e) => setPaymentData({...paymentData, name: e.target.value})}
-                    className="xsm-input w-full"
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Card Number</label>
-                  <input
-                    type="text"
-                    value={paymentData.cardNumber}
-                    onChange={(e) => setPaymentData({...paymentData, cardNumber: e.target.value})}
-                    className="xsm-input w-full"
-                    placeholder="1234 5678 9012 3456"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-white font-medium mb-2">Expiry Date</label>
-                    <input
-                      type="text"
-                      value={paymentData.expiryDate}
-                      onChange={(e) => setPaymentData({...paymentData, expiryDate: e.target.value})}
-                      className="xsm-input w-full"
-                      placeholder="MM/YY"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white font-medium mb-2">CVV</label>
-                    <input
-                      type="text"
-                      value={paymentData.cvv}
-                      onChange={(e) => setPaymentData({...paymentData, cvv: e.target.value})}
-                      className="xsm-input w-full"
-                      placeholder="123"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex space-x-4 mt-6">
-                <button
-                  onClick={() => {
-                    setShowPayment(false);
-                    setSelectedAd(null);
-                  }}
-                  className="flex-1 xsm-button-secondary"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handlePayment}
-                  className="flex-1 xsm-button"
-                >
-                  Pay {formatPrice(selectedAd.price * 0.075)}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Deal Creation Modal */}
+      {showDealModal && selectedAd && (
+        <DealCreationModal
+          isOpen={showDealModal}
+          onClose={handleCloseDealModal}
+          channelPrice={selectedAd.price}
+          channelTitle={selectedAd.title}
+          sellerId={selectedAd.seller.id.toString()}
+          onNavigateToChat={() => onNavigateToChat && onNavigateToChat('')}
+        />
       )}
     </div>
   );

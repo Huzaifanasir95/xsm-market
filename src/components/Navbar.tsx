@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Menu, X, User, PlusCircle, LogOut, Settings, Heart, Star, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Menu, X, User, PlusCircle, LogOut, Settings, Heart, Star, MessageSquare, FileText } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { logout } from '@/services/auth';
 import { isCurrentUserAdmin } from '@/utils/adminConfig';
@@ -19,19 +20,54 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface NavbarProps {
-  currentPage: string;
-  setCurrentPage: (page: string) => void;
+  // No longer need currentPage and setCurrentPage
 }
 
-const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
+const Navbar: React.FC<NavbarProps> = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAuthWidget, setShowAuthWidget] = useState(false);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
   const { isLoggedIn, setIsLoggedIn, user } = useAuth();
+
+  // Helper function to navigate and scroll to top
+  const navigateToPage = (page: string) => {
+    if(page === 'home') page = '/';
+    navigate(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Check admin status when user changes
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (isLoggedIn && user) {
+        // First check if user has isAdmin flag set to true
+        if ((user as any).isAdmin === true) {
+          console.log('✅ User is admin (isAdmin flag set to true)');
+          setIsUserAdmin(true);
+          return;
+        }
+        
+        // Fallback: check against backend admin configuration
+        if (user.email || user.username) {
+          const adminStatus = await isCurrentUserAdmin(user.email, user.username);
+          setIsUserAdmin(adminStatus);
+        } else {
+          setIsUserAdmin(false);
+        }
+      } else {
+        setIsUserAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [isLoggedIn, user?.email, user?.username, (user as any)?.isAdmin]);
 
   const handleLogout = () => {
     logout();
     setIsLoggedIn(false);
-    setCurrentPage('home');
+    navigateToPage('home');
   };
 
   const getNavItems = () => {
@@ -42,8 +78,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
       { id: 'sell', label: 'Begin Selling', icon: PlusCircle }
     );
 
-    // Add Admin Dashboard button ONLY for the specific admin user
-    if (isLoggedIn && isCurrentUserAdmin(user)) {
+    // Add Admin Dashboard button ONLY for the admin user
+    if (isLoggedIn && isUserAdmin) {
       items.push(
         { id: 'admin-dashboard', label: 'Admin Dashboard', icon: Settings }
       );
@@ -57,7 +93,12 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
   return (
     <>
       {showAuthWidget && (
-        <AuthWidget onClose={() => setShowAuthWidget(false)} />
+        <AuthWidget 
+          onClose={() => setShowAuthWidget(false)} 
+          onNavigate={(page) => {
+            navigateToPage(page);
+          }}
+        />
       )}
       <nav className="bg-gradient-to-r from-xsm-black via-xsm-dark-gray to-xsm-black border-b border-xsm-medium-gray sticky top-0 z-50 relative">
         {/* Middle fade effect */}
@@ -71,13 +112,13 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   key={item.id}
                   onClick={() => {
                     if (isLoggedIn) {
-                      setCurrentPage(item.id);
+                      navigateToPage(item.id);
                     } else {
                       setShowAuthWidget(true);
                     }
                   }}
                   className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    currentPage === item.id
+                    location.pathname === `/${item.id}` || (item.id === 'home' && location.pathname === '/')
                       ? 'text-xsm-yellow bg-xsm-medium-gray'
                       : 'text-white hover:text-xsm-yellow'
                   }`}
@@ -91,7 +132,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
             {/* Center Logo with enhanced highlight effect */}
             <div 
               className="flex-shrink-0 cursor-pointer absolute left-1/2 transform -translate-x-1/2 z-10 group"
-              onClick={() => setCurrentPage('home')}
+              onClick={() => navigateToPage('home')}
             >
               {/* Logo highlight background with yellow fade in middle */}
               <div className="absolute -inset-4 bg-gradient-radial from-xsm-yellow/30 via-xsm-medium-gray/30 to-transparent rounded-full blur-lg opacity-80 group-hover:opacity-100 transition-all duration-300 group-hover:from-xsm-yellow/50"></div>
@@ -101,7 +142,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
               <img 
                 src="/images/logo.png" 
                 alt="XSM Market Logo" 
-                className="h-10 md:h-[48px] object-contain relative z-10 group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_4px_rgba(255,208,0,0.5)]"
+                className="h-10 md:h-[48px] object-contain relative z-10 drop-shadow-[0_0_4px_rgba(255,208,0,0.5)]"
               />
             </div>
 
@@ -110,33 +151,48 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
               {/* Chat Button - only show for logged in users */}
               {/* Profile Dropdown or Login Button */}
               {isLoggedIn ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-                      <div className="w-8 h-8 bg-xsm-yellow rounded-full overflow-hidden">
-                        {user?.profilePicture ? (
-                          <img
-                            src={user.profilePicture}
-                            alt={user.username}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <User className="w-5 h-5 text-black m-1.5" />
-                        )}
-                      </div>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
-                    <DropdownMenuItem onClick={() => setCurrentPage('profile')} className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Logout</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center space-x-3">
+                  {/* Greeting text */}
+                  <span className="text-white text-sm hidden md:block">
+                    Hi, <span className="text-xsm-yellow font-medium">{user?.username || 'User'}</span>
+                  </span>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+                        <div className="w-8 h-8 bg-xsm-yellow rounded-full overflow-hidden">
+                          {user?.profilePicture ? (
+                            <img
+                              src={user.profilePicture}
+                              alt={user.username}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User className="w-5 h-5 text-black m-1.5" />
+                          )}
+                        </div>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-xsm-dark-gray border-xsm-medium-gray">
+                      <DropdownMenuItem onClick={() => navigateToPage('profile')} className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Profile</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigateToPage('my-deals')} className="cursor-pointer">
+                        <FileText className="mr-2 h-4 w-4" />
+                        <span>My Deals</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigateToPage('seller-deals')} className="cursor-pointer">
+                        <FileText className="mr-2 h-4 w-4" />
+                        <span>Seller Deals</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Logout</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               ) : (
                 <button
                   onClick={() => setShowAuthWidget(true)}
@@ -185,14 +241,14 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                       key={item.id}
                       onClick={() => {
                         if (isLoggedIn) {
-                          setCurrentPage(item.id);
+                          navigateToPage(item.id);
                         } else {
                           setShowAuthWidget(true);
                         }
                         setIsMenuOpen(false);
                       }}
                       className={`flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
-                        currentPage === item.id
+                        location.pathname === `/${item.id}` || (item.id === 'home' && location.pathname === '/')
                           ? 'text-xsm-yellow bg-xsm-medium-gray'
                           : 'text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray'
                       }`}
@@ -201,6 +257,39 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                       <span>{item.label}</span>
                     </button>
                   ))}
+                  
+                  <button
+                    onClick={() => {
+                      navigateToPage('profile');
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
+                  >
+                    <User className="w-5 h-5" />
+                    <span>Profile</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      navigateToPage('my-deals');
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
+                  >
+                    <FileText className="w-5 h-5" />
+                    <span>My Deals</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      navigateToPage('seller-deals');
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray"
+                  >
+                    <FileText className="w-5 h-5" />
+                    <span>Seller Deals</span>
+                  </button>
                   
                   <button
                     onClick={() => {
@@ -232,7 +321,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                   
                   <button
                     onClick={() => {
-                      setCurrentPage('login');
+                      navigateToPage('login');
                       setIsMenuOpen(false);
                     }}
                     className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium bg-xsm-yellow hover:bg-yellow-500 text-black"

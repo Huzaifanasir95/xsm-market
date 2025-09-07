@@ -1,18 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, Star, Edit, LogOut, Save, X, Shield, Award, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User as UserIcon, Edit, LogOut, Save, X, Camera, Pin, Crown, Settings } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
+import DualEmailVerificationModal from '@/components/DualEmailVerificationModal';
+import PasswordVerificationModal from '@/components/PasswordVerificationModal';
+import EmailChangeCooldownTimer from '@/components/EmailChangeCooldownTimer';
+import PasswordChangeCooldownTimer from '@/components/PasswordChangeCooldownTimer';
 import { useAuth } from '@/context/useAuth';
+import { useNotifications } from '@/context/NotificationContext';
 import { User } from '@/context/AuthContext';
-import { updateProfile, changePassword, logout, API_URL, updateProfilePicture } from '@/services/auth';
+import { updateProfile, getProfile, changePassword, logout, requestEmailChange, requestPasswordChange } from '@/services/auth';
+
+// Get API URL from environment variables
+const getApiUrl = () => {
+  return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api');
+};
+
+const getBaseUrl = () => {
+  const apiUrl = getApiUrl();
+  return apiUrl.replace('/api', '');
+};
+
+const API_URL = getBaseUrl();
 
 interface ProfileProps {
-  setCurrentPage: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
 interface UpdateData {
   username?: string;
   profilePicture?: string;
+  description?: string;
 }
 
 interface ExtendedUser extends User {
@@ -20,10 +39,13 @@ interface ExtendedUser extends User {
   authProvider?: 'google' | 'email';
 }
 
-const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
-  const { user, isLoggedIn, setUser, setIsLoggedIn } = useAuth();    const typedUser = user as ExtendedUser;
+const Profile: React.FC<ProfileProps> = () => {
+  const navigate = useNavigate();
+  const { user, isLoggedIn, setUser, setIsLoggedIn } = useAuth();
+  const { showSuccess, showError, showInfo, showWarning } = useNotifications();
+  const typedUser = user as ExtendedUser;
 
-    // Debug logging
+  // Debug logging
   console.log('🔍 Profile component state:', { 
     user: typedUser, 
     isLoggedIn, 
@@ -32,27 +54,40 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [editForm, setEditForm] = useState({
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState('email');
+  const [settingsForm, setSettingsForm] = useState({
     username: '',
     email: '',
-    profilePicture: ''
   });
-  // Initialize password form with empty values and ensure it stays empty
-  const [passwordForm, setPasswordForm] = useState({
+  const [settingsPasswordForm, setSettingsPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
-
-  // Ensure password form stays empty (prevent auto-fill)
-  useEffect(() => {
-    setPasswordForm({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
-  }, [user]); // Reset when user changes
+  
+  // Email verification modal state
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [emailVerificationToken, setEmailVerificationToken] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [emailCooldownActive, setEmailCooldownActive] = useState(false);
+  
+  // Password verification modal state
+  const [showPasswordVerification, setShowPasswordVerification] = useState(false);
+  const [passwordVerificationToken, setPasswordVerificationToken] = useState('');
+  const [pendingPasswordEmail, setPendingPasswordEmail] = useState('');
+  const [isGoogleUserPassword, setIsGoogleUserPassword] = useState(false);
+  const [passwordCooldownActive, setPasswordCooldownActive] = useState(false);
+  
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
+  const [editForm, setEditForm] = useState({
+    username: '',
+    email: '',
+    profilePicture: '',
+    description: ''
+  });
+  
   const [listedChannels] = useState([
     {
       id: '1',
@@ -80,15 +115,9 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   const [profile, setProfile] = useState({
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
-
-    fullName: (user as ExtendedUser)?.fullName || '',
-    joinDate: user?.createdAt || (user as ExtendedUser)?.joinDate || '',
-
-    rating: 4.8,
-    totalSales: 12,
-    totalPurchases: 5,
-    verificationStatus: 'unverified' as 'unverified' | 'pending' | 'verified',
-    profilePicture: user?.profilePicture || ''
+    joinDate: (user as ExtendedUser)?.joinDate || '2025-01-15', // Keep the date format as is
+    profilePicture: user?.profilePicture || '',
+    description: user?.description || ''
   });
 
   // Update profile when user data changes
@@ -97,7 +126,8 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       console.log('🔍 User data in Profile component:', {
         user,
         authProvider: (user as any)?.authProvider,
-        keys: Object.keys(user)
+        keys: Object.keys(user),
+        description: user.description
       });
       
       setProfile(prev => ({
@@ -105,23 +135,63 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         username: user.username,
         email: user.email,
         profilePicture: user.profilePicture || '',
-        joinDate: user.createdAt || (user as any)?.joinDate || prev.joinDate
+        description: user.description || '',
+        joinDate: (user as any)?.joinDate || prev.joinDate
       }));
+      
+      console.log('🔄 Updated profile state with description:', user.description);
     }
   }, [user]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoggedIn) {
-      setCurrentPage('login');
+      navigate('/login');
     }
-  }, [isLoggedIn, setCurrentPage]);
+  }, [isLoggedIn, navigate]);
+
+  // Fetch fresh profile data when component mounts
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (isLoggedIn && user) {
+        try {
+          console.log('🔄 Fetching fresh profile data...');
+          const freshProfile = await getProfile();
+          console.log('✅ Fresh profile data:', freshProfile);
+          
+          // Update the user context with fresh data
+          setUser({
+            ...freshProfile,
+            id: String(freshProfile.id),
+          });
+          
+          // Directly set profile with fresh data including description
+          setProfile({
+            username: freshProfile.username,
+            email: freshProfile.email,
+            profilePicture: freshProfile.profilePicture || '',
+            description: freshProfile.description || '',
+            joinDate: (freshProfile as any)?.joinDate || '2025-01-15',
+          });
+          
+          console.log('🔄 Profile state updated with fresh data:', {
+            description: freshProfile.description,
+            username: freshProfile.username
+          });
+        } catch (error) {
+          console.error('❌ Failed to fetch fresh profile data:', error);
+        }
+      }
+    };
+
+    fetchProfileData();
+  }, [isLoggedIn]); // Only run when login status changes
 
   const handleLogout = () => {
     logout();
     setUser(null);
     setIsLoggedIn(false);
-    setCurrentPage('home');
+    navigate('/');
   };
 
   // Show loading if no user data yet but we are logged in
@@ -186,7 +256,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     </ul>
                     <div className="mt-4 space-x-4">
                       <button
-                        onClick={() => setCurrentPage('login')}
+                        onClick={() => navigate('/login')}
                         className="bg-xsm-yellow hover:bg-yellow-500 text-black px-4 py-2 rounded-lg font-semibold transition-colors"
                       >
                         Login Again
@@ -225,7 +295,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           <h2 className="text-2xl font-bold text-white mb-4">Please Log In</h2>
           <p className="text-xsm-light-gray mb-6">You need to be logged in to view your profile.</p>
           <button
-            onClick={() => setCurrentPage('login')}
+            onClick={() => navigate('/login')}
             className="bg-xsm-yellow hover:bg-yellow-500 text-black px-6 py-3 rounded-lg font-semibold transition-colors"
           >
             Go to Login
@@ -235,39 +305,57 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     );
   }
 
-  // Handle profile picture upload
+  // Handle profile picture upload - immediately save to backend
   const handleProfilePictureChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       // Check file size (limit to 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
+        showError('File too large', 'File size must be less than 5MB');
         return;
       }
+      
       // Check file type
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+        showError('Invalid file type', 'Please select an image file');
         return;
       }
+      
       // Convert to base64 for preview and storage
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64String = e.target?.result as string;
+        
         try {
-          // Call backend to update profile picture
-          const updatedUser = await updateProfilePicture(base64String);
-          setUser(updatedUser);
+          // Immediately update the backend with new profile picture
+          console.log('🔄 Updating profile picture...');
+          const updatedUser = await updateProfile({ profilePicture: base64String });
+          
+          console.log('✅ Profile picture updated successfully:', updatedUser);
+          
+          // Update the user context with the new data
+          setUser({
+            ...updatedUser,
+            id: String(updatedUser.id),
+          });
+          
+          // Update local profile state
           setProfile(prev => ({
             ...prev,
             profilePicture: updatedUser.profilePicture || ''
           }));
+          
+          // Update the edit form to match the saved data
           setEditForm(prev => ({
             ...prev,
             profilePicture: updatedUser.profilePicture || ''
           }));
-          alert('Profile picture updated successfully!');
+          
+          showSuccess('Profile picture updated', 'Your profile picture has been updated successfully!');
+          
         } catch (error) {
-          alert('Failed to update profile picture.');
+          console.error('❌ Failed to update profile picture:', error);
+          showError('Update failed', 'Failed to update profile picture. Please try again.');
         }
       };
       reader.readAsDataURL(file);
@@ -280,15 +368,16 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     setIsUpdating(true);
     try {
       // Prepare the data to send to the API
-      const updateData: any = {};
+      const updateData: UpdateData = {};
       
-      // Only include fields that have changed
+      // Only include username if it has changed
       if (editForm.username !== user.username) {
         updateData.username = editForm.username;
       }
-      
-      if (editForm.profilePicture !== user.profilePicture) {
-        updateData.profilePicture = editForm.profilePicture;
+
+      // Only include description if it has changed
+      if (editForm.description !== profile.description) {
+        updateData.description = editForm.description;
       }
       
       // Only make API call if there are changes
@@ -306,23 +395,23 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           id: String(updatedUser.id),
         });
         
-        // Update local profile state
+        // Update local profile state with saved data
         setProfile(prev => ({
           ...prev,
           username: updatedUser.username,
-          profilePicture: updatedUser.profilePicture || ''
+          description: updatedUser.description || '',
         }));
         
         // Update the edit form to match the saved data
         setEditForm(prev => ({
           ...prev,
           username: updatedUser.username,
-          profilePicture: updatedUser.profilePicture || ''
+          description: updatedUser.description || '',
         }));
         
-        alert('Profile updated successfully!');
+        showSuccess('Profile updated', 'Your profile has been updated successfully!');
       } else {
-        alert('No changes to save!');
+        showInfo('No changes', 'No changes were made to save.');
       }
       
       setIsEditing(false);
@@ -343,7 +432,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         }
       }
       
-      alert(errorMessage);
+      showError('Update failed', errorMessage);
     } finally {
       setIsUpdating(false);
     }
@@ -355,22 +444,22 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
       user,
       authProvider: (user as any)?.authProvider,
       isGoogleUser: (user as any)?.authProvider === 'google',
-      currentPassword: passwordForm.currentPassword,
-      newPassword: passwordForm.newPassword ? '***' : ''
+      currentPassword: settingsPasswordForm.currentPassword,
+      newPassword: settingsPasswordForm.newPassword ? '***' : ''
     });
 
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('New passwords do not match!');
+    if (settingsPasswordForm.newPassword !== settingsPasswordForm.confirmPassword) {
+      showError('Password mismatch', 'New passwords do not match!');
       return;
     }
     
-    if (!passwordForm.newPassword) {
-      alert('Please enter a new password!');
+    if (!settingsPasswordForm.newPassword) {
+      showError('Missing password', 'Please enter a new password!');
       return;
     }
     
-    if (passwordForm.newPassword.length < 6) {
-      alert('New password must be at least 6 characters long!');
+    if (settingsPasswordForm.newPassword.length < 6) {
+      showError('Password too short', 'New password must be at least 6 characters long!');
       return;
     }
 
@@ -396,25 +485,25 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         
         // For Google users, they don't need to enter current password (first time setting password)
         // For email users, they need current password
-        if (!isGoogleUser && !passwordForm.currentPassword) {
-          alert('Please enter your current password!');
+        if (!isGoogleUser && !settingsPasswordForm.currentPassword) {
+          showError('Current password required', 'Please enter your current password!');
           setIsChangingPassword(false);
           return;
         }
         
         // For Google users, send empty current password; for email users, send the current password
         await changePassword(
-          isGoogleUser ? '' : passwordForm.currentPassword, 
-          passwordForm.newPassword
+          isGoogleUser ? '' : settingsPasswordForm.currentPassword, 
+          settingsPasswordForm.newPassword
         );
         
         if (isGoogleUser) {
-          alert('Password set successfully! You can now login with email/password in addition to Google.');
+          showSuccess('Password set successfully!', 'You can now login with email/password in addition to Google.');
         } else {
-          alert('Password changed successfully!');
+          showSuccess('Password changed successfully!', 'Your password has been updated.');
         }
         
-        setPasswordForm({
+        setSettingsPasswordForm({
           currentPassword: '',
           newPassword: '',
           confirmPassword: '',
@@ -441,7 +530,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
         }
       }
       
-      alert(errorMessage);
+      showError('Password change failed', errorMessage);
     } finally {
       setIsChangingPassword(false);
     }
@@ -468,9 +557,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   };
 
   const getRelativeTimeString = (dateString: string) => {
-    if (!dateString) return 'Join date unavailable';
     const joinDate = new Date(dateString);
-    if (isNaN(joinDate.getTime())) return 'Join date unavailable';
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - joinDate.getTime());
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -491,18 +578,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-8">
-          <div className="flex justify-center items-center mb-4">
-            <h1 className="text-4xl font-bold text-xsm-yellow">My Profile</h1>
-          </div>
-          <p className="text-xl text-white">
-            Manage your account settings and view your marketplace activity
-          </p>
-          <p className="text-sm text-xsm-light-gray mt-2">
-            {getRelativeTimeString(profile.joinDate)}
-          </p>
-        </div>
-
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Profile Overview */}
           <div className="lg:col-span-1">
@@ -522,16 +597,17 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                       <UserIcon className="w-12 h-12 text-xsm-black" />
                     </div>
                   )}
-                  {/* Always show profile picture upload button */}
-                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
-                    <Edit className="w-6 h-6 text-white" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfilePictureChange}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                  </div>
+                </div>
+                {/* Always visible edit icon for profile picture */}
+                <div className="absolute bottom-0 right-0 bg-xsm-yellow hover:bg-yellow-500 rounded-full p-1.5 cursor-pointer transition-colors group">
+                  <Camera className="w-4 h-4 text-xsm-black" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePictureChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    title="Change profile picture"
+                  />
                 </div>
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">
@@ -539,18 +615,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               </h2>
               <p className="text-xsm-light-gray mb-1">@{profile.username}</p>
               <p className="text-xsm-light-gray mb-4">{profile.email}</p>
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <Shield className="w-4 h-4 text-green-400" />
-                <span className="text-green-400 text-sm font-medium">{profile.verificationStatus}</span>
-              </div>
-              <div className="flex items-center justify-center space-x-1 mb-4">
-                <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                <span className="text-white font-semibold">{profile.rating}</span>
-                <span className="text-xsm-light-gray">({profile.totalSales + profile.totalPurchases} transactions)</span>
-              </div>
-              <div className="text-sm text-xsm-light-gray mb-4">
-                {getRelativeTimeString(profile.joinDate)}
-              </div>
               <div className="text-xs text-green-400 flex items-center justify-center gap-1 mb-4">
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                 <span>Active now</span>
@@ -562,17 +626,49 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
               )}
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="xsm-card text-center">
-                <TrendingUp className="w-8 h-8 text-xsm-yellow mx-auto mb-2" />
-                <div className="text-2xl font-bold text-white">{profile.totalSales}</div>
-                <div className="text-sm text-xsm-light-gray">Sales</div>
-              </div>
-              <div className="xsm-card text-center">
-                <Award className="w-8 h-8 text-xsm-yellow mx-auto mb-2" />
-                <div className="text-2xl font-bold text-white">{profile.totalPurchases}</div>
-                <div className="text-sm text-xsm-light-gray">Purchases</div>
+            {/* Action Buttons */}
+            <div className="xsm-card">
+              <h3 className="text-lg font-bold text-xsm-yellow mb-4 text-center">Quick Actions</h3>
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    // TODO: Implement Pin Your Listing functionality
+                    showInfo('Feature coming soon', 'Pin Your Listing feature will be available soon!');
+                  }}
+                  className="w-full xsm-button-secondary flex items-center justify-center space-x-2 text-sm"
+                >
+                  <Pin className="w-4 h-4" />
+                  <span>Pin Your Listing</span>
+                </button>
+                <button
+                  onClick={() => {
+                    // TODO: Implement Get Membership functionality
+                    showInfo('Feature coming soon', 'Get Membership feature will be available soon!');
+                  }}
+                  className="w-full xsm-button-secondary flex items-center justify-center space-x-2 text-sm"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>Get Membership</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSettings(true);
+                    setActiveSettingsTab('username');
+                    setSettingsForm({
+                      username: profile.username,
+                      email: profile.email,
+                    });
+                    setSettingsPasswordForm({
+                      currentPassword: '',
+                      newPassword: '',
+                      confirmPassword: '',
+                    });
+                  }}
+                  className="w-full xsm-button-secondary flex items-center justify-center space-x-2 text-sm"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Settings</span>
+                </button>
               </div>
             </div>
           </div>
@@ -583,171 +679,85 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
             <div className="xsm-card">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-xsm-yellow">Profile Information</h3>
-                {!isEditing ? (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="xsm-button-secondary flex items-center space-x-2"
-                  >
-                    <Edit className="w-4 h-4" />
-                    <span>Edit</span>
-                  </button>
-                ) : (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={handleSaveProfile}
-                      disabled={isUpdating}
-                      className={`xsm-button flex items-center space-x-2 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {isUpdating ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                          <span>Saving...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4" />
-                          <span>Save</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsEditing(false);
-                        setEditForm({ ...profile });
-                      }}
-                      disabled={isUpdating}
-                      className="xsm-button-secondary flex items-center space-x-2"
-                    >
-                      <X className="w-4 h-4" />
-                      <span>Cancel</span>
-                    </button>
-                  </div>
-                )}
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-white font-medium mb-2">Username</label>
-                  <input
-                    type="text"
-                    value={isEditing ? editForm.username : profile.username}
-                    onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+              <div>
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="block text-white font-medium text-lg">Profile Bio / Description</label>
+                    {!isEditing ? (
+                      <button
+                        onClick={() => {
+                          setIsEditing(true);
+                          setEditForm({ 
+                            username: profile.username,
+                            email: profile.email,
+                            profilePicture: profile.profilePicture,
+                            description: profile.description
+                          });
+                        }}
+                        className="xsm-button-secondary flex items-center space-x-2 text-sm"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Edit</span>
+                      </button>
+                    ) : (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={handleSaveProfile}
+                          disabled={isUpdating}
+                          className={`xsm-button flex items-center space-x-2 text-sm ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {isUpdating ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                              <span>Saving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4" />
+                              <span>Save</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditing(false);
+                            setEditForm({ 
+                              username: profile.username,
+                              email: profile.email,
+                              profilePicture: profile.profilePicture,
+                              description: profile.description
+                            });
+                          }}
+                          disabled={isUpdating}
+                          className="xsm-button-secondary flex items-center space-x-2 text-sm"
+                        >
+                          <X className="w-4 h-4" />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <textarea
+                    value={isEditing ? editForm.description : profile.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                     disabled={!isEditing}
-                    className={`xsm-input w-full ${!isEditing ? 'opacity-60' : ''}`}
-                    placeholder="Enter username (3-50 chars, letters, numbers, underscores only)"
+                    className={`xsm-input w-full min-h-[120px] resize-y ${!isEditing ? 'opacity-60' : ''}`}
+                    placeholder="Tell others about yourself..."
+                    maxLength={500}
                   />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={isEditing ? editForm.email : profile.email}
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    disabled={true}
-                    className={`xsm-input w-full opacity-60`}
-                    title="Email cannot be changed here. Contact support if you need to update your email."
-                  />
-                </div>
-                {isEditing && (
-                  <div className="md:col-span-2">
-                    <label className="block text-white font-medium mb-2">Profile Picture URL (Optional)</label>
-                    <input
-                      type="url"
-                      value={editForm.profilePicture}
-                      onChange={(e) => setEditForm({ ...editForm, profilePicture: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder="Enter image URL or upload an image above"
-                    />
-                    <p className="text-xs text-xsm-light-gray mt-1">
-                      You can either upload an image above or enter an image URL here.
+                  {isEditing && (
+                    <p className="text-gray-400 text-sm mt-2">
+                      {editForm.description?.length || 0}/500 characters
                     </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Password Change */}
-            <div className="xsm-card">
-              <h3 className="text-xl font-bold text-xsm-yellow mb-6">
-                {(user as any)?.authProvider === 'google' ? 'Set Password' : 'Change Password'}
-              </h3>
-              
-              {(user as any)?.authProvider === 'google' && (
-                <div className="bg-blue-500/10 rounded-lg p-4 mb-6">
-                  <h4 className="text-blue-400 font-semibold mb-2">Google Account</h4>
-                  <p className="text-white text-sm mb-2">
-                    You signed in with Google. You can set a password to enable email/password login as an alternative to Google sign-in.
-                  </p>
-                  <p className="text-xsm-light-gray text-xs">
-                    Setting a password won't affect your Google sign-in - you'll be able to use both methods.
-                  </p>
-                </div>
-              )}
-              
-              <div className="space-y-4">
-                {(user as any)?.authProvider !== 'google' && (
-                  <div>
-                    <label className="block text-white font-medium mb-2">Current Password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder="Enter current password"
-                      autoComplete="current-password"
-                      autoFocus={false}
-                    />
-                  </div>
-                )}
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-white font-medium mb-2">
-                      {(user as any)?.authProvider === 'google' ? 'New Password' : 'New Password'}
-                    </label>
-                    <input
-                      type="password"
-                      value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder={(user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password'}
-                      autoComplete="new-password"
-                      autoFocus={false}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white font-medium mb-2">Confirm Password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                      className="xsm-input w-full"
-                      placeholder="Confirm password"
-                      autoComplete="new-password"
-                      autoFocus={false}
-                    />
-                  </div>
-                </div>
-                <button
-                  onClick={handlePasswordChange}
-                  disabled={isChangingPassword}
-                  className={`xsm-button ${isChangingPassword ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {isChangingPassword ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
-                      {(user as any)?.authProvider === 'google' ? 'Setting Password...' : 'Updating Password...'}
-                    </>
-                  ) : (
-                    (user as any)?.authProvider === 'google' ? 'Set Password' : 'Update Password'
                   )}
-                </button>
+                </div>
               </div>
             </div>
 
             {/* My Ads */}
             <div className="xsm-card">
-              <h3 className="text-xl font-bold text-xsm-yellow mb-6">My Listings</h3>
               <UserAdList />
             </div>
 
@@ -755,6 +765,422 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           </div>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-xsm-dark-gray rounded-lg border border-xsm-yellow/20 p-4 w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-xsm-yellow">Settings</h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="flex space-x-1 mb-4 bg-xsm-black/50 rounded-lg p-1">
+              <button
+                onClick={() => {
+                  setActiveSettingsTab('username');
+                  setSettingsForm({ ...settingsForm, username: profile.username });
+                }}
+                className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
+                  activeSettingsTab === 'username'
+                    ? 'bg-xsm-yellow text-xsm-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Username
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSettingsTab('email');
+                  setSettingsForm({ ...settingsForm, email: profile.email });
+                }}
+                className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
+                  activeSettingsTab === 'email'
+                    ? 'bg-xsm-yellow text-xsm-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Email
+              </button>
+              <button
+                onClick={() => {
+                  setActiveSettingsTab('password');
+                  setSettingsPasswordForm({
+                    currentPassword: '',
+                    newPassword: '',
+                    confirmPassword: '',
+                  });
+                }}
+                className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
+                  activeSettingsTab === 'password'
+                    ? 'bg-xsm-yellow text-xsm-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Password
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="min-h-[180px]">
+              {/* Username Tab */}
+              {activeSettingsTab === 'username' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-white font-medium mb-1 text-sm">Username</label>
+                    <input
+                      type="text"
+                      value={profile.username}
+                      disabled
+                      className="xsm-input w-full opacity-60 text-sm"
+                    />
+                  </div>
+                  <div className="text-sm text-yellow-400 bg-yellow-400/10 p-3 rounded-lg border border-yellow-400/20">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-yellow-400">⚠️</span>
+                      <span>Username cannot be changed</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Email Tab */}
+              {activeSettingsTab === 'email' && (
+                <div className="space-y-3">
+                  {/* Email Change Cooldown Timer */}
+                  <EmailChangeCooldownTimer
+                    onCooldownEnd={() => setEmailCooldownActive(false)}
+                    onCooldownStatusChange={setEmailCooldownActive}
+                    className="mb-2"
+                  />
+                  
+                  <div>
+                    <label className="block text-white font-medium mb-1 text-sm">Current Email</label>
+                    <input
+                      type="email"
+                      value={profile.email}
+                      disabled
+                      className="xsm-input w-full opacity-60 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white font-medium mb-1 text-sm">New Email</label>
+                    <input
+                      type="email"
+                      value={settingsForm.email}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
+                      disabled={emailCooldownActive}
+                      className={`xsm-input w-full text-sm ${emailCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder={emailCooldownActive ? "Email change is on cooldown" : "Enter new email address"}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {emailCooldownActive 
+                      ? "You must wait 15 days between email changes for security reasons."
+                      : "You will need to verify your new email address before the change takes effect."
+                    }
+                  </div>
+                </div>
+              )}
+
+              {/* Password Tab */}
+              {activeSettingsTab === 'password' && (
+                <div className="space-y-3">
+                  {/* Password Change Cooldown Timer */}
+                  <PasswordChangeCooldownTimer
+                    onCooldownEnd={() => setPasswordCooldownActive(false)}
+                    onCooldownStatusChange={setPasswordCooldownActive}
+                    className="mb-2"
+                  />
+                  
+                  {(user as any)?.authProvider === 'google' && (
+                    <div className="bg-blue-500/10 rounded-lg p-3 mb-3">
+                      <h4 className="text-blue-400 font-semibold mb-1 text-sm">Google Account</h4>
+                      <p className="text-white text-xs mb-1">
+                        You signed in with Google. You can set a password to enable email/password login as an alternative to Google sign-in.
+                      </p>
+                      <p className="text-xsm-light-gray text-xs">
+                        Setting a password won't affect your Google sign-in - you'll be able to use both methods.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {(user as any)?.authProvider !== 'google' && (
+                    <div>
+                      <label className="block text-white font-medium mb-1 text-sm">Current Password</label>
+                      <input
+                        type="password"
+                        value={settingsPasswordForm.currentPassword}
+                        onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, currentPassword: e.target.value })}
+                        disabled={passwordCooldownActive}
+                        className={`xsm-input w-full text-sm ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        placeholder={passwordCooldownActive ? "Password change is on cooldown" : "Enter current password"}
+                        autoComplete="current-password"
+                      />
+                    </div>
+                  )}
+                  
+                  <div>
+                    <label className="block text-white font-medium mb-2">
+                      {(user as any)?.authProvider === 'google' ? 'New Password' : 'New Password'}
+                    </label>
+                    <input
+                      type="password"
+                      value={settingsPasswordForm.newPassword}
+                      onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, newPassword: e.target.value })}
+                      disabled={passwordCooldownActive}
+                      className={`xsm-input w-full ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder={passwordCooldownActive ? "Password change is on cooldown" : ((user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password')}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white font-medium mb-2">Confirm Password</label>
+                    <input
+                      type="password"
+                      value={settingsPasswordForm.confirmPassword}
+                      onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, confirmPassword: e.target.value })}
+                      disabled={passwordCooldownActive}
+                      className={`xsm-input w-full ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder={passwordCooldownActive ? "Password change is on cooldown" : "Confirm new password"}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {passwordCooldownActive 
+                      ? "You must wait 48 hours between password changes for security reasons."
+                      : "Password must be at least 6 characters long."
+                    }
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={async () => {
+                  try {
+                    setIsUpdating(true);
+                    
+                    if (activeSettingsTab === 'username') {
+                      // Username cannot be changed - this tab is read-only
+                      showInfo('Username locked', 'Username cannot be changed for security reasons.');
+                      return;
+                      
+                    } else if (activeSettingsTab === 'email') {
+                      // Check if email change is on cooldown
+                      if (emailCooldownActive) {
+                        showWarning('Email change on cooldown', 'Please wait for the cooldown period to end before changing your email again.');
+                        return;
+                      }
+                      
+                      if (settingsForm.email === profile.email) {
+                        showInfo('No changes', 'Email is the same as current. No changes to save.');
+                        return;
+                      }
+                      
+                      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settingsForm.email)) {
+                        showError('Invalid email', 'Please enter a valid email address.');
+                        return;
+                      }
+                      
+                      // Request email change with verification
+                      const result = await requestEmailChange(settingsForm.email);
+                      
+                      // Store verification data for the dual verification modal
+                      setPendingEmail(result.pendingEmail);
+                      setEmailVerificationToken(result.verificationToken || 'temp-token');
+                      setShowEmailVerification(true);
+                      setShowSettings(false);
+                      
+                      // Show success notification for step 1
+                      showSuccess('Verification email sent', 'Please check your current email address for the verification code.');
+                      
+                      
+                      
+                    } else if (activeSettingsTab === 'password') {
+                      // Check if password change is on cooldown
+                      if (passwordCooldownActive) {
+                        showWarning('Password change on cooldown', 'Please wait for the cooldown period to end before changing your password again.');
+                        return;
+                      }
+                      
+                      // Password validation
+                      if (settingsPasswordForm.newPassword !== settingsPasswordForm.confirmPassword) {
+                        showError('Password mismatch', 'New passwords do not match!');
+                        return;
+                      }
+                      
+                      if (!settingsPasswordForm.newPassword) {
+                        showError('Missing password', 'Please enter a new password!');
+                        return;
+                      }
+                      
+                      if (settingsPasswordForm.newPassword.length < 6) {
+                        showError('Password too short', 'New password must be at least 6 characters long!');
+                        return;
+                      }
+
+                      // Get the latest user profile from backend to check authProvider
+                      const token = localStorage.getItem('token');
+                      const profileResponse = await fetch(`${getApiUrl()}/user/profile`, {
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json'
+                        }
+                      });
+                      
+                      if (!profileResponse.ok) {
+                        throw new Error('Failed to fetch user profile');
+                      }
+                      
+                      const profileData = await profileResponse.json();
+                      const backendUser = profileData.user;
+                      const isGoogleUser = backendUser?.authProvider === 'google';
+                      
+                      // For Google users, they don't need current password
+                      // For email users, they need current password
+                      if (!isGoogleUser && !settingsPasswordForm.currentPassword) {
+                        showError('Current password required', 'Please enter your current password!');
+                        return;
+                      }
+                      
+                      // Request secure password change with verification
+                      const result = await requestPasswordChange(
+                        isGoogleUser ? '' : settingsPasswordForm.currentPassword, 
+                        settingsPasswordForm.newPassword
+                      );
+                      
+                      // Store verification data for the modal
+                      setPendingPasswordEmail(result.email);
+                      setPasswordVerificationToken(result.verificationToken);
+                      setIsGoogleUserPassword(result.isGoogleUser);
+                      setShowPasswordVerification(true);
+                      setShowSettings(false);
+                      
+                      // Show success notification
+                      if (import.meta.env.DEV) {
+                        showInfo('Verification email sent', 'Check your email for the verification code. In development, also check browser console or backend logs.');
+                      } else {
+                        showSuccess('Verification email sent', 'Please check your email for the verification code.');
+                      }
+                    }
+                    
+                    setShowSettings(false);
+                  } catch (error: any) {
+                    console.error('❌ Failed to update settings:', error);
+                    
+                    let errorMessage = 'Failed to update settings. Please try again.';
+                    
+                    if (activeSettingsTab === 'password' && error instanceof Error) {
+                      if (error.message.includes('Current password is incorrect')) {
+                        errorMessage = 'Current password is incorrect.';
+                      } else if (error.message.includes('must be at least 6 characters')) {
+                        errorMessage = 'New password must be at least 6 characters long.';
+                      } else if (error.message.includes('Google OAuth. Please use "Sign in with Google"')) {
+                        errorMessage = 'This account was created with Google OAuth. Please use "Sign in with Google" instead. To set a password for email login, leave the current password field empty.';
+                      } else if (error.message.includes('Google account users don\'t have a current password')) {
+                        errorMessage = 'For Google accounts, leave current password empty to set a new password.';
+                      } else {
+                        errorMessage = error.message;
+                      }
+                    } else if (error instanceof Error) {
+                      errorMessage = error.message;
+                    }
+                    
+                    showError('Update failed', errorMessage);
+                  } finally {
+                    setIsUpdating(false);
+                  }
+                }}
+                disabled={isUpdating || (activeSettingsTab === 'email' && emailCooldownActive) || (activeSettingsTab === 'password' && passwordCooldownActive) || activeSettingsTab === 'username'}
+                className={`xsm-button flex items-center space-x-2 ${isUpdating || (activeSettingsTab === 'email' && emailCooldownActive) || (activeSettingsTab === 'password' && passwordCooldownActive) || activeSettingsTab === 'username' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isUpdating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                    <span>
+                      {activeSettingsTab === 'password' 
+                        ? ((user as any)?.authProvider === 'google' ? 'Setting Password...' : 'Changing Password...')
+                        : 'Saving...'
+                      }
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>
+                      {activeSettingsTab === 'password' 
+                        ? ((user as any)?.authProvider === 'google' ? 'Set Password' : 'Change Password')
+                        : 'Save Changes'
+                      }
+                    </span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowSettings(false)}
+                disabled={isUpdating}
+                className="xsm-button-secondary flex items-center space-x-2"
+              >
+                <X className="w-4 h-4" />
+                <span>Cancel</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dual Email Verification Modal */}
+      <DualEmailVerificationModal
+        isOpen={showEmailVerification}
+        onClose={() => setShowEmailVerification(false)}
+        onSuccess={(newEmail) => {
+          // Update profile and user context with new email
+          setProfile(prev => ({ ...prev, email: newEmail }));
+          setUser(prev => prev ? { ...prev, email: newEmail } : prev);
+          // Success notification is already handled by DualEmailVerificationModal
+          
+          // Reset form
+          setSettingsForm(prev => ({ ...prev, email: newEmail }));
+          setPendingEmail('');
+          setEmailVerificationToken('');
+        }}
+        currentEmail={user?.email || ''}
+        newEmail={pendingEmail}
+        verificationToken={emailVerificationToken}
+      />
+
+      {/* Password Verification Modal */}
+      <PasswordVerificationModal
+        isOpen={showPasswordVerification}
+        onClose={() => setShowPasswordVerification(false)}
+        onSuccess={() => {
+          // Reset form
+          setSettingsPasswordForm({
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+          });
+          
+          // Success notification is already handled by PasswordVerificationModal
+          // No need for additional alerts here
+          
+          // Clear verification data
+          setPendingPasswordEmail('');
+          setPasswordVerificationToken('');
+        }}
+        email={pendingPasswordEmail}
+        verificationToken={passwordVerificationToken}
+        isGoogleUser={isGoogleUserPassword}
+      />
     </div>
   );
 };

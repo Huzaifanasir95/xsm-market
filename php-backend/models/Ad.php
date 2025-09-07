@@ -11,8 +11,9 @@ class Ad {
             'userId', 'title', 'description', 'channelUrl', 'platform', 'category', 
             'contentType', 'contentCategory', 'price', 'subscribers', 'monthlyIncome', 
             'isMonetized', 'incomeDetails', 'promotionDetails', 'status', 'verified', 
-            'premium', 'views', 'totalViews', 'rating', 'thumbnail', 'screenshots', 
-            'tags', 'socialBladeUrl', 'location', 'sellCondition', 'soldTo', 'soldAt'
+            'premium', 'views', 'totalViews', 'rating', 'thumbnail', 'primary_image',
+            'additional_images', 'screenshots', 'tags', 'socialBladeUrl', 'location', 
+            'sellCondition', 'soldTo', 'soldAt'
         ];
         
         $insertFields = [];
@@ -25,7 +26,7 @@ class Ad {
                 $insertValues[] = ':' . $field;
                 
                 // Handle JSON fields
-                if (in_array($field, ['screenshots', 'tags']) && is_array($data[$field])) {
+                if (in_array($field, ['screenshots', 'tags', 'additional_images']) && is_array($data[$field])) {
                     $params[':' . $field] = json_encode($data[$field]);
                 } 
                 // Handle boolean fields - convert to integer for MySQL
@@ -173,13 +174,13 @@ class Ad {
             $params[':search'] = '%' . $filters['search'] . '%';
         }
         
-        // Sort order - default to createdAt DESC like Node.js
+        // Sort order - pinned ads first, then by specified sort order
         $sortBy = $filters['sortBy'] ?? 'createdAt';
         $sortOrder = $filters['sortOrder'] ?? 'DESC';
         $validSortFields = ['createdAt', 'price', 'subscribers', 'views'];
         $sortField = in_array($sortBy, $validSortFields) ? $sortBy : 'createdAt';
         
-        $sql .= " ORDER BY a.{$sortField} {$sortOrder} LIMIT :limit OFFSET :offset";
+        $sql .= " ORDER BY a.pinned DESC, a.{$sortField} {$sortOrder} LIMIT :limit OFFSET :offset";
         
         $stmt = $pdo->prepare($sql);
         $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
@@ -264,8 +265,8 @@ class Ad {
         $countStmt->execute();
         $totalItems = $countStmt->fetch()['total'];
         
-        // Get ads
-        $sql = "SELECT * FROM " . self::$table . " " . $whereClause . " ORDER BY createdAt DESC LIMIT :limit OFFSET :offset";
+        // Get ads - pinned ads first, then by creation date
+        $sql = "SELECT * FROM " . self::$table . " " . $whereClause . " ORDER BY pinned DESC, createdAt DESC LIMIT :limit OFFSET :offset";
         $stmt = $pdo->prepare($sql);
         
         foreach ($params as $key => $value) {
@@ -393,9 +394,42 @@ class Ad {
             $ad['screenshots'] = json_decode($ad['screenshots'], true);
         }
         
+        if (!empty($ad['additional_images'])) {
+            $ad['additional_images'] = json_decode($ad['additional_images'], true);
+        }
+        
         if (!empty($ad['tags'])) {
             $ad['tags'] = json_decode($ad['tags'], true);
         }
+        
+        // No need to modify URLs since we're using base64 data URIs now
+    }
+    
+    public static function updatePin($id, $pinned, $pinnedAt = null) {
+        $pdo = Database::getConnection();
+        
+        $sql = "UPDATE " . self::$table . " SET pinned = :pinned, pinnedAt = :pinnedAt WHERE id = :id";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            ':id' => $id,
+            ':pinned' => $pinned ? 1 : 0,
+            ':pinnedAt' => $pinnedAt
+        ]);
+    }
+    
+    public static function pullUpAd($id, $pulledAt) {
+        $pdo = Database::getConnection();
+        
+        // Update lastPulledAt and also update createdAt to make it appear at top of listings
+        $sql = "UPDATE " . self::$table . " SET lastPulledAt = :pulledAt, createdAt = :createdAt WHERE id = :id";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            ':id' => $id,
+            ':pulledAt' => $pulledAt,
+            ':createdAt' => $pulledAt
+        ]);
     }
 }
 ?>

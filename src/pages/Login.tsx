@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/useAuth';
 import { Input } from "@/components/ui/input";
@@ -7,28 +8,58 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { login, googleSignIn } from '@/services/auth';
 import { useToast } from "@/components/ui/use-toast";
 import { GoogleLogin } from '@react-oauth/google';
+import { Eye, EyeOff } from 'lucide-react';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 interface LoginProps {
-  setCurrentPage: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
-const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
+const Login: React.FC<LoginProps> = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   const { toast } = useToast();
   const { setIsLoggedIn, setUser } = useAuth();
+
+  const handleRecaptchaChange = (token: string | null) => {
+    setRecaptchaToken(token);
+  };
+
+  const resetRecaptcha = () => {
+    if (recaptchaRef.current) {
+      recaptchaRef.current.reset();
+    }
+    setRecaptchaToken(null);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please complete the reCAPTCHA verification",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     console.log('🚀 Starting login process...');
 
     try {
-      const response = await login(email, password);
+      const response = await login(email, password, recaptchaToken);
       console.log('📡 Login response:', response);
       
       // Handle special cases that don't have user data
@@ -45,7 +76,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
         });
         
         // Navigate directly to email-verify page for OTP verification
-        setCurrentPage('email-verify');
+        navigate('/email-verify');
         setIsLoading(false);
         return;
       }
@@ -71,11 +102,14 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
           description: "You have successfully logged in.",
         });
         console.log('🏠 Redirecting to home page...');
-        setCurrentPage('home');
+        navigate('/');
       } else {
         throw new Error('Login succeeded but user data is missing');
       }
     } catch (err) {
+      // Reset reCAPTCHA on error
+      resetRecaptcha();
+      
       console.error('❌ Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to login';
       
@@ -91,7 +125,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
         });
         
         // Navigate directly to email-verify page for OTP verification
-        setCurrentPage('email-verify');
+        navigate('/email-verify');
       } else {
         setError(errorMessage);
         toast({
@@ -124,7 +158,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
           title: "Success!",
           description: `Welcome ${response.user.username}! You have successfully signed in with Google.`,
         });
-        setCurrentPage('home');
+        navigate('/');
       } else {
         throw new Error('Google sign-in succeeded but user data is missing');
       }
@@ -188,24 +222,34 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
               <label htmlFor="password" className="block text-sm font-medium text-white">
                 Password
               </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1"
-                placeholder="Enter your password"
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 pr-10"
+                  placeholder="Enter your password"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <div className="text-center">
               <button
                 type="button"
-                onClick={() => setCurrentPage('forgot-password')}
+                onClick={() => navigate('/forgot-password')}
                 className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
                 disabled={isLoading}
               >
@@ -213,11 +257,21 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
               </button>
             </div>
 
+            {/* reCAPTCHA */}
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                onChange={handleRecaptchaChange}
+                theme="dark"
+              />
+            </div>
+
             <div>
               <Button 
                 type="submit" 
                 className="w-full bg-xsm-yellow hover:bg-yellow-500 text-black"
-                disabled={isLoading}
+                disabled={isLoading || !recaptchaToken}
               >
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>
@@ -230,7 +284,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
                   type="button"
                   variant="outline"
                   className="w-full border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black"
-                  onClick={() => setCurrentPage('email-verify')}
+                  onClick={() => navigate('/email-verify')}
                   disabled={isLoading}
                 >
                   Verify Email Now
@@ -267,7 +321,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
             <button
               onClick={() => {
                 console.log('Signup button clicked, navigating to signup page');
-                setCurrentPage('signup');
+                navigate('/signup');
               }}
               className="font-medium text-xsm-yellow hover:text-yellow-500"
               disabled={isLoading}

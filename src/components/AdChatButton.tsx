@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { MessageSquare } from 'lucide-react';
-import { API_URL } from '@/services/auth';
+
+// Get API URL from environment variables
+const getApiUrl = () => {
+  return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://xsmmarket.com/api');
+};
+
+const API_URL = getApiUrl();
 
 interface AdChatButtonProps {
   adId: number;

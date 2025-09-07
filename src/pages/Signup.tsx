@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
@@ -8,6 +9,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from '@/context/useAuth';
 import { GoogleLogin } from '@react-oauth/google';
 import OTPVerification from '@/components/OTPVerification';
+import { Eye, EyeOff } from 'lucide-react';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 // Email validation helper function
 const isValidEmail = (email: string): boolean => {
@@ -16,26 +19,53 @@ const isValidEmail = (email: string): boolean => {
 };
 
 interface SignupProps {
-  setCurrentPage: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
-const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
+const Signup: React.FC<SignupProps> = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showOTPVerification, setShowOTPVerification] = useState(false);
   const [registrationEmail, setRegistrationEmail] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   const { toast } = useToast();
   const { setIsLoggedIn, setUser } = useAuth();
+
+  const handleRecaptchaChange = (token: string | null) => {
+    setRecaptchaToken(token);
+  };
+
+  const resetRecaptcha = () => {
+    if (recaptchaRef.current) {
+      recaptchaRef.current.reset();
+    }
+    setRecaptchaToken(null);
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Signup form submitted");
     setError('');
+
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please complete the reCAPTCHA verification",
+      });
+      return;
+    }
 
     // Form validation
     if (!username || !email || !password || !confirmPassword) {
@@ -100,7 +130,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
 
     try {
       console.log("Sending registration request to backend...");
-      const response = await register(username, email, password, fullName);
+      const response = await register(username, email, password, recaptchaToken);
       console.log("Registration response:", response);
       
       // Check if response indicates verification is required
@@ -122,7 +152,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
         });
         
         setTimeout(() => {
-          setCurrentPage('home');
+          navigate('/');
         }, 2000);
       } else {
         toast({
@@ -131,10 +161,13 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
         });
         
         setTimeout(() => {
-          setCurrentPage('login');
+          navigate('/login');
         }, 1500);
       }
     } catch (err) {
+      // Reset reCAPTCHA on error
+      resetRecaptcha();
+      
       console.error("Registration failed:", err);
       let errorMessage = err instanceof Error ? err.message : 'Failed to register';
       
@@ -169,7 +202,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
     });
     
     setTimeout(() => {
-      setCurrentPage('home');
+      navigate('/');
     }, 2000);
   };
 
@@ -207,7 +240,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
           title: "Welcome!",
           description: `Welcome ${response.user.username}! Your account has been created with Google.`,
         });
-        setCurrentPage('home');
+        navigate('/');
       } else {
         throw new Error('Google sign-up succeeded but user data is missing');
       }
@@ -265,22 +298,6 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
             </div>
 
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-white">
-                Full Name (Optional)
-              </label>
-              <Input
-                id="fullName"
-                name="fullName"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="mt-1"
-                placeholder="Enter your full name"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div>
               <label htmlFor="email" className="block text-sm font-medium text-white">
                 Email address
               </label>
@@ -302,34 +319,64 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
               <label htmlFor="password" className="block text-sm font-medium text-white">
                 Password
               </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1"
-                placeholder="Create a password"
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 pr-10"
+                  placeholder="Create a password"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-white">
                 Confirm Password
               </label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1"
-                placeholder="Confirm your password"
-                disabled={isLoading}
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="mt-1 pr-10"
+                  placeholder="Confirm your password"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  disabled={isLoading}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* reCAPTCHA */}
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                onChange={handleRecaptchaChange}
+                theme="dark"
               />
             </div>
 
@@ -337,7 +384,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
               <Button 
                 type="submit" 
                 className="w-full bg-xsm-yellow hover:bg-yellow-500 text-black"
-                disabled={isLoading}
+                disabled={isLoading || !recaptchaToken}
                 onClick={(e) => {
                   if (!isLoading) {
                     console.log("Sign up button clicked");
@@ -376,7 +423,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
           <p className="text-sm text-xsm-light-gray">
             Already have an account?{' '}
             <button
-              onClick={() => setCurrentPage('login')}
+              onClick={() => navigate('/login')}
               className="font-medium text-xsm-yellow hover:text-yellow-500"
               disabled={isLoading}
             >

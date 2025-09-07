@@ -13,7 +13,9 @@ interface ChannelData {
   premium: boolean;
   rating: number;
   thumbnail: string;
-  screenshots?: string[];
+  primary_image?: string;
+  additional_images?: any[];
+  screenshots?: any[];
   seller: {
     name: string;
     rating: number;
@@ -25,14 +27,6 @@ interface ChannelCardProps {
   channel: ChannelData;
   onShowMore: (channel: ChannelData) => void;
 }
-
-const BACKEND_URL = import.meta.env.VITE_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
-const getImageUrl = (url?: string) => {
-  if (url && url.startsWith('/uploads')) {
-    return BACKEND_URL + url;
-  }
-  return url || '/placeholder.svg';
-};
 
 const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
   const formatNumber = (num: number) => {
@@ -49,30 +43,26 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
   };
 
   return (
-    <div className="xsm-card group cursor-pointer transform transition-all duration-300 hover:-translate-y-2">
+    <div className="xsm-card group cursor-pointer">
       <div className="relative mb-4">
         <div className="w-full h-48 bg-xsm-medium-gray rounded-lg flex items-center justify-center overflow-hidden">
-          {(Array.isArray(channel.screenshots) && channel.screenshots.length > 0) ? (
-            <img
-              src={getImageUrl(channel.screenshots[0])}
-              alt={channel.name}
+          {channel.primary_image ? (
+            <img 
+              src={channel.primary_image} 
+              alt={channel.name} 
               className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.onerror = null;
-                target.src = getImageUrl(channel.thumbnail);
-              }}
+            />
+          ) : (channel.screenshots && channel.screenshots.length > 0) ? (
+            <img 
+              src={channel.screenshots[0].url || channel.screenshots[0]} 
+              alt={channel.name} 
+              className="w-full h-full object-cover"
             />
           ) : channel.thumbnail ? (
-            <img
-              src={getImageUrl(channel.thumbnail)}
-              alt={channel.name}
+            <img 
+              src={channel.thumbnail} 
+              alt={channel.name} 
               className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.onerror = null;
-                target.src = '/placeholder.svg';
-              }}
             />
           ) : (
             <Play className="w-16 h-16 text-xsm-yellow opacity-70" />
@@ -89,6 +79,13 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, onShowMore }) => {
               VERIFIED
             </span>
           )}
+        </div>
+
+        {/* Category */}
+        <div className="absolute top-2 right-2">
+          <span className="bg-xsm-black/80 text-xsm-yellow px-2 py-1 rounded text-xs font-medium">
+            {channel.category}
+          </span>
         </div>
       </div>
 

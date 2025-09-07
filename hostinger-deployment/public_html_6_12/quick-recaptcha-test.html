@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick reCAPTCHA Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: white;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 8px;
+        }
+        .result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success { background: #1a4a3a; color: #4ade80; }
+        .error { background: #4a1a1a; color: #f87171; }
+        .warning { background: #4a4a1a; color: #fbbf24; }
+        button {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #2563eb; }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #333;
+            color: white;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Quick reCAPTCHA Fix</h1>
+        
+        <div id="status" class="result warning">
+            🔄 Initializing reCAPTCHA with fresh parameters...
+        </div>
+
+        <form id="testForm">
+            <input type="email" id="email" placeholder="Enter test email" value="hamzasheikh1228@gmail.com">
+            
+            <div id="recaptcha-widget" style="margin: 20px 0;"></div>
+            
+            <button type="button" onclick="loadRecaptcha()">🔄 Load Fresh reCAPTCHA</button>
+            <button type="submit">✅ Test Login</button>
+        </form>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        let recaptchaLoaded = false;
+        let widgetId = null;
+
+        function loadRecaptchaScript() {
+            return new Promise((resolve, reject) => {
+                if (window.grecaptcha) {
+                    resolve();
+                    return;
+                }
+
+                // Remove any existing reCAPTCHA scripts
+                const existingScripts = document.querySelectorAll('script[src*="recaptcha"]');
+                existingScripts.forEach(script => script.remove());
+
+                const script = document.createElement('script');
+                script.src = `https://www.google.com/recaptcha/api.js?onload=onRecaptchaReady&render=explicit&hl=en&v=${Date.now()}`;
+                script.async = true;
+                script.defer = true;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        window.onRecaptchaReady = function() {
+            recaptchaLoaded = true;
+            document.getElementById('status').innerHTML = '✅ reCAPTCHA API loaded successfully';
+            document.getElementById('status').className = 'result success';
+            loadRecaptcha();
+        }
+
+        function loadRecaptcha() {
+            if (!recaptchaLoaded) {
+                document.getElementById('status').innerHTML = '⚠️ reCAPTCHA API not ready yet, loading...';
+                document.getElementById('status').className = 'result warning';
+                loadRecaptchaScript().then(() => {
+                    setTimeout(loadRecaptcha, 1000);
+                });
+                return;
+            }
+
+            const container = document.getElementById('recaptcha-widget');
+            container.innerHTML = '';
+
+            try {
+                widgetId = grecaptcha.render(container, {
+                    sitekey: '6Lff5ZkrAAAAABHYWbjjk7urNCfN7kkWW9HGIqeb',
+                    theme: 'dark',
+                    size: 'normal',
+                    callback: function(response) {
+                        document.getElementById('status').innerHTML = '✅ reCAPTCHA completed successfully!';
+                        document.getElementById('status').className = 'result success';
+                        console.log('reCAPTCHA response:', response.substring(0, 50) + '...');
+                    },
+                    'error-callback': function() {
+                        document.getElementById('status').innerHTML = '❌ reCAPTCHA error - This indicates a domain/key mismatch';
+                        document.getElementById('status').className = 'result error';
+                    },
+                    'expired-callback': function() {
+                        document.getElementById('status').innerHTML = '⚠️ reCAPTCHA expired, please reload';
+                        document.getElementById('status').className = 'result warning';
+                    }
+                });
+
+                document.getElementById('status').innerHTML = '📝 reCAPTCHA widget created - please complete verification';
+                document.getElementById('status').className = 'result warning';
+
+            } catch (error) {
+                document.getElementById('status').innerHTML = '❌ Error creating reCAPTCHA: ' + error.message;
+                document.getElementById('status').className = 'result error';
+                console.error('reCAPTCHA error:', error);
+            }
+        }
+
+        document.getElementById('testForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const response = widgetId ? grecaptcha.getResponse(widgetId) : '';
+            const email = document.getElementById('email').value;
+            
+            if (!response) {
+                document.getElementById('result').innerHTML = '<div class="result error">❌ Please complete the reCAPTCHA first</div>';
+                return;
+            }
+
+            document.getElementById('result').innerHTML = '<div class="result warning">🔄 Testing with your API...</div>';
+
+            // Test with actual login endpoint
+            fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: 'testpassword',
+                    'g-recaptcha-response': response
+                })
+            })
+            .then(resp => resp.text())
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result ${data.success ? 'success' : 'error'}">
+                            ${data.success ? '✅' : '❌'} API Response: ${JSON.stringify(data, null, 2)}
+                        </div>`;
+                } catch {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result error">❌ API returned non-JSON: ${text.substring(0, 200)}...</div>`;
+                }
+            })
+            .catch(error => {
+                document.getElementById('result').innerHTML = 
+                    `<div class="result error">❌ Network error: ${error.message}</div>`;
+            });
+        });
+
+        // Auto-load on page ready
+        window.addEventListener('load', function() {
+            loadRecaptchaScript();
+        });
+    </script>
+</body>
+</html>
