@@ -21,7 +21,7 @@ require_once __DIR__ . '/middleware/auth.php';
 // Load controllers
 require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/UserController.php';
-require_once __DIR__ . '/controllers/AdController-complete.php';
+require_once __DIR__ . '/controllers/AdController.php';
 require_once __DIR__ . '/controllers/AdUploadController.php';
 require_once __DIR__ . '/controllers/ChatController-complete.php';
 require_once __DIR__ . '/controllers/AdminController-complete.php';
@@ -269,6 +269,16 @@ function handleAdRoutes($controller, $path, $method) {
     elseif (preg_match('/^\/ads\/(\d+)\/contact$/', $path, $matches)) {
         $adId = $matches[1];
         if ($method === 'POST') $controller->contactSeller($adId);
+        else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/ads\/(\d+)\/pin$/', $path, $matches)) {
+        $adId = $matches[1];
+        if ($method === 'PUT') $controller->togglePin($adId);
+        else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/ads\/(\d+)\/pull-up$/', $path, $matches)) {
+        $adId = $matches[1];
+        if ($method === 'PUT') $controller->pullUpAd($adId);
         else methodNotAllowed();
     }
     elseif ($path === '/ads/upload/screenshots' && $method === 'POST') {

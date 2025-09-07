@@ -349,5 +349,132 @@ class AdController {
             Response::error('Server error: ' . $e->getMessage(), 500);
         }
     }
+    
+    // Pin/Unpin ad functionality
+    public function togglePin($adId) {
+        $user = AuthMiddleware::protect();
+        
+        try {
+            $ad = Ad::findById($adId);
+            
+            if (!$ad) {
+                Response::error('Ad not found', 404);
+                return;
+            }
+            
+            // Check ownership
+            if ($ad['userId'] != $user['id']) {
+                Response::error('Access denied', 403);
+                return;
+            }
+            
+            // Check if ad is active
+            if ($ad['status'] !== 'active') {
+                Response::error('Only active ads can be pinned', 400);
+                return;
+            }
+            
+            // Toggle pin status
+            $newPinnedStatus = !$ad['pinned'];
+            $pinnedAt = $newPinnedStatus ? date('Y-m-d H:i:s') : null;
+            
+            $result = Ad::updatePin($adId, $newPinnedStatus, $pinnedAt);
+            
+            if ($result) {
+                $message = $newPinnedStatus ? 'Ad pinned successfully' : 'Ad unpinned successfully';
+                Response::json([
+                    'message' => $message,
+                    'pinned' => $newPinnedStatus,
+                    'pinnedAt' => $pinnedAt
+                ]);
+            } else {
+                Response::error('Failed to update pin status', 500);
+            }
+            
+        } catch (Exception $e) {
+            error_log('Toggle pin error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    // Pull up ad functionality with 4-day cooldown
+    public function pullUpAd($adId) {
+        $user = AuthMiddleware::protect();
+        
+        try {
+            $ad = Ad::findById($adId);
+            
+            if (!$ad) {
+                Response::error('Ad not found', 404);
+                return;
+            }
+            
+            // Check ownership
+            if ($ad['userId'] != $user['id']) {
+                Response::error('Access denied', 403);
+                return;
+            }
+            
+            // Check if ad is active
+            if ($ad['status'] !== 'active') {
+                Response::error('Only active ads can be pulled up', 400);
+                return;
+            }
+            
+            // Check 4-day cooldown
+            if ($ad['lastPulledAt']) {
+                $lastPulledTime = new DateTime($ad['lastPulledAt']);
+                $currentTime = new DateTime();
+                $timeDiff = $currentTime->diff($lastPulledTime);
+                $daysSinceLastPull = $timeDiff->days;
+                
+                if ($daysSinceLastPull < 4) {
+                    $remainingDays = 4 - $daysSinceLastPull;
+                    $remainingHours = 24 - $timeDiff->h;
+                    $remainingMinutes = 60 - $timeDiff->i;
+                    $remainingSeconds = 60 - $timeDiff->s;
+                    
+                    // Calculate exact remaining time until next pull is allowed
+                    $nextPullTime = clone $lastPulledTime;
+                    $nextPullTime->add(new DateInterval('P4D'));
+                    $timeUntilNextPull = $currentTime->diff($nextPullTime);
+                    
+                    Response::error('Pull up cooldown active', 400, [
+                        'cooldownActive' => true,
+                        'daysSinceLastPull' => $daysSinceLastPull,
+                        'remainingDays' => $remainingDays,
+                        'lastPulledAt' => $ad['lastPulledAt'],
+                        'nextPullAllowedAt' => $nextPullTime->format('Y-m-d H:i:s'),
+                        'timeRemaining' => [
+                            'days' => $timeUntilNextPull->days,
+                            'hours' => $timeUntilNextPull->h,
+                            'minutes' => $timeUntilNextPull->i,
+                            'seconds' => $timeUntilNextPull->s
+                        ]
+                    ]);
+                    return;
+                }
+            }
+            
+            // Update lastPulledAt and createdAt to make it appear at top
+            $currentDateTime = date('Y-m-d H:i:s');
+            $result = Ad::pullUpAd($adId, $currentDateTime);
+            
+            if ($result) {
+                Response::json([
+                    'success' => true,
+                    'message' => 'Ad pulled up successfully',
+                    'lastPulledAt' => $currentDateTime,
+                    'nextPullAllowedAt' => date('Y-m-d H:i:s', strtotime('+4 days'))
+                ]);
+            } else {
+                Response::error('Failed to pull up ad', 500);
+            }
+            
+        } catch (Exception $e) {
+            error_log('Pull up ad error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+    }
 }
 ?>
