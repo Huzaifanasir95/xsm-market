@@ -170,7 +170,14 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
       console.log('📊 Ads array:', response.ads);
       console.log('📊 Ads count:', response.ads?.length || 0);
       
-      setAds(response.ads || []);
+      // Convert pinned property to boolean to ensure proper display
+      const adsWithBooleanPinned = (response.ads || []).map(ad => ({
+        ...ad,
+        pinned: Boolean(ad.pinned), // Convert 0/1 to false/true
+        isMonetized: Boolean(ad.isMonetized) // Also fix monetization display
+      }));
+      
+      setAds(adsWithBooleanPinned);
       setError(null);
     } catch (err: any) {
       console.error('Failed to fetch user ads:', err);
