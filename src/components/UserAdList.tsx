@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserAds, getUserAdsAlternative, deleteAd } from '../services/ads';
+import { getUserAds, getUserAdsAlternative, deleteAd, togglePinAd } from '../services/ads';
 import { useAuth } from '../context/useAuth';
 import { Star, Eye, Trash2, Edit, AlertCircle, TrendingUp, Pin, DollarSign, CheckCircle, XCircle } from 'lucide-react';
 import EditListingModal from './EditListingModal';
@@ -60,6 +60,8 @@ interface UserAd {
   thumbnail?: string;
   screenshots?: any[];
   tags?: string[];
+  pinned?: boolean;
+  pinnedAt?: string;
   seller?: {
     id: number;
     username: string;
@@ -169,7 +171,27 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
   };
 
   const handlePin = async (id: number) => {
-    alert('Pin listing feature coming soon!');
+    try {
+      const result = await togglePinAd(id);
+      
+      // Update the local ads state to reflect the change
+      setAds(prevAds => 
+        prevAds.map(ad => 
+          ad.id === id 
+            ? { ...ad, pinned: result.pinned, pinnedAt: result.pinnedAt }
+            : ad
+        )
+      );
+      
+      // Show success message
+      alert(result.message);
+      
+      // Refresh the ads list to get updated order (pinned ads appear first)
+      await fetchUserAds();
+      
+    } catch (err: any) {
+      alert(err.message || 'Failed to pin/unpin listing');
+    }
   };
 
   const formatPrice = (price: number) => {
@@ -353,6 +375,16 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
                 {ad.title}
               </h4>
 
+              {/* Pinned Badge */}
+              {ad.pinned && (
+                <div className="flex justify-center mb-0.5">
+                  <span className="bg-yellow-500 text-black text-xs px-2 py-0.5 rounded-full font-semibold flex items-center">
+                    <Pin className="w-3 h-3 mr-1" />
+                    PINNED
+                  </span>
+                </div>
+              )}
+
               {/* Subscribers */}
               <div className="text-center mb-0.5">
                 <span className="text-blue-400 font-medium text-xs">
@@ -403,13 +435,13 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
                   <TrendingUp className="w-3 h-3 text-white" />
                 </button>
 
-                {/* Pin Button - Orange */}
+                {/* Pin Button - Orange/Yellow based on pinned status */}
                 <button
                   onClick={() => handlePin(ad.id)}
-                  className="w-6 h-6 bg-orange-500 hover:bg-orange-600 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
-                  title="Pin"
+                  className={`w-6 h-6 ${ad.pinned ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-orange-500 hover:bg-orange-600'} rounded-full flex items-center justify-center transition-colors flex-shrink-0`}
+                  title={ad.pinned ? "Unpin Listing" : "Pin Listing"}
                 >
-                  <Pin className="w-3 h-3 text-white" />
+                  <Pin className={`w-3 h-3 text-white ${ad.pinned ? 'fill-current' : ''}`} />
                 </button>
               </div>
             </div>

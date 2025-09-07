@@ -349,5 +349,52 @@ class AdController {
             Response::error('Server error: ' . $e->getMessage(), 500);
         }
     }
+    
+    // Pin/Unpin ad functionality
+    public function togglePin($adId) {
+        $user = AuthMiddleware::protect();
+        
+        try {
+            $ad = Ad::findById($adId);
+            
+            if (!$ad) {
+                Response::error('Ad not found', 404);
+                return;
+            }
+            
+            // Check ownership
+            if ($ad['userId'] != $user['id']) {
+                Response::error('Access denied', 403);
+                return;
+            }
+            
+            // Check if ad is active
+            if ($ad['status'] !== 'active') {
+                Response::error('Only active ads can be pinned', 400);
+                return;
+            }
+            
+            // Toggle pin status
+            $newPinnedStatus = !$ad['pinned'];
+            $pinnedAt = $newPinnedStatus ? date('Y-m-d H:i:s') : null;
+            
+            $result = Ad::updatePin($adId, $newPinnedStatus, $pinnedAt);
+            
+            if ($result) {
+                $message = $newPinnedStatus ? 'Ad pinned successfully' : 'Ad unpinned successfully';
+                Response::json([
+                    'message' => $message,
+                    'pinned' => $newPinnedStatus,
+                    'pinnedAt' => $pinnedAt
+                ]);
+            } else {
+                Response::error('Failed to update pin status', 500);
+            }
+            
+        } catch (Exception $e) {
+            error_log('Toggle pin error: ' . $e->getMessage());
+            Response::error('Server error: ' . $e->getMessage(), 500);
+        }
+    }
 }
 ?>

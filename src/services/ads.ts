@@ -298,3 +298,33 @@ export const getUserAdsAlternative = async (filters: any = {}) => {
     throw error;
   }
 };
+
+// Pin/Unpin ad functionality
+export const togglePinAd = async (adId: number) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    // Use direct backend URL for now to bypass proxy issues
+    const backendUrl = 'http://localhost:5000';
+    const response = await fetch(`${backendUrl}/ads/${adId}/pin`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to toggle pin status: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Toggle pin ad error:', error);
+    throw error;
+  }
+};
