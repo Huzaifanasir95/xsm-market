@@ -336,10 +336,10 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
                 {/* Large Profile Picture Circle with Platform Icon */}
                 <div className="relative mb-3 flex items-center">
                   {/* Platform Icon on Left Side */}
-                  <div className="absolute -left-8 -top-0">
+                  <div className="absolute -left-4 -top-0">
                     {getPlatformIconSmall(ad.platform)}
                   </div>
-                  <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-xsm-medium-gray/30">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-xsm-medium-gray/30">
                     <img
                       src={ad.seller?.profilePicture || user?.profilePicture || '/default-avatar.png'}
                       alt="Profile"
