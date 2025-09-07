@@ -1,44 +1,67 @@
-# Minimal .htaccess for XSM Market
 RewriteEngine On
 
-# Set default index files
-DirectoryIndex index.html index.php
+# Handle CORS preflight requests
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
 
-# Basic CORS headers for API
-<IfModule mod_headers.c>
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
-</IfModule>
+# Remove www from domain
+RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
+RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
 
-# Handle NOWPayments webhook directly - CRITICAL for IPN
-RewriteRule ^api/webhooks/nowpayments/?$ api/webhooks/nowpayments.php [QSA,L]
+# Force HTTPS (uncomment for production)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Handle uploaded files directly - serve static files (MUST come before api catch-all)
-RewriteRule ^api/uploads/(.+\.(jpg|jpeg|png|gif|webp|mp4|avi|mov|pdf|doc|docx))$ api/uploads/$1 [L]
-
-# Handle other API requests through index.php
-RewriteRule ^api/(.*)$ api/index.php [QSA,L]
-
-# Handle React Router (fallback to index.html)
+# Route all API requests to server.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/api/
-RewriteRule . /index.html [L]
+RewriteCond %{REQUEST_URI} !^/api/uploads/
+RewriteCond %{REQUEST_URI} !^/api/webhooks/
+RewriteRule ^(.*)$ server.php [QSA,L]
 
-# Basic security - protect sensitive files
-<Files ".env*">
-    Order deny,allow
-    Deny from all
-</Files>
+# Handle webhook requests directly
+RewriteRule ^webhooks/nowpayments/?$ webhooks/nowpayments.php [QSA,L]
 
-<Files "*.log">
-    Order deny,allow
-    Deny from all
-</Files>
+# Route root API requests to server.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/uploads/
+RewriteRule ^(auth|user|ads|chat|admin|contact|social-media|debug|health)/(.*)$ server.php [QSA,L]
 
-# PHP Configuration for uploads
-php_value upload_max_filesize 50M
-php_value post_max_size 50M
-php_value max_execution_time 300
-php_value memory_limit 256M
+# Security headers
+<IfModule mod_headers.c>
+    # CORS headers
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET,POST,PUT,DELETE,OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type,Authorization,X-Requested-With"
+    Header always set Access-Control-Allow-Credentials "true"
+    Header always set Access-Control-Max-Age "3600"
+    
+    # Security headers
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Remove server information
+    Header unset Server
+    Header unset X-Powered-By
+</IfModule>
+
+# Prevent access to sensitive files
+<FilesMatch "\.(env|log|sql|md|txt|json|lock)$">
+    Require all denied
+</FilesMatch>
+
+# Prevent access to directories
+Options -Indexes
+
+# Set max upload size
+php_value upload_max_filesize 10M
+php_value post_max_size 10M
+php_value max_execution_time 30
+php_value max_input_time 30
+
+# Error pages (customize as needed)
+ErrorDocument 404 /api/404.php
+ErrorDocument 500 /api/500.php

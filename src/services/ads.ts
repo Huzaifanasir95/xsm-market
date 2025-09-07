@@ -307,9 +307,7 @@ export const togglePinAd = async (adId: number) => {
       throw new Error('No authentication token found');
     }
 
-    // Use direct backend URL for now to bypass proxy issues
-    const backendUrl = 'http://localhost:5000';
-    const response = await fetch(`${backendUrl}/ads/${adId}/pin`, {
+    const response = await fetch(`${API_URL}/ads/${adId}/pin`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -337,9 +335,7 @@ export const pullUpAd = async (adId: number) => {
       throw new Error('No authentication token found');
     }
 
-    // Use direct backend URL for now to bypass proxy issues
-    const backendUrl = 'http://localhost:5000';
-    const response = await fetch(`${backendUrl}/ads/${adId}/pull-up`, {
+    const response = await fetch(`${API_URL}/ads/${adId}/pull-up`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

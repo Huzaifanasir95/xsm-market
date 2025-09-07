@@ -7,7 +7,7 @@ echo "1. Testing Google OAuth endpoint availability...\n";
 $postData = json_encode(['token' => 'test_token_for_endpoint_test']);
 
 $ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, 'http://localhost:5000/api/auth/google-signin');
+curl_setopt($ch, CURLOPT_URL, 'https://xsmmarket.com/api/auth/google-signin');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);

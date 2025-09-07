@@ -12,7 +12,7 @@ const getApiUrl = () => {
 const getBaseUrl = () => {
   // In development, use the proxy setup
   if (import.meta.env.DEV) {
-    return 'http://localhost:5173'; // Vite dev server
+    return '/'; // Use relative path for development proxy
   }
   // In production, use the production domain
   return 'https://xsmmarket.com';
@@ -23,7 +23,7 @@ export const API_CONFIG = {
   BASE_URL: getBaseUrl(),
   
   // WebSocket URL for real-time features
-  WS_URL: 'http://localhost:3001',
+  WS_URL: import.meta.env.DEV ? 'http://localhost:3001' : 'https://xsmmarket.com',
   
   // Chat upload endpoint
   CHAT_UPLOAD_URL: `${getApiUrl()}/chat`,

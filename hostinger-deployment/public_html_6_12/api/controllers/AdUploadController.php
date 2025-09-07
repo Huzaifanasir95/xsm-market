@@ -122,7 +122,7 @@ class AdUploadController {
                 error_log("Successfully moved file to: $filePath");
                 
                 // Generate URL for the file
-                $fileUrl = 'http://localhost:5000/uploads/ads/' . $fileName;
+                $fileUrl = 'https://xsmmarket.com/uploads/ads/' . $fileName;
                 
                 $uploadedFiles[] = [
                     'url' => $fileUrl,

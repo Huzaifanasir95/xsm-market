@@ -431,5 +431,18 @@ class Ad {
             ':createdAt' => $pulledAt
         ]);
     }
+    
+    public static function updatePinStatus($id, $pinned, $pinnedAt) {
+        $pdo = Database::getConnection();
+        
+        $sql = "UPDATE " . self::$table . " SET pinned = :pinned, pinnedAt = :pinnedAt WHERE id = :id";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            ':id' => $id,
+            ':pinned' => $pinned,
+            ':pinnedAt' => $pinnedAt
+        ]);
+    }
 }
 ?>

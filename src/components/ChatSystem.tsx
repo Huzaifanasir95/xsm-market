@@ -106,7 +106,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, isOpen, onClose })
   }, [showAttachmentMenu]);
 
   const initializeSocket = () => {
-    const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
+    const newSocket = io(import.meta.env.VITE_API_URL || 'https://xsmmarket.com/api');
     
     newSocket.on('connect', () => {
       newSocket.emit('user_connected', { userId: currentUser.id });
