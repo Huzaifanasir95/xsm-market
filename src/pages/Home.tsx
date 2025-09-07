@@ -1,4 +1,5 @@
 import React, { useState, useEffect, cloneElement } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ChannelCard from '../components/ChannelCard';
 import ChannelModal from '../components/ChannelModal';
 import AdList from '../components/AdList';
@@ -12,6 +13,8 @@ interface ChannelData {
   id: string;
   name: string;
   category: string;
+  platform: 'youtube' | 'tiktok' | 'facebook' | 'instagram' | 'twitter';
+  channelUrl: string;
   subscribers: number;
   price: number;
   monthlyIncome?: number;
@@ -24,6 +27,9 @@ interface ChannelData {
   primary_image?: string;
   additional_images?: any[];
   screenshots?: any[];
+  monetized: boolean;
+  earningMethods?: string[];
+  promotionStrategies?: string[];
   seller: {
     id: number;
     name: string;
@@ -33,10 +39,11 @@ interface ChannelData {
 }
 
 interface HomeProps {
-  setCurrentPage?: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
-const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
+const Home: React.FC<HomeProps> = () => {
+  const navigate = useNavigate();
   const [showAuthWidget, setShowAuthWidget] = useState(false);
   const [channels, setChannels] = useState<ChannelData[]>([]);
   const [filteredChannels, setFilteredChannels] = useState<ChannelData[]>([]);
@@ -55,11 +62,6 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
 
   // Add debug logging
   console.log('🏠 Home component rendering, isLoggedIn:', isLoggedIn);
-
-  // Add error boundary fallback
-  if (!setCurrentPage) {
-    return <div className="text-white p-4">Error: Missing setCurrentPage prop</div>;
-  }
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -242,6 +244,8 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
       id: item.id?.toString() || item.id,
       name: item.title || item.name,
       category: item.category,
+      platform: item.platform || 'youtube', // Default to youtube if not specified
+      channelUrl: item.channelUrl || item.url || '', // Use url as fallback
       subscribers: item.subscribers || 0,
       price: item.price,
       monthlyIncome: item.monthlyIncome,
@@ -251,6 +255,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
       rating: item.rating || 0,
       views: item.views || item.totalViews || 0,
       thumbnail: item.thumbnail || '',
+      monetized: item.monetized || item.monthlyIncome > 0 || false, // Default based on monthly income
       seller: {
         id: item.seller?.id || 0,
         name: item.seller?.username || item.seller?.name || 'Unknown',
@@ -418,7 +423,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
         <AuthWidget 
           onClose={() => setShowAuthWidget(false)} 
           onNavigate={(page) => {
-            setCurrentPage(page);
+            navigate(page);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
         />
@@ -654,7 +659,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
             {/* Ad List - Using real database data with filters */}
             <AdList 
               onShowMore={handleShowMore} 
-              onNavigateToChat={() => setCurrentPage && setCurrentPage('chat')}
+              onNavigateToChat={() => navigate('/chat')}
               // Pass all the filter states to AdList
               searchQuery={searchQuery}
               selectedPlatform={selectedPlatform}
@@ -673,7 +678,7 @@ const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
           channel={selectedChannel}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          onNavigateToChat={() => setCurrentPage && setCurrentPage('chat')}
+          onNavigateToChat={() => navigate('/chat')}
         />
         
         {/* Fixed back to top button */}

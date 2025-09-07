@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Activity, Users, ShoppingBag, Settings, MessageSquare, FileText } from 'lucide-react';
 import ManageUsers from '@/components/admin/ManageUsers';
 import ReviewListings from '@/components/admin/ReviewListings';
@@ -7,10 +8,11 @@ import ReviewDeals from '@/components/admin/ReviewDeals';
 import { getDashboardStats } from '@/services/admin';
 
 interface AdminDashboardProps {
-  setCurrentPage: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = () => {
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState<string>('dashboard');
   const [stats, setStats] = useState([
     { title: 'Total Users', value: '-', icon: Users },

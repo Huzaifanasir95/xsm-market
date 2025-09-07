@@ -1,18 +1,21 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 
 interface VerifyProps {
-  setCurrentPage: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
-const Verify: React.FC<VerifyProps> = ({ setCurrentPage }) => {
+const Verify: React.FC<VerifyProps> = () => {
+  const navigate = useNavigate();
+
   const handleVerificationSubmit = async (documentType: string, file: File) => {
     // TODO: Implement actual verification submission logic
     console.log('Submitting verification:', { documentType, file });
     // Mock API call - In real implementation, this would be an API call to your backend
     setTimeout(() => {
-      setCurrentPage('profile');
+      navigate('/profile');
     }, 1500);
   };
 
@@ -20,7 +23,7 @@ const Verify: React.FC<VerifyProps> = ({ setCurrentPage }) => {
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <button
-          onClick={() => setCurrentPage('profile')}
+          onClick={() => navigate('/profile')}
           className="flex items-center space-x-2 text-white hover:text-xsm-yellow mb-8"
         >
           <ArrowLeft className="w-5 h-5" />

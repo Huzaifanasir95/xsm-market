@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/context/AuthProvider';
 import { NotificationProvider } from '@/context/NotificationContext';
@@ -29,7 +30,8 @@ import BuyerDeals from './components/BuyerDeals';
 
 // Inner component that has access to AuthContext
 const AppContent: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState('home');
+  const navigate = useNavigate();
+  const location = useLocation();
   const { isLoggedIn, user } = useAuth();
   
   // Type assertion for user to include isAdmin property
@@ -38,61 +40,11 @@ const AppContent: React.FC = () => {
   
   // Initialize token manager for session handling
   useTokenManager();
-  
-  // Add effect to log page changes
-  React.useEffect(() => {
-    console.log('Current page changed to:', currentPage);
-  }, [currentPage]);
 
-  const renderPage = () => {
-    console.log('🎯 Rendering page:', currentPage);
-    
-    switch (currentPage) {
-      case 'home':
-        // Wrap Home component with error boundary for debugging
-        return (
-          <ErrorBoundary>
-            <Home setCurrentPage={setCurrentPage} />
-          </ErrorBoundary>
-        );
-      case 'sell':
-        return <SellChannel setCurrentPage={setCurrentPage} />;
-      case 'chat':
-        return <Chat />;
-      case 'profile':
-        return <Profile setCurrentPage={setCurrentPage} />;
-      case 'my-deals':
-        return <BuyerDeals />;
-      case 'seller-deals':
-        return <SellerDeals />;
-      case 'about':
-        return <About />;
-      case 'contact':
-        return <Contact setCurrentPage={setCurrentPage} />;
-      case 'terms':
-        return <Terms />;
-      case 'privacy':
-        return <Privacy />;
-      case 'login':
-        return <Login setCurrentPage={setCurrentPage} />;
-      case 'signup':
-        return <Signup setCurrentPage={setCurrentPage} />;
-      case 'verify':
-        return <Verify setCurrentPage={setCurrentPage} />;
-      case 'email-verify':
-        return <EmailVerify setCurrentPage={setCurrentPage} />;
-      case 'forgot-password':
-        return <ForgotPassword setCurrentPage={setCurrentPage} />;
-      case 'admin-dashboard':
-        // Only require login to access admin dashboard
-        if (!isLoggedIn) {
-          setCurrentPage('login');
-          return <Login setCurrentPage={setCurrentPage} />;
-        }
-        return <AdminDashboard setCurrentPage={setCurrentPage} />;
-      default:
-        return <div className="text-white p-8">Default Home</div>;
-    }
+  // Helper function to navigate and scroll to top
+  const navigateToPage = (page: string) => {
+    navigate(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -100,14 +52,41 @@ const AppContent: React.FC = () => {
       <ErrorBoundary>
         <Toaster />
         <Sonner />
-        <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        <Navbar />
         <main className="animate-fade-in">
-          {renderPage()}
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/sell" element={<SellChannel />} />
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/my-deals" element={<BuyerDeals />} />
+            <Route path="/seller-deals" element={<SellerDeals />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/verify" element={<Verify />} />
+            <Route path="/email-verify" element={<EmailVerify />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route 
+              path="/admin-dashboard" 
+              element={
+                isLoggedIn ? (
+                  <AdminDashboard />
+                ) : (
+                  <Login />
+                )
+              } 
+            />
+            <Route path="*" element={<div className="text-white p-8 text-center">404 - Page Not Found</div>} />
+          </Routes>
         </main>
           
         {/* Floating Chat Button */}
         <button
-          onClick={() => setCurrentPage('chat')}
+          onClick={() => navigate('/chat')}
           className="fixed bg-xsm-yellow hover:bg-yellow-500 text-black p-4 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-[9999] flex items-center justify-center relative"
           style={{ 
             bottom: '24px', 
@@ -145,7 +124,7 @@ const AppContent: React.FC = () => {
             
             {/* Begin Selling Button (right) */}
             <button
-              onClick={() => {setCurrentPage('sell'); window.scrollTo({ top: 0, behavior: 'smooth' });}}
+              onClick={() => {navigate('/sell'); window.scrollTo({ top: 0, behavior: 'smooth' });}}
               className="bg-xsm-yellow text-black px-4 py-2 text-sm font-medium rounded hover:bg-yellow-500 transition-colors"
             >
               Begin Selling
@@ -154,10 +133,10 @@ const AppContent: React.FC = () => {
           
           {/* Simple Navigation */}
           <div className="flex flex-wrap justify-center gap-6 text-sm text-xsm-light-gray">
-            <button onClick={() => {setCurrentPage('about'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">About Us</button>
-            <button onClick={() => {setCurrentPage('contact'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">Contact</button>
-            <button onClick={() => {setCurrentPage('terms'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">Terms of Service</button>
-            <button onClick={() => {setCurrentPage('privacy'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">Privacy Policy</button>
+            <button onClick={() => {navigate('/about'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">About Us</button>
+            <button onClick={() => {navigate('/contact'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">Contact</button>
+            <button onClick={() => {navigate('/terms'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">Terms of Service</button>
+            <button onClick={() => {navigate('/privacy'); window.scrollTo({ top: 0, behavior: 'smooth' });}} className="hover:text-xsm-yellow transition-colors">Privacy Policy</button>
           </div>
           
           {/* Copyright */}
@@ -180,7 +159,9 @@ const App: React.FC = () => {
       <AuthProvider>
         <NotificationProvider>
           <TooltipProvider>
-            <AppContent />
+            <Router>
+              <AppContent />
+            </Router>
           </TooltipProvider>
         </NotificationProvider>
       </AuthProvider>

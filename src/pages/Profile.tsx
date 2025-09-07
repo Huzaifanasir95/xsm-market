@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Edit, LogOut, Save, X, Camera, Pin, Crown, Settings } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
@@ -24,7 +25,7 @@ const getBaseUrl = () => {
 const API_URL = getBaseUrl();
 
 interface ProfileProps {
-  setCurrentPage: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
 interface UpdateData {
@@ -38,7 +39,8 @@ interface ExtendedUser extends User {
   authProvider?: 'google' | 'email';
 }
 
-const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
+const Profile: React.FC<ProfileProps> = () => {
+  const navigate = useNavigate();
   const { user, isLoggedIn, setUser, setIsLoggedIn } = useAuth();
   const { showSuccess, showError, showInfo, showWarning } = useNotifications();
   const typedUser = user as ExtendedUser;
@@ -144,9 +146,9 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoggedIn) {
-      setCurrentPage('login');
+      navigate('/login');
     }
-  }, [isLoggedIn, setCurrentPage]);
+  }, [isLoggedIn, navigate]);
 
   // Fetch fresh profile data when component mounts
   useEffect(() => {
@@ -189,7 +191,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
     logout();
     setUser(null);
     setIsLoggedIn(false);
-    setCurrentPage('home');
+    navigate('/');
   };
 
   // Show loading if no user data yet but we are logged in
@@ -254,7 +256,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                     </ul>
                     <div className="mt-4 space-x-4">
                       <button
-                        onClick={() => setCurrentPage('login')}
+                        onClick={() => navigate('/login')}
                         className="bg-xsm-yellow hover:bg-yellow-500 text-black px-4 py-2 rounded-lg font-semibold transition-colors"
                       >
                         Login Again
@@ -293,7 +295,7 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
           <h2 className="text-2xl font-bold text-white mb-4">Please Log In</h2>
           <p className="text-xsm-light-gray mb-6">You need to be logged in to view your profile.</p>
           <button
-            onClick={() => setCurrentPage('login')}
+            onClick={() => navigate('/login')}
             className="bg-xsm-yellow hover:bg-yellow-500 text-black px-6 py-3 rounded-lg font-semibold transition-colors"
           >
             Go to Login

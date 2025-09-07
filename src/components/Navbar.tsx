@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User, PlusCircle, LogOut, Settings, Heart, Star, MessageSquare, FileText } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { logout } from '@/services/auth';
@@ -19,11 +20,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface NavbarProps {
-  currentPage: string;
-  setCurrentPage: (page: string) => void;
+  // No longer need currentPage and setCurrentPage
 }
 
-const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
+const Navbar: React.FC<NavbarProps> = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAuthWidget, setShowAuthWidget] = useState(false);
   const [isUserAdmin, setIsUserAdmin] = useState(false);
@@ -31,7 +33,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
 
   // Helper function to navigate and scroll to top
   const navigateToPage = (page: string) => {
-    setCurrentPage(page);
+    if(page === 'home') page = '/';
+    navigate(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -40,7 +43,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
     const checkAdminStatus = async () => {
       if (isLoggedIn && user) {
         // First check if user has isAdmin flag set to true
-        if (user.isAdmin === true) {
+        if ((user as any).isAdmin === true) {
           console.log('✅ User is admin (isAdmin flag set to true)');
           setIsUserAdmin(true);
           return;
@@ -59,7 +62,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
     };
 
     checkAdminStatus();
-  }, [isLoggedIn, user?.email, user?.username, user?.isAdmin]);
+  }, [isLoggedIn, user?.email, user?.username, (user as any)?.isAdmin]);
 
   const handleLogout = () => {
     logout();
@@ -93,8 +96,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
         <AuthWidget 
           onClose={() => setShowAuthWidget(false)} 
           onNavigate={(page) => {
-            setCurrentPage(page);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            navigateToPage(page);
           }}
         />
       )}
@@ -116,7 +118,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                     }
                   }}
                   className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    currentPage === item.id
+                    location.pathname === `/${item.id}` || (item.id === 'home' && location.pathname === '/')
                       ? 'text-xsm-yellow bg-xsm-medium-gray'
                       : 'text-white hover:text-xsm-yellow'
                   }`}
@@ -246,7 +248,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
                         setIsMenuOpen(false);
                       }}
                       className={`flex items-center space-x-2 w-full px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
-                        currentPage === item.id
+                        location.pathname === `/${item.id}` || (item.id === 'home' && location.pathname === '/')
                           ? 'text-xsm-yellow bg-xsm-medium-gray'
                           : 'text-white hover:text-xsm-yellow hover:bg-xsm-medium-gray'
                       }`}

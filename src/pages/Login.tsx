@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/useAuth';
 import { Input } from "@/components/ui/input";
@@ -11,10 +12,11 @@ import { Eye, EyeOff } from 'lucide-react';
 import ReCAPTCHA from 'react-google-recaptcha';
 
 interface LoginProps {
-  setCurrentPage: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
-const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
+const Login: React.FC<LoginProps> = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -74,7 +76,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
         });
         
         // Navigate directly to email-verify page for OTP verification
-        setCurrentPage('email-verify');
+        navigate('/email-verify');
         setIsLoading(false);
         return;
       }
@@ -100,7 +102,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
           description: "You have successfully logged in.",
         });
         console.log('🏠 Redirecting to home page...');
-        setCurrentPage('home');
+        navigate('/');
       } else {
         throw new Error('Login succeeded but user data is missing');
       }
@@ -123,7 +125,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
         });
         
         // Navigate directly to email-verify page for OTP verification
-        setCurrentPage('email-verify');
+        navigate('/email-verify');
       } else {
         setError(errorMessage);
         toast({
@@ -156,7 +158,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
           title: "Success!",
           description: `Welcome ${response.user.username}! You have successfully signed in with Google.`,
         });
-        setCurrentPage('home');
+        navigate('/');
       } else {
         throw new Error('Google sign-in succeeded but user data is missing');
       }
@@ -247,7 +249,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
             <div className="text-center">
               <button
                 type="button"
-                onClick={() => setCurrentPage('forgot-password')}
+                onClick={() => navigate('/forgot-password')}
                 className="text-sm text-xsm-light-gray hover:text-xsm-yellow transition-colors"
                 disabled={isLoading}
               >
@@ -282,7 +284,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
                   type="button"
                   variant="outline"
                   className="w-full border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black"
-                  onClick={() => setCurrentPage('email-verify')}
+                  onClick={() => navigate('/email-verify')}
                   disabled={isLoading}
                 >
                   Verify Email Now
@@ -319,7 +321,7 @@ const Login: React.FC<LoginProps> = ({ setCurrentPage }) => {
             <button
               onClick={() => {
                 console.log('Signup button clicked, navigating to signup page');
-                setCurrentPage('signup');
+                navigate('/signup');
               }}
               className="font-medium text-xsm-yellow hover:text-yellow-500"
               disabled={isLoading}

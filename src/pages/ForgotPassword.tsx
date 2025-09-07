@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,10 +8,11 @@ import { Loader2, Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { forgotPassword } from '@/services/auth';
 
 interface ForgotPasswordProps {
-  setCurrentPage: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
-const ForgotPassword: React.FC<ForgotPasswordProps> = ({ setCurrentPage }) => {
+const ForgotPassword: React.FC<ForgotPasswordProps> = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,7 +51,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ setCurrentPage }) => {
   };
 
   const handleBackToLogin = () => {
-    setCurrentPage('login');
+    navigate('/login');
   };
 
   const handleTryAgain = () => {
