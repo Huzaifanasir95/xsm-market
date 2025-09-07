@@ -330,16 +330,16 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
         </div>
       ) : (
         <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {ads.map((ad) => (
-              <div key={ad.id} className="bg-xsm-black/50 rounded-lg p-4 border border-xsm-medium-gray/20 shadow-sm flex flex-col items-center hover:border-xsm-yellow/30 transition-colors w-full max-w-[280px] mx-auto">
-                {/* Large Profile Picture Circle with Platform Icon */}
-                <div className="relative mb-3 flex items-center">
+              <div key={ad.id} className="bg-xsm-black/50 rounded-lg p-3 border border-xsm-medium-gray/20 shadow-sm flex flex-col items-center hover:border-xsm-yellow/30 transition-colors w-full max-w-[240px] mx-auto">
+                {/* Profile Picture Circle with Platform Icon */}
+                <div className="relative mb-2 flex items-center">
                   {/* Platform Icon on Left Side */}
                   <div className="absolute -left-4 -top-0">
                     {getPlatformIconSmall(ad.platform)}
                   </div>
-                  <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-xsm-medium-gray/30">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-xsm-medium-gray/30">
                     <img
                       src={ad.seller?.profilePicture || user?.profilePicture || '/default-avatar.png'}
                       alt="Profile"
@@ -349,67 +349,67 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
                 </div>
 
               {/* Channel Name */}
-              <h4 className="text-white font-semibold text-sm text-center mb-2 truncate w-full">
+              <h4 className="text-white font-semibold text-xs text-center mb-0.5 truncate w-full">
                 {ad.title}
               </h4>
 
               {/* Subscribers */}
-              <div className="text-center mb-1">
+              <div className="text-center mb-0.5">
                 <span className="text-blue-400 font-medium text-xs">
                   Subscribers: {formatNumber(ad.subscribers)}
                 </span>
               </div>
 
               {/* Price */}
-              <div className="text-center mb-1">
-                <span className="text-xsm-yellow font-semibold text-sm">
+              <div className="text-center mb-0.5">
+                <span className="text-xsm-yellow font-semibold text-xs">
                   Price: {formatPrice(ad.price)}
                 </span>
               </div>
 
               {/* Monetization */}
-              <div className="text-center mb-3">
+              <div className="text-center mb-1.5">
                 <span className={`text-xs ${ad.isMonetized ? 'text-green-400' : 'text-red-400'}`}>
                   Monetization: {ad.isMonetized ? 'Yes' : 'No'}
                 </span>
               </div>
 
               {/* Action Buttons - 4 Circles */}
-              <div className="flex justify-center space-x-2 w-full">
+              <div className="flex justify-center space-x-1 w-full">
                 {/* Edit Button - Yellow */}
                 <button
                   onClick={() => handleEdit(ad)}
-                  className="w-8 h-8 bg-xsm-yellow hover:bg-yellow-500 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
+                  className="w-6 h-6 bg-xsm-yellow hover:bg-yellow-500 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
                   title="Edit"
                 >
-                  <Edit className="w-4 h-4 text-xsm-black" />
+                  <Edit className="w-3 h-3 text-xsm-black" />
                 </button>
 
                 {/* Delete Button - Red */}
                 <button
                   onClick={() => handleDelete(ad.id)}
-                  className="w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
+                  className="w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
                   title="Delete"
                 >
-                  <Trash2 className="w-4 h-4 text-white" />
+                  <Trash2 className="w-3 h-3 text-white" />
                 </button>
 
                 {/* Pull Up Button - Green */}
                 <button
                   onClick={() => handlePullUp(ad.id, ad.createdAt)}
-                  className="w-8 h-8 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
+                  className="w-6 h-6 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
                   title="Pull Up"
                 >
-                  <TrendingUp className="w-4 h-4 text-white" />
+                  <TrendingUp className="w-3 h-3 text-white" />
                 </button>
 
                 {/* Pin Button - Orange */}
                 <button
                   onClick={() => handlePin(ad.id)}
-                  className="w-8 h-8 bg-orange-500 hover:bg-orange-600 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
+                  className="w-6 h-6 bg-orange-500 hover:bg-orange-600 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
                   title="Pin"
                 >
-                  <Pin className="w-4 h-4 text-white" />
+                  <Pin className="w-3 h-3 text-white" />
                 </button>
               </div>
             </div>
