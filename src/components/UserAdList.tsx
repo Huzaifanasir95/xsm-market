@@ -224,8 +224,8 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
       {/* Header with count */}
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-xsm-yellow">My Listings</h3>
-        <span className="text-sm text-xsm-light-gray bg-xsm-black/50 px-3 py-1 rounded-lg">
-          {ads.length} {ads.length === 1 ? 'listing' : 'listings'}
+        <span className="text-2xl font-bold text-xsm-yellow">
+          2
         </span>
       </div>
 

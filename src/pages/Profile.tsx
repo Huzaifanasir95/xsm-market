@@ -623,6 +623,52 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
                 </div>
               )}
             </div>
+
+            {/* Action Buttons */}
+            <div className="xsm-card">
+              <h3 className="text-lg font-bold text-xsm-yellow mb-4 text-center">Quick Actions</h3>
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    // TODO: Implement Pin Your Listing functionality
+                    showInfo('Feature coming soon', 'Pin Your Listing feature will be available soon!');
+                  }}
+                  className="w-full xsm-button-secondary flex items-center justify-center space-x-2 text-sm"
+                >
+                  <Pin className="w-4 h-4" />
+                  <span>Pin Your Listing</span>
+                </button>
+                <button
+                  onClick={() => {
+                    // TODO: Implement Get Membership functionality
+                    showInfo('Feature coming soon', 'Get Membership feature will be available soon!');
+                  }}
+                  className="w-full xsm-button-secondary flex items-center justify-center space-x-2 text-sm"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>Get Membership</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSettings(true);
+                    setActiveSettingsTab('username');
+                    setSettingsForm({
+                      username: profile.username,
+                      email: profile.email,
+                    });
+                    setSettingsPasswordForm({
+                      currentPassword: '',
+                      newPassword: '',
+                      confirmPassword: '',
+                    });
+                  }}
+                  className="w-full xsm-button-secondary flex items-center justify-center space-x-2 text-sm"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Settings</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Main Content */}
@@ -631,47 +677,6 @@ const Profile: React.FC<ProfileProps> = ({ setCurrentPage }) => {
             <div className="xsm-card">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-xsm-yellow">Profile Information</h3>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => {
-                      // TODO: Implement Pin Your Listing functionality
-                      showInfo('Feature coming soon', 'Pin Your Listing feature will be available soon!');
-                    }}
-                    className="xsm-button-secondary flex items-center space-x-2 text-sm"
-                  >
-                    <Pin className="w-4 h-4" />
-                    <span>Pin Your Listing</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      // TODO: Implement Get Membership functionality
-                      showInfo('Feature coming soon', 'Get Membership feature will be available soon!');
-                    }}
-                    className="xsm-button-secondary flex items-center space-x-2 text-sm"
-                  >
-                    <Crown className="w-4 h-4" />
-                    <span>Get Membership</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowSettings(true);
-                      setActiveSettingsTab('username');
-                      setSettingsForm({
-                        username: profile.username,
-                        email: profile.email,
-                      });
-                      setSettingsPasswordForm({
-                        currentPassword: '',
-                        newPassword: '',
-                        confirmPassword: '',
-                      });
-                    }}
-                    className="xsm-button-secondary flex items-center space-x-2 text-sm"
-                  >
-                    <Settings className="w-4 h-4" />
-                    <span>Settings</span>
-                  </button>
-                </div>
               </div>
 
               <div>
