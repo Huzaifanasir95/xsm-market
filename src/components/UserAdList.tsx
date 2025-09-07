@@ -225,7 +225,7 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-xsm-yellow">My Listings</h3>
         <span className="text-2xl font-bold text-xsm-yellow">
-          2
+          {ads.length}
         </span>
       </div>
 
