@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
@@ -18,10 +19,11 @@ const isValidEmail = (email: string): boolean => {
 };
 
 interface SignupProps {
-  setCurrentPage: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
-const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
+const Signup: React.FC<SignupProps> = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -150,7 +152,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
         });
         
         setTimeout(() => {
-          setCurrentPage('home');
+          navigate('/');
         }, 2000);
       } else {
         toast({
@@ -159,7 +161,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
         });
         
         setTimeout(() => {
-          setCurrentPage('login');
+          navigate('/login');
         }, 1500);
       }
     } catch (err) {
@@ -200,7 +202,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
     });
     
     setTimeout(() => {
-      setCurrentPage('home');
+      navigate('/');
     }, 2000);
   };
 
@@ -238,7 +240,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
           title: "Welcome!",
           description: `Welcome ${response.user.username}! Your account has been created with Google.`,
         });
-        setCurrentPage('home');
+        navigate('/');
       } else {
         throw new Error('Google sign-up succeeded but user data is missing');
       }
@@ -421,7 +423,7 @@ const Signup: React.FC<SignupProps> = ({ setCurrentPage }) => {
           <p className="text-sm text-xsm-light-gray">
             Already have an account?{' '}
             <button
-              onClick={() => setCurrentPage('login')}
+              onClick={() => navigate('/login')}
               className="font-medium text-xsm-yellow hover:text-yellow-500"
               disabled={isLoading}
             >

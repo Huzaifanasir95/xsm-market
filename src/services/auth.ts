@@ -11,7 +11,7 @@ const USER_KEY = 'userData';
 
 // Import User interface
 interface User {
-  id: number;
+  id: string;
   username: string;
   fullName?: string;
   email: string;
@@ -36,7 +36,7 @@ export interface AuthResponse {
   refreshToken?: string;
   expiresIn?: number;
   user?: {
-    id: number;
+    id: string;
     username: string;
     fullName?: string;
     email: string;
@@ -209,7 +209,7 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}): Promi
   return response;
 };
 
-export const login = async (email: string, password: string): Promise<AuthResponse> => {
+export const login = async (email: string, password: string, recaptchaToken?: string): Promise<AuthResponse> => {
   try {
     console.log('🔄 Starting login process for:', email);
     
@@ -218,7 +218,7 @@ export const login = async (email: string, password: string): Promise<AuthRespon
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, recaptchaToken }),
       credentials: 'include'
     });
 
@@ -279,7 +279,7 @@ export const login = async (email: string, password: string): Promise<AuthRespon
   }
 };
 
-export const register = async (username: string, email: string, password: string, fullName?: string): Promise<AuthResponse> => {
+export const register = async (username: string, email: string, password: string, recaptchaToken?: string, fullName?: string): Promise<AuthResponse> => {
   try {
     console.log('Attempting to register with:', { 
       username, 
@@ -321,6 +321,7 @@ export const register = async (username: string, email: string, password: string
         username: username.trim(),
         email: email.trim().toLowerCase(),
         password,
+        recaptchaToken,
         fullName: fullName?.trim() || ''
       }),
       mode: 'cors',

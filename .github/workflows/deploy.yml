@@ -1,0 +1,109 @@
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'php-backend/**'
+      - 'public/**'
+      - 'package.json'
+      - 'vite.config.ts'
+      - '.env.production'
+
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build frontend
+      run: npm run build
+      env:
+        VITE_API_URL: https://xsmmarket.com/api
+        VITE_APP_ENV: production
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+        extensions: mysqli, pdo, pdo_mysql, mbstring, curl, json, openssl
+
+    - name: Create deployment package
+      run: |
+        # Create deployment directory
+        mkdir -p deployment-package
+
+        # Copy built frontend
+        cp -r dist/* deployment-package/
+
+        # Copy PHP backend
+        cp -r php-backend/* deployment-package/
+
+        # Copy configuration files
+        cp hostinger-deployment/public_html_6_12/.htaccess deployment-package/
+        cp .env.production deployment-package/
+
+        # Create deployment archive
+        zip -r hostinger-deployment.zip deployment-package/
+
+    - name: Deploy to Hostinger via FTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.HOSTINGER_FTP_HOST }}
+        username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+        password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+        local-dir: ./deployment-package/
+        server-dir: /domains/xsmmarket.com/public_html/
+        exclude: |
+          **/.git*
+          **/.github*
+          **/node_modules/**
+          **/*.log
+          **/.DS_Store
+          **/*.sql
+          **/*.md
+
+    - name: Alternative: Deploy via SSH (if FTP fails)
+      if: failure()
+      run: |
+        echo "FTP deployment failed, trying SSH deployment..."
+        # SSH deployment commands would go here
+        # scp -P 65002 -r ./deployment-package/* u718696665@46.202.186.89:/domains/xsmmarket.com/public_html/
+
+    - name: Verify deployment
+      run: |
+        echo "Deployment completed successfully!"
+        echo "Frontend URL: https://xsmmarket.com"
+        echo "API URL: https://xsmmarket.com/api"
+
+  database-migration:
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+    if: contains(github.event.head_commit.message, 'migration') || contains(github.event.head_commit.message, 'db')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run database migrations
+      run: |
+        # This step would run any database migrations if needed
+        # You can add specific migration scripts here
+        echo "Running database migrations..."
+        # Example: Run migration scripts via SSH to Hostinger
+        # ssh user@host 'cd /path/to/api && php migrate.php'

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Upload, ChevronDown, Search, RefreshCw, X } from 'lucide-react';
 import { createAd } from '../services/ads';
 import { extractProfileData, detectPlatform, formatFollowerCount } from '../services/socialMedia';
@@ -6,10 +7,11 @@ import { uploadScreenshots } from '../services/uploadService';
 import { useToast } from "@/components/ui/use-toast";
 
 interface SellChannelProps {
-  setCurrentPage?: (page: string) => void;
+  // No longer need setCurrentPage
 }
 
-const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
+const SellChannel: React.FC<SellChannelProps> = () => {
+  const navigate = useNavigate();
   const contentTypes = ["Unique content", "Rewritten", "Not unique content", "Mixed"];
   const contentCategories = [
     "Cars & Bikes", 
@@ -279,9 +281,7 @@ const SellChannel: React.FC<SellChannelProps> = ({ setCurrentPage }) => {
       // Small delay before redirect to let user see the success message
       setTimeout(() => {
         // Redirect to homepage to see the new listing
-        if (setCurrentPage) {
-          setCurrentPage('home');
-        }
+        navigate('/');
       }, 1500);
     } catch (error: any) {
       toast({
