@@ -190,6 +190,17 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
     );
   };
 
+  const getPlatformIconSmall = (platform: string) => {
+    const iconMap: { [key: string]: JSX.Element } = {
+      'youtube': <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center"><span className="text-white text-xs font-bold">YT</span></div>,
+      'instagram': <div className="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center"><span className="text-white text-xs font-bold">IG</span></div>,
+      'tiktok': <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center"><span className="text-white text-xs font-bold">TT</span></div>,
+      'facebook': <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center"><span className="text-white text-xs font-bold">FB</span></div>,
+      'twitter': <div className="w-6 h-6 bg-blue-400 rounded-full flex items-center justify-center"><span className="text-white text-xs font-bold">TW</span></div>,
+    };
+    return iconMap[platform.toLowerCase()] || <div className="w-6 h-6 bg-gray-500 rounded-full flex items-center justify-center"><span className="text-white text-xs font-bold">{platform.charAt(0).toUpperCase()}</span></div>;
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -245,124 +256,86 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {ads.map((ad) => (
-            <div key={ad.id} className="bg-xsm-black/50 rounded-lg p-6 border border-xsm-medium-gray/20">
-              {/* Header with Profile Picture and Title */}
-              <div className="flex items-start gap-4 mb-4">
-                <div className="flex-shrink-0">
+            <div key={ad.id} className="bg-xsm-black/50 rounded-lg p-4 border border-xsm-medium-gray/20 shadow-sm flex flex-col items-center hover:border-xsm-yellow/30 transition-colors">
+              {/* Large Profile Picture Circle */}
+              <div className="relative mb-4">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-xsm-medium-gray/30">
                   <img
                     src={ad.seller?.profilePicture || user?.profilePicture || '/default-avatar.png'}
                     alt="Profile"
-                    className="w-12 h-12 rounded-full object-cover border-2 border-xsm-yellow/30"
+                    className="w-full h-full object-cover"
                   />
                 </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h4 className="text-white font-semibold text-lg truncate">{ad.title}</h4>
-                    {getPlatformIcon(ad.platform)}
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(ad.status)}`}>
-                      {ad.status.charAt(0).toUpperCase() + ad.status.slice(1)}
-                    </span>
-                  </div>
-                  
-                  <div className="text-sm text-xsm-light-gray">
-                    @{ad.seller?.username || user?.username}
-                  </div>
+                {/* Platform Icon in Corner */}
+                <div className="absolute -top-1 -right-1">
+                  {getPlatformIconSmall(ad.platform)}
                 </div>
               </div>
 
-              {/* Key Metrics */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                {/* Subscribers */}
-                <div className="bg-xsm-dark-gray/50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Eye className="w-4 h-4 text-blue-400" />
-                    <span className="text-xs text-xsm-light-gray">Subscribers</span>
-                  </div>
-                  <div className="text-white font-semibold">{formatNumber(ad.subscribers)}</div>
-                </div>
+              {/* Channel Name */}
+              <h4 className="text-white font-semibold text-sm text-center mb-2 truncate w-full">
+                {ad.title}
+              </h4>
 
-                {/* Price */}
-                <div className="bg-xsm-dark-gray/50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <DollarSign className="w-4 h-4 text-xsm-yellow" />
-                    <span className="text-xs text-xsm-light-gray">Price</span>
-                  </div>
-                  <div className="text-xsm-yellow font-semibold">{formatPrice(ad.price)}</div>
-                </div>
-
-                {/* Monthly Income */}
-                <div className="bg-xsm-dark-gray/50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <TrendingUp className="w-4 h-4 text-green-400" />
-                    <span className="text-xs text-xsm-light-gray">Monthly Income</span>
-                  </div>
-                  <div className="text-green-400 font-semibold">
-                    {ad.monthlyIncome > 0 ? formatPrice(ad.monthlyIncome) : 'N/A'}
-                  </div>
-                </div>
-
-                {/* Monetization Status */}
-                <div className="bg-xsm-dark-gray/50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    {ad.isMonetized ? (
-                      <CheckCircle className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-red-400" />
-                    )}
-                    <span className="text-xs text-xsm-light-gray">Monetized</span>
-                  </div>
-                  <div className={`font-semibold ${ad.isMonetized ? 'text-green-400' : 'text-red-400'}`}>
-                    {ad.isMonetized ? 'Yes' : 'No'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Info */}
-              <div className="flex flex-wrap items-center gap-4 text-sm text-xsm-light-gray mb-4">
-                <span>{ad.category}</span>
-                <span>Created: {new Date(ad.createdAt).toLocaleDateString()}</span>
-                <span className="flex items-center gap-1">
-                  <Eye className="w-3 h-3" />
-                  {ad.views} views
+              {/* Subscribers */}
+              <div className="text-center mb-1">
+                <span className="text-blue-400 font-medium text-sm">
+                  Subscribers: {formatNumber(ad.subscribers)}
                 </span>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3">
+              {/* Price */}
+              <div className="text-center mb-1">
+                <span className="text-xsm-yellow font-semibold">
+                  Price: {formatPrice(ad.price)}
+                </span>
+              </div>
+
+              {/* Monetization */}
+              <div className="text-center mb-4">
+                <span className={`text-sm ${ad.isMonetized ? 'text-green-400' : 'text-red-400'}`}>
+                  Monetization: {ad.isMonetized ? 'Yes' : 'No'}
+                </span>
+              </div>
+
+              {/* Action Buttons - 4 Circles */}
+              <div className="flex justify-center space-x-2">
+                {/* Edit Button - Yellow */}
                 <button
                   onClick={() => handleEdit(ad)}
-                  className="xsm-button-secondary flex items-center gap-2"
+                  className="w-8 h-8 bg-xsm-yellow hover:bg-yellow-500 rounded-full flex items-center justify-center transition-colors"
+                  title="Edit"
                 >
-                  <Edit className="w-4 h-4" />
-                  Edit
+                  <Edit className="w-4 h-4 text-xsm-black" />
                 </button>
-                
+
+                {/* Delete Button - Red */}
                 <button
                   onClick={() => handleDelete(ad.id)}
-                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                  className="w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors"
+                  title="Delete"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
+                  <Trash2 className="w-4 h-4 text-white" />
                 </button>
 
+                {/* Pull Up Button - Green */}
                 <button
                   onClick={() => handlePullUp(ad.id, ad.createdAt)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                  className="w-8 h-8 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center transition-colors"
+                  title="Pull Up"
                 >
-                  <TrendingUp className="w-4 h-4" />
-                  Pull Up
+                  <TrendingUp className="w-4 h-4 text-white" />
                 </button>
 
+                {/* Pin Button - Orange */}
                 <button
                   onClick={() => handlePin(ad.id)}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors opacity-50 cursor-not-allowed"
-                  disabled
+                  className="w-8 h-8 bg-orange-500 hover:bg-orange-600 rounded-full flex items-center justify-center transition-colors"
+                  title="Pin"
                 >
-                  <Pin className="w-4 h-4" />
-                  Pin (Soon)
+                  <Pin className="w-4 h-4 text-white" />
                 </button>
               </div>
             </div>
