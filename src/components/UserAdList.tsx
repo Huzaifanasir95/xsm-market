@@ -4,6 +4,40 @@ import { useAuth } from '../context/useAuth';
 import { Star, Eye, Trash2, Edit, AlertCircle, TrendingUp, Pin, DollarSign, CheckCircle, XCircle } from 'lucide-react';
 import EditListingModal from './EditListingModal';
 
+// Custom scrollbar styles to match the main page
+const scrollbarStyles = `
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #ffd000 #1A1A1A;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #1A1A1A;
+    border-radius: 6px;
+    border: 1px solid #333333;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ffd000 0%, #ffaa00 100%);
+    border-radius: 6px;
+    border: 2px solid #1A1A1A;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #ffdd33 0%, #ffbb33 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #e6b800 0%, #cc9900 100%);
+  }
+`;
+
 interface UserAd {
   id: number;
   title: string;
@@ -268,6 +302,9 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
 
   return (
     <div className="space-y-6">
+      {/* Inject custom scrollbar styles */}
+      <style dangerouslySetInnerHTML={{ __html: scrollbarStyles }} />
+      
       {/* Header with count */}
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-xsm-yellow">My Listings</h3>
@@ -292,23 +329,24 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {ads.map((ad) => (
-            <div key={ad.id} className="bg-xsm-black/50 rounded-lg p-4 border border-xsm-medium-gray/20 shadow-sm flex flex-col items-center hover:border-xsm-yellow/30 transition-colors w-full max-w-[280px] mx-auto">
-              {/* Large Profile Picture Circle with Platform Icon */}
-              <div className="relative mb-3 flex items-center">
-                {/* Platform Icon on Left Side */}
-                <div className="absolute -left-8 -top-0">
-                  {getPlatformIconSmall(ad.platform)}
+        <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {ads.map((ad) => (
+              <div key={ad.id} className="bg-xsm-black/50 rounded-lg p-4 border border-xsm-medium-gray/20 shadow-sm flex flex-col items-center hover:border-xsm-yellow/30 transition-colors w-full max-w-[280px] mx-auto">
+                {/* Large Profile Picture Circle with Platform Icon */}
+                <div className="relative mb-3 flex items-center">
+                  {/* Platform Icon on Left Side */}
+                  <div className="absolute -left-8 -top-0">
+                    {getPlatformIconSmall(ad.platform)}
+                  </div>
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-xsm-medium-gray/30">
+                    <img
+                      src={ad.seller?.profilePicture || user?.profilePicture || '/default-avatar.png'}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                 </div>
-                <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-xsm-medium-gray/30">
-                  <img
-                    src={ad.seller?.profilePicture || user?.profilePicture || '/default-avatar.png'}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
 
               {/* Channel Name */}
               <h4 className="text-white font-semibold text-sm text-center mb-2 truncate w-full">
@@ -376,6 +414,7 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 
