@@ -417,5 +417,19 @@ class Ad {
             ':pinnedAt' => $pinnedAt
         ]);
     }
+    
+    public static function pullUpAd($id, $pulledAt) {
+        $pdo = Database::getConnection();
+        
+        // Update lastPulledAt and also update createdAt to make it appear at top of listings
+        $sql = "UPDATE " . self::$table . " SET lastPulledAt = :pulledAt, createdAt = :createdAt WHERE id = :id";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            ':id' => $id,
+            ':pulledAt' => $pulledAt,
+            ':createdAt' => $pulledAt
+        ]);
+    }
 }
 ?>

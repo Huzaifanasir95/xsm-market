@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUserAds, getUserAdsAlternative, deleteAd, togglePinAd } from '../services/ads';
+import { getUserAds, getUserAdsAlternative, deleteAd, togglePinAd, pullUpAd } from '../services/ads';
 import { useAuth } from '../context/useAuth';
-import { Star, Eye, Trash2, Edit, AlertCircle, TrendingUp, Pin, DollarSign, CheckCircle, XCircle } from 'lucide-react';
+import { Star, Eye, Trash2, Edit, AlertCircle, TrendingUp, Pin, DollarSign, CheckCircle, XCircle, Clock } from 'lucide-react';
 import EditListingModal from './EditListingModal';
 
 // Custom scrollbar styles to match the main page
@@ -62,6 +62,7 @@ interface UserAd {
   tags?: string[];
   pinned?: boolean;
   pinnedAt?: string;
+  lastPulledAt?: string;
   seller?: {
     id: number;
     username: string;
@@ -79,11 +80,74 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
   const [error, setError] = useState<string | null>(null);
   const [editingAd, setEditingAd] = useState<UserAd | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [pullCooldowns, setPullCooldowns] = useState<Record<number, {
+    canPull: boolean;
+    remainingTime?: {
+      days: number;
+      hours: number;
+      minutes: number;
+      seconds: number;
+    };
+  }>>({});
+  const [showPullModal, setShowPullModal] = useState(false);
+  const [selectedAdForPull, setSelectedAdForPull] = useState<UserAd | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
     fetchUserAds();
   }, [user]);
+
+  // Calculate pull cooldowns for all ads
+  useEffect(() => {
+    const calculateCooldowns = () => {
+      const cooldowns: Record<number, {
+        canPull: boolean;
+        remainingTime?: {
+          days: number;
+          hours: number;
+          minutes: number;
+          seconds: number;
+        };
+      }> = {};
+
+      ads.forEach(ad => {
+        // Only check cooldown for ads that have been pulled before
+        if (ad.lastPulledAt) {
+          const lastPulledAt = new Date(ad.lastPulledAt);
+          const now = new Date();
+          const timeDiff = now.getTime() - lastPulledAt.getTime();
+          const fourDaysInMs = 4 * 24 * 60 * 60 * 1000;
+
+          if (timeDiff >= fourDaysInMs) {
+            cooldowns[ad.id] = { canPull: true };
+          } else {
+            const remainingMs = fourDaysInMs - timeDiff;
+            const days = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
+            const hours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+            const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+            const seconds = Math.floor((remainingMs % (60 * 1000)) / 1000);
+
+            cooldowns[ad.id] = {
+              canPull: false,
+              remainingTime: { days, hours, minutes, seconds }
+            };
+          }
+        } else {
+          // Ads that have never been pulled can always be pulled
+          cooldowns[ad.id] = { canPull: true };
+        }
+      });
+
+      setPullCooldowns(cooldowns);
+    };
+
+    if (ads.length > 0) {
+      calculateCooldowns();
+      // Update cooldowns every second for live countdown
+      const interval = setInterval(calculateCooldowns, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [ads]);
 
   const fetchUserAds = async () => {
     try {
@@ -147,26 +211,31 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
     }
   };
 
-  const handlePullUp = async (id: number, createdAt: string) => {
-    // Check if 4 days have passed since creation or last pull
-    const lastPull = new Date(createdAt);
-    const now = new Date();
-    const daysDiff = Math.floor((now.getTime() - lastPull.getTime()) / (1000 * 60 * 60 * 24));
+  const handlePullUp = async (id: number) => {
+    // Find the ad
+    const ad = ads.find(a => a.id === id);
+    if (!ad) return;
     
-    if (daysDiff < 4) {
-      alert(`You can pull up this listing in ${4 - daysDiff} more day(s). Listings can only be pulled up every 4 days.`);
-      return;
-    }
+    // Set the selected ad and show modal
+    setSelectedAdForPull(ad);
+    setShowPullModal(true);
+  };
 
-    if (!window.confirm('Pull up this listing to show at the top of market listings?')) {
-      return;
-    }
-
+  const confirmPullUp = async () => {
+    if (!selectedAdForPull) return;
+    
     try {
-      // TODO: Implement pull up API call
-      alert('Pull up functionality will be implemented soon!');
+      const result = await pullUpAd(selectedAdForPull.id);
+      if (result.success) {
+        // Refresh the ads list to show the updated position
+        await fetchUserAds();
+        setShowPullModal(false);
+        setSelectedAdForPull(null);
+        alert('Listing pulled up successfully! It will now appear at the top of market listings.');
+      }
     } catch (err: any) {
-      alert(err.message || 'Failed to pull up listing');
+      // Keep modal open to show error
+      console.error('Pull up error:', err);
     }
   };
 
@@ -426,9 +495,9 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
                   <Trash2 className="w-3 h-3 text-white" />
                 </button>
 
-                {/* Pull Up Button - Green */}
+                {/* Pull Up Button - Always Green and Clickable */}
                 <button
-                  onClick={() => handlePullUp(ad.id, ad.createdAt)}
+                  onClick={() => handlePullUp(ad.id)}
                   className="w-6 h-6 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
                   title="Pull Up"
                 >
@@ -458,6 +527,101 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
           onClose={handleEditModalClose}
           onUpdate={handleAdUpdate}
         />
+      )}
+
+      {/* Pull Up Modal */}
+      {showPullModal && selectedAdForPull && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
+            <div className="text-center">
+              <div className="mb-4">
+                <TrendingUp className="w-16 h-16 text-xsm-yellow mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  Pull Up Listing
+                </h3>
+                <p className="text-sm text-gray-300 mb-4">
+                  "{selectedAdForPull.title}"
+                </p>
+              </div>
+
+              {/* Check if ad can be pulled or is on cooldown */}
+              {pullCooldowns[selectedAdForPull.id] && !pullCooldowns[selectedAdForPull.id].canPull ? (
+                /* Show countdown if on cooldown */
+                <div className="mb-6">
+                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-300 mb-3">
+                    <Clock className="w-5 h-5 text-red-400" />
+                    <span className="font-medium">Pull-up available in:</span>
+                  </div>
+                  <div className="flex items-center justify-center space-x-4 text-sm font-mono bg-gray-800 rounded-lg p-4 border border-gray-600">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-red-400">
+                        {pullCooldowns[selectedAdForPull.id].remainingTime?.days || 0}
+                      </div>
+                      <div className="text-gray-400 text-xs">days</div>
+                    </div>
+                    <div className="text-gray-500 text-xl">:</div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-400">
+                        {String(pullCooldowns[selectedAdForPull.id].remainingTime?.hours || 0).padStart(2, '0')}
+                      </div>
+                      <div className="text-gray-400 text-xs">hrs</div>
+                    </div>
+                    <div className="text-gray-500 text-xl">:</div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-yellow-400">
+                        {String(pullCooldowns[selectedAdForPull.id].remainingTime?.minutes || 0).padStart(2, '0')}
+                      </div>
+                      <div className="text-gray-400 text-xs">min</div>
+                    </div>
+                    <div className="text-gray-500 text-xl">:</div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-400">
+                        {String(pullCooldowns[selectedAdForPull.id].remainingTime?.seconds || 0).padStart(2, '0')}
+                      </div>
+                      <div className="text-gray-400 text-xs">sec</div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-3">
+                    Listings can only be pulled up every 4 days
+                  </p>
+                </div>
+              ) : (
+                /* Show confirmation if can be pulled */
+                <div className="mb-6">
+                  <p className="text-gray-300">
+                    Are you sure you want to pull up this listing? It will appear at the top of the marketplace.
+                  </p>
+                  {selectedAdForPull.lastPulledAt && (
+                    <p className="text-xs text-gray-400 mt-2">
+                      Last pulled: {new Date(selectedAdForPull.lastPulledAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowPullModal(false);
+                    setSelectedAdForPull(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors border border-gray-600"
+                >
+                  Close
+                </button>
+                {pullCooldowns[selectedAdForPull.id]?.canPull && (
+                  <button
+                    onClick={confirmPullUp}
+                    className="flex-1 px-4 py-2 bg-xsm-yellow text-xsm-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors"
+                  >
+                    Pull Up
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

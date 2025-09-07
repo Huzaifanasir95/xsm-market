@@ -276,6 +276,11 @@ function handleAdRoutes($controller, $path, $method) {
         if ($method === 'PUT') $controller->togglePin($adId);
         else methodNotAllowed();
     }
+    elseif (preg_match('/^\/ads\/(\d+)\/pull-up$/', $path, $matches)) {
+        $adId = $matches[1];
+        if ($method === 'PUT') $controller->pullUpAd($adId);
+        else methodNotAllowed();
+    }
     elseif ($path === '/ads/upload/screenshots' && $method === 'POST') {
         $uploadController = new AdUploadController();
         $uploadController->uploadScreenshots();
