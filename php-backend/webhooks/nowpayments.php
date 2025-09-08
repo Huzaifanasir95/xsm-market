@@ -13,13 +13,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../utils/NOWPaymentsAPI.php';
 
+// Load environment variables - try multiple locations
+$envFile = __DIR__ . '/../.env';
+if (!file_exists($envFile)) {
+    $envFile = __DIR__ . '/../../.env.production';
+}
+if (!file_exists($envFile)) {
+    $envFile = __DIR__ . '/../.env.production';
+}
+if (file_exists($envFile)) {
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos(trim($line), '#') === 0) continue; // Skip comments
+        if (strpos($line, '=') !== false) {
+            list($name, $value) = explode('=', $line, 2);
+            $_ENV[trim($name)] = trim($value);
+        }
+    }
+}
+
 // Print to console when webhook is hit
 echo "🚀 NOWPayments Webhook Hit at " . date('Y-m-d H:i:s') . "\n";
 error_log("🚀 NOWPayments Webhook endpoint accessed at " . date('Y-m-d H:i:s'));
 
 // Log all webhook requests for debugging
-function logWebhook($message) {
-    $logFile = __DIR__ . '/../logs/webhook.log';
+function logWebhook($message, $data = null) {
+    $logFile = __DIR__ . '/../../logs/webhook.log';
     
     // Create logs directory if it doesn't exist
     $logDir = dirname($logFile);
@@ -28,8 +47,37 @@ function logWebhook($message) {
     }
     
     $timestamp = date('Y-m-d H:i:s');
-    file_put_contents($logFile, "[$timestamp] $message
-", FILE_APPEND | LOCK_EX);
+    $logEntry = "[$timestamp] $message";
+    if ($data !== null) {
+        $logEntry .= " | Data: " . json_encode($data);
+    }
+    file_put_contents($logFile, $logEntry . "\n", FILE_APPEND | LOCK_EX);
+}
+
+// NOWPayments IPN signature verification according to official documentation
+function verifyNowPaymentsSignature($requestBody, $receivedSignature, $ipnSecret) {
+    // Parse JSON to array
+    $data = json_decode($requestBody, true);
+    if (!$data) {
+        return false;
+    }
+    
+    // Sort by keys and convert back to JSON string (NOWPayments requirement)
+    ksort($data);
+    $sortedJson = json_encode($data, JSON_UNESCAPED_SLASHES);
+    
+    // Create HMAC SHA-512 signature
+    $calculatedSignature = hash_hmac('sha512', $sortedJson, $ipnSecret);
+    
+    logWebhook('Signature verification', [
+        'sorted_json' => $sortedJson,
+        'calculated_sig' => $calculatedSignature,
+        'received_sig' => $receivedSignature,
+        'match' => hash_equals($calculatedSignature, $receivedSignature)
+    ]);
+    
+    // Use hash_equals for timing attack protection
+    return hash_equals($calculatedSignature, $receivedSignature);
 }
 
 try {
@@ -43,31 +91,57 @@ try {
         exit();
     }
 
-    // Get the request body
+    // Get the request body and signature
     $requestBody = file_get_contents('php://input');
     $signature = $_SERVER['HTTP_X_NOWPAYMENTS_SIG'] ?? '';
 
     logWebhook('Webhook received', [
         'signature' => $signature,
-        'body' => $requestBody,
+        'body_length' => strlen($requestBody),
         'headers' => getallheaders()
     ]);
 
-    // Initialize NOWPayments API
-    $nowPayments = new NOWPaymentsAPI();
-
-    // For testing purposes, temporarily skip signature verification
-    // TODO: Remove this in production and enable proper signature verification
-    $skipSignatureVerification = true;
+    // Get IPN Secret from environment based on current environment
+    $environment = $_ENV['NOW_PAYMENTS_ENVIRONMENT'] ?? 'sandbox';
+    $ipnSecret = $environment === 'production' 
+        ? $_ENV['NOW_PAYMENTS_IPN_SECRET_PRODUCTION'] 
+        : $_ENV['NOW_PAYMENTS_IPN_SECRET_SANDBOX'];
     
-    // Verify the webhook signature
-    if (!$skipSignatureVerification && !$nowPayments->verifyIPN($requestBody, $signature)) {
-        logWebhook('Invalid signature', ['expected_signature' => $signature]);
-        http_response_code(401);
-        echo json_encode(['error' => 'Invalid signature']);
+    if (!$ipnSecret) {
+        logWebhook('❌ IPN Secret not configured', ['environment' => $environment]);
+        http_response_code(500);
+        echo json_encode(['error' => 'IPN Secret not configured']);
         exit();
-    } else if ($skipSignatureVerification) {
-        logWebhook('⚠️ Signature verification SKIPPED for testing', ['signature' => $signature]);
+    }
+    
+    // Enable signature verification in production (CRITICAL FOR SECURITY)
+    $enableSignatureVerification = ($environment === 'production');
+    
+    logWebhook('IPN Configuration', [
+        'environment' => $environment,
+        'verification_enabled' => $enableSignatureVerification,
+        'secret_configured' => !empty($ipnSecret)
+    ]);
+    
+    // Verify the webhook signature according to NOWPayments documentation
+    if ($enableSignatureVerification) {
+        if (!$signature) {
+            logWebhook('Missing signature header');
+            http_response_code(401);
+            echo json_encode(['error' => 'Missing signature']);
+            exit();
+        }
+        
+        if (!verifyNowPaymentsSignature($requestBody, $signature, $ipnSecret)) {
+            logWebhook('Invalid signature verification failed');
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid signature']);
+            exit();
+        }
+        
+        logWebhook('✅ Signature verification passed');
+    } else {
+        logWebhook('⚠️ Signature verification DISABLED for testing', ['signature' => $signature]);
     }
 
     // Parse the webhook data
@@ -303,8 +377,10 @@ function handleSuccessfulPayment($pdo, $dealId, $paymentId, $webhookData) {
         
         // Send agent email to seller via chat (same as in deals.php)
         try {
-            // Get admin email from environment
-            $admin_email = $_ENV['admin_email'] ?? 'hamzasheikh1228@gmail.com';
+            // Get admin email from environment - try different environment variable names
+            $admin_email = $_ENV['ADMIN_EMAIL'] ?? $_ENV['admin_email'] ?? 'hamzasheikh1228@gmail.com';
+            
+            logWebhook('Using admin email', ['admin_email' => $admin_email]);
             
             // Find the chat for this deal (based on seller and channel)
             $chatStmt = $pdo->prepare("
@@ -319,6 +395,13 @@ function handleSuccessfulPayment($pdo, $dealId, $paymentId, $webhookData) {
             ");
             $chatStmt->execute([$deal['buyer_id'], $deal['seller_id']]);
             $chat = $chatStmt->fetch(PDO::FETCH_ASSOC);
+            
+            logWebhook('Chat search result', [
+                'buyer_id' => $deal['buyer_id'],
+                'seller_id' => $deal['seller_id'],
+                'chat_found' => !empty($chat),
+                'chat_id' => $chat['chat_id'] ?? 'none'
+            ]);
             
             if ($chat) {
                 // Send automatic message with agent email
@@ -339,9 +422,11 @@ function handleSuccessfulPayment($pdo, $dealId, $paymentId, $webhookData) {
                 $chatUpdateStmt->execute(['System: Agent email provided for account access', $chat['chat_id']]);
                 
                 logWebhook('✅ Agent email message sent to chat', ['chat_id' => $chat['chat_id']]);
+            } else {
+                logWebhook('⚠️ No chat found for this deal - agent email will still be marked as sent');
             }
             
-            // Update deal with agent email sent status
+            // ALWAYS update deal with agent email sent status (even if chat not found)
             $agentEmailStmt = $pdo->prepare("
                 UPDATE deals 
                 SET agent_email_sent = TRUE,
@@ -350,7 +435,13 @@ function handleSuccessfulPayment($pdo, $dealId, $paymentId, $webhookData) {
                     updated_at = NOW()
                 WHERE id = ?
             ");
-            $agentEmailStmt->execute([$dealId]);
+            $agentEmailResult = $agentEmailStmt->execute([$dealId]);
+            
+            logWebhook('Agent email status update', [
+                'deal_id' => $dealId,
+                'update_success' => $agentEmailResult,
+                'rows_affected' => $agentEmailStmt->rowCount()
+            ]);
             
             // Add history record for agent email sent
             $agentHistoryStmt = $pdo->prepare("
@@ -358,13 +449,35 @@ function handleSuccessfulPayment($pdo, $dealId, $paymentId, $webhookData) {
                 VALUES (?, 'agent_email_sent', 1, ?, NOW())
             ");
             $agent_email_description = "Agent email ({$admin_email}) sent to seller for account access via webhook";
-            $agentHistoryStmt->execute([$dealId, $agent_email_description]);
+            $agentHistoryResult = $agentHistoryStmt->execute([$dealId, $agent_email_description]);
             
-            logWebhook('✅ Agent email sent and deal status updated to agent_access_pending');
+            logWebhook('Agent email history update', [
+                'deal_id' => $dealId,
+                'history_success' => $agentHistoryResult
+            ]);
+            
+            logWebhook('✅ Agent email process completed', [
+                'deal_status_updated' => $agentEmailResult,
+                'chat_message_sent' => !empty($chat)
+            ]);
             
         } catch (Exception $e) {
-            logWebhook('❌ Error sending agent email via webhook', ['error' => $e->getMessage()]);
-            // Don't fail the webhook if agent email fails
+            logWebhook('❌ Error in agent email process', ['error' => $e->getMessage()]);
+            
+            // Even if there's an error, try to mark as sent to avoid blocking the deal
+            try {
+                $fallbackStmt = $pdo->prepare("
+                    UPDATE deals 
+                    SET agent_email_sent = TRUE,
+                        agent_email_sent_at = NOW(),
+                        updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $fallbackStmt->execute([$dealId]);
+                logWebhook('✅ Fallback: Agent email marked as sent despite error');
+            } catch (Exception $fallbackError) {
+                logWebhook('❌ Fallback failed too', ['error' => $fallbackError->getMessage()]);
+            }
         }
         
     } else {
