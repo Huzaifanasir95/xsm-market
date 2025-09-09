@@ -93,6 +93,8 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
   const [selectedAdForPull, setSelectedAdForPull] = useState<UserAd | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [selectedAdForPin, setSelectedAdForPin] = useState<UserAd | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedAdForDelete, setSelectedAdForDelete] = useState<UserAd | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -208,13 +210,22 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this listing?')) {
-      return;
-    }
+    // Find the ad and show delete confirmation modal
+    const ad = ads.find(a => a.id === id);
+    if (!ad) return;
+    
+    setSelectedAdForDelete(ad);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedAdForDelete) return;
 
     try {
-      await deleteAd(id);
+      await deleteAd(selectedAdForDelete.id);
       await fetchUserAds(); // Refresh the list
+      setShowDeleteModal(false);
+      setSelectedAdForDelete(null);
     } catch (err: any) {
       alert(err.message || 'Failed to delete ad');
     }
@@ -690,6 +701,50 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
                   className="flex-1 px-4 py-2 bg-xsm-yellow text-xsm-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors"
                 >
                   {selectedAdForPin.pinned ? 'Unpin' : 'Pin'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && selectedAdForDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
+            <div className="text-center">
+              <div className="mb-4">
+                <Trash2 className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  Delete Listing
+                </h3>
+                <p className="text-sm text-gray-300 mb-4">
+                  "{selectedAdForDelete.title}"
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-300">
+                  Are you sure you want to delete this listing? This action cannot be undone.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setSelectedAdForDelete(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors border border-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Delete
                 </button>
               </div>
             </div>
