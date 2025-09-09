@@ -96,7 +96,9 @@ const Home: React.FC<HomeProps> = () => {
     "Models & Celebs",
     "Reviews & How-To", 
     "YT Shorts & FB Reels",
-    "Crypto & NFT"
+    "Crypto & NFT",
+    "Cartoon & Funny",
+    "Religious & Spiritual"
   ];
   
   const channelTypes = ['Non Monitied', 'Premium', 'Monetized', 'New'];

@@ -57,7 +57,9 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
     "Models & Celebs",
     "Reviews & How-To", 
     "YT Shorts & FB Reels",
-    "Crypto & NFT"
+    "Crypto & NFT",
+    "Cartoon & Funny",
+    "Religious & Spiritual"
   ];
 
   const [formData, setFormData] = useState({
