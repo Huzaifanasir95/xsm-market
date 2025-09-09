@@ -277,7 +277,7 @@ const SellChannel: React.FC<SellChannelProps> = () => {
       
       toast({
         title: "Listing Created Successfully! 🎉",
-        description: "Your listing is now live on the marketplace! Redirecting to homepage...",
+        description: "Your listing is now live on the marketplace! Redirecting to your profile...",
       });
       
       // Reset form
@@ -303,8 +303,10 @@ const SellChannel: React.FC<SellChannelProps> = () => {
 
       // Small delay before redirect to let user see the success message
       setTimeout(() => {
-        // Redirect to homepage to see the new listing
-        navigate('/');
+        // Redirect to profile page to see the new listing
+        navigate('/profile');
+        // Ensure we scroll to top of the profile page
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 1500);
     } catch (error: any) {
       toast({

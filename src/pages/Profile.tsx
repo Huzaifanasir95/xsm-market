@@ -125,6 +125,11 @@ const Profile: React.FC<ProfileProps> = () => {
     description: user?.description || ''
   });
 
+  // Scroll to top when Profile component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   // Update profile when user data changes
   useEffect(() => {
     if (user) {
