@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserAds, getUserAdsAlternative, deleteAd, togglePinAd, pullUpAd } from '../services/ads';
 import { useAuth } from '../context/useAuth';
+import { useNotifications } from '../context/NotificationContext';
 import { Star, Eye, Trash2, Edit, AlertCircle, TrendingUp, Pin, DollarSign, CheckCircle, XCircle, Clock } from 'lucide-react';
 import EditListingModal from './EditListingModal';
 
@@ -96,6 +97,7 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAdForDelete, setSelectedAdForDelete] = useState<UserAd | null>(null);
   const { user } = useAuth();
+  const { showSuccess, showError, showInfo } = useNotifications();
 
   useEffect(() => {
     fetchUserAds();
@@ -226,8 +228,9 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
       await fetchUserAds(); // Refresh the list
       setShowDeleteModal(false);
       setSelectedAdForDelete(null);
+      showSuccess('Listing Deleted!', 'Your listing has been deleted successfully!');
     } catch (err: any) {
-      alert(err.message || 'Failed to delete ad');
+      showError('Error', err.message || 'Failed to delete ad');
     }
   };
 
@@ -236,9 +239,27 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
     const ad = ads.find(a => a.id === id);
     if (!ad) return;
     
-    // Set the selected ad and show modal
-    setSelectedAdForPull(ad);
-    setShowPullModal(true);
+    // Check if the ad can be pulled up
+    const cooldown = pullCooldowns[id];
+    
+    if (cooldown && cooldown.canPull) {
+      // Can pull up - do it directly
+      try {
+        const result = await pullUpAd(id);
+        if (result.success) {
+          // Show success notification
+          showSuccess('Listing Pulled Up!', 'Your listing has been pulled up successfully!');
+          // Refresh the ads list to show the updated position
+          await fetchUserAds();
+        }
+      } catch (err: any) {
+        showError('Error', err.message || 'Failed to pull up listing');
+      }
+    } else {
+      // Cannot pull up - show modal with countdown
+      setSelectedAdForPull(ad);
+      setShowPullModal(true);
+    }
   };
 
   const confirmPullUp = async () => {
