@@ -624,11 +624,6 @@ const Profile: React.FC<ProfileProps> = () => {
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                 <span>Active now</span>
               </div>
-              {user && (
-                <div className="text-xs text-green-400 bg-green-500/10 rounded-full px-3 py-1 inline-block">
-                  ✓ Showing your real account data
-                </div>
-              )}
             </div>
 
             {/* Action Buttons */}
@@ -688,8 +683,17 @@ const Profile: React.FC<ProfileProps> = () => {
 
               <div>
                 <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <label className="block text-white font-medium text-lg">Profile Bio / Description</label>
+                  <div className="relative">
+                    <textarea
+                      value={isEditing ? editForm.description : profile.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                      disabled={!isEditing}
+                      className={`xsm-input w-full min-h-[120px] resize-y pr-12 ${!isEditing ? 'opacity-60' : ''}`}
+                      placeholder="Tell others about yourself..."
+                      maxLength={500}
+                    />
+                    
+                    {/* Edit button inside textarea - top right corner */}
                     {!isEditing ? (
                       <button
                         onClick={() => {
@@ -701,28 +705,23 @@ const Profile: React.FC<ProfileProps> = () => {
                             description: profile.description
                           });
                         }}
-                        className="xsm-button-secondary flex items-center space-x-2 text-sm"
+                        className="absolute top-3 right-3 text-gray-400 hover:text-xsm-yellow transition-colors p-1"
+                        title="Edit Profile"
                       >
                         <Edit className="w-4 h-4" />
-                        <span>Edit</span>
                       </button>
                     ) : (
-                      <div className="flex space-x-2">
+                      <div className="absolute top-3 right-3 flex space-x-1">
                         <button
                           onClick={handleSaveProfile}
                           disabled={isUpdating}
-                          className={`xsm-button flex items-center space-x-2 text-sm ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`text-gray-400 hover:text-green-400 transition-colors p-1 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title="Save Changes"
                         >
                           {isUpdating ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                              <span>Saving...</span>
-                            </>
+                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
                           ) : (
-                            <>
-                              <Save className="w-4 h-4" />
-                              <span>Save</span>
-                            </>
+                            <Save className="w-4 h-4" />
                           )}
                         </button>
                         <button
@@ -736,22 +735,15 @@ const Profile: React.FC<ProfileProps> = () => {
                             });
                           }}
                           disabled={isUpdating}
-                          className="xsm-button-secondary flex items-center space-x-2 text-sm"
+                          className="text-gray-400 hover:text-red-400 transition-colors p-1"
+                          title="Cancel"
                         >
                           <X className="w-4 h-4" />
-                          <span>Cancel</span>
                         </button>
                       </div>
                     )}
                   </div>
-                  <textarea
-                    value={isEditing ? editForm.description : profile.description}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    disabled={!isEditing}
-                    className={`xsm-input w-full min-h-[120px] resize-y ${!isEditing ? 'opacity-60' : ''}`}
-                    placeholder="Tell others about yourself..."
-                    maxLength={500}
-                  />
+                  
                   {isEditing && (
                     <p className="text-gray-400 text-sm mt-2">
                       {editForm.description?.length || 0}/500 characters
