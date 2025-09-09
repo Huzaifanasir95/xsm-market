@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User as UserIcon, Edit, LogOut, Save, X, Camera, Pin, Crown, Settings } from 'lucide-react';
+import { User as UserIcon, Edit, LogOut, Save, X, Camera, Pin, Crown, Settings, Eye, EyeOff } from 'lucide-react';
 import VerificationSection from '@/components/VerificationSection';
 import UserAdList from '@/components/UserAdList';
 import DualEmailVerificationModal from '@/components/DualEmailVerificationModal';
@@ -78,6 +78,11 @@ const Profile: React.FC<ProfileProps> = () => {
   const [pendingPasswordEmail, setPendingPasswordEmail] = useState('');
   const [isGoogleUserPassword, setIsGoogleUserPassword] = useState(false);
   const [passwordCooldownActive, setPasswordCooldownActive] = useState(false);
+  
+  // Password visibility toggle state
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   
@@ -914,15 +919,25 @@ const Profile: React.FC<ProfileProps> = () => {
                   {(user as any)?.authProvider !== 'google' && (
                     <div>
                       <label className="block text-white font-medium mb-1 text-sm">Current Password</label>
-                      <input
-                        type="password"
-                        value={settingsPasswordForm.currentPassword}
-                        onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, currentPassword: e.target.value })}
-                        disabled={passwordCooldownActive}
-                        className={`xsm-input w-full text-sm ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        placeholder={passwordCooldownActive ? "Password change is on cooldown" : "Enter current password"}
-                        autoComplete="current-password"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={settingsPasswordForm.currentPassword}
+                          onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, currentPassword: e.target.value })}
+                          disabled={passwordCooldownActive}
+                          className={`xsm-input w-full text-sm pr-12 ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          placeholder={passwordCooldownActive ? "Password change is on cooldown" : "Enter current password"}
+                          autoComplete="current-password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          disabled={passwordCooldownActive}
+                          className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
                     </div>
                   )}
                   
@@ -930,27 +945,47 @@ const Profile: React.FC<ProfileProps> = () => {
                     <label className="block text-white font-medium mb-2">
                       {(user as any)?.authProvider === 'google' ? 'New Password' : 'New Password'}
                     </label>
-                    <input
-                      type="password"
-                      value={settingsPasswordForm.newPassword}
-                      onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, newPassword: e.target.value })}
-                      disabled={passwordCooldownActive}
-                      className={`xsm-input w-full ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      placeholder={passwordCooldownActive ? "Password change is on cooldown" : ((user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password')}
-                      autoComplete="new-password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        value={settingsPasswordForm.newPassword}
+                        onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, newPassword: e.target.value })}
+                        disabled={passwordCooldownActive}
+                        className={`xsm-input w-full pr-12 ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        placeholder={passwordCooldownActive ? "Password change is on cooldown" : ((user as any)?.authProvider === 'google' ? 'Enter a password (min 6 characters)' : 'Enter new password')}
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        disabled={passwordCooldownActive}
+                        className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-white font-medium mb-2">Confirm Password</label>
-                    <input
-                      type="password"
-                      value={settingsPasswordForm.confirmPassword}
-                      onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, confirmPassword: e.target.value })}
-                      disabled={passwordCooldownActive}
-                      className={`xsm-input w-full ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      placeholder={passwordCooldownActive ? "Password change is on cooldown" : "Confirm new password"}
-                      autoComplete="new-password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={settingsPasswordForm.confirmPassword}
+                        onChange={(e) => setSettingsPasswordForm({ ...settingsPasswordForm, confirmPassword: e.target.value })}
+                        disabled={passwordCooldownActive}
+                        className={`xsm-input w-full pr-12 ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        placeholder={passwordCooldownActive ? "Password change is on cooldown" : "Confirm new password"}
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        disabled={passwordCooldownActive}
+                        className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors ${passwordCooldownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="text-sm text-gray-400">
                     {passwordCooldownActive 
