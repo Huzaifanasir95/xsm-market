@@ -464,12 +464,6 @@ const UserAdList: React.FC<UserAdListProps> = ({ onEditAd }) => {
           <p className="text-xsm-light-gray mb-4">
             You haven't created any listings yet.
           </p>
-          <div className="text-sm text-blue-400 mt-4">
-            <p>Debug: User ID = {user?.id}</p>
-            <p>Debug: User logged in = {user ? 'Yes' : 'No'}</p>
-            <p>Debug: Ads count = {ads.length}</p>
-            <p>Debug: Error = {error || 'None'}</p>
-          </div>
         </div>
       ) : (
         <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
