@@ -117,11 +117,15 @@ const Navbar: React.FC<NavbarProps> = () => {
                       setShowAuthWidget(true);
                     }
                   }}
-                  className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    location.pathname === `/${item.id}` || (item.id === 'home' && location.pathname === '/')
-                      ? 'text-xsm-yellow bg-xsm-medium-gray'
-                      : 'text-white hover:text-xsm-yellow'
-                  }`}
+                  className={
+                    item.id === 'sell' 
+                      ? "bg-xsm-yellow text-black px-3 py-1.5 text-xs font-medium rounded hover:bg-yellow-500 transition-colors flex items-center space-x-1"
+                      : `flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                          location.pathname === `/${item.id}` || (item.id === 'home' && location.pathname === '/')
+                            ? 'text-xsm-yellow bg-xsm-medium-gray'
+                            : 'text-white hover:text-xsm-yellow'
+                        }`
+                  }
                 >
                   {item.icon && <item.icon className="w-4 h-4" />}
                   <span>{item.label}</span>
