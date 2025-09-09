@@ -21,7 +21,6 @@ interface UserAd {
   channelUrl: string;
   description: string;
   contentType?: string;
-  contentCategory?: string;
   incomeDetails: string;
   promotionDetails: string;
   thumbnail?: string;
@@ -73,7 +72,6 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
     incomeDetails: '',
     promotionDetails: '',
     isMonetized: false,
-    contentCategory: '',
     subscribers: '',
     monthlyIncome: '',
     thumbnail: '',
@@ -105,7 +103,6 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
         incomeDetails: ad.incomeDetails || '',
         promotionDetails: ad.promotionDetails || '',
         isMonetized: ad.isMonetized || false,
-        contentCategory: ad.contentCategory || '',
         subscribers: ad.subscribers?.toString() || '',
         monthlyIncome: ad.monthlyIncome?.toString() || '',
         thumbnail: ad.thumbnail || '',
@@ -253,11 +250,22 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
       return;
     }
 
-    if (parseFloat(formData.price) <= 0) {
+    if (parseFloat(formData.price) < 5) {
       toast({
         variant: "destructive",
         title: "Invalid Price",
-        description: "Price must be greater than 0.",
+        description: "Minimum price should be $5.",
+      });
+      return;
+    }
+
+    // Validation: Minimum subscribers 100
+    const subscribers = parseInt(formData.subscribers);
+    if (subscribers < 100) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Subscribers",
+        description: "Minimum subscribers should be 100.",
       });
       return;
     }
@@ -296,7 +304,6 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
         platform: formData.platform,
         category: formData.category,
         contentType: formData.contentType && formData.contentType.trim() !== '' ? formData.contentType : null,
-        contentCategory: formData.contentCategory && formData.contentCategory.trim() !== '' ? formData.contentCategory : null,
         description: formData.description.trim(),
         price: parseFloat(formData.price),
         subscribers: formData.subscribers ? parseInt(formData.subscribers) : 0,

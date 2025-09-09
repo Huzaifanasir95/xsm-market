@@ -43,7 +43,6 @@ const SellChannel: React.FC<SellChannelProps> = () => {
     incomeDetails: '',
     promotionDetails: '',
     isMonetized: false,
-    contentCategory: '',
     subscribers: '',
     profilePicture: '', // Add profile picture field
   });
@@ -187,6 +186,30 @@ const SellChannel: React.FC<SellChannelProps> = () => {
     setIsSubmitting(true);
     
     try {
+      // Validation: Minimum price $5
+      const price = parseFloat(formData.price);
+      if (price < 5) {
+        toast({
+          variant: "destructive",
+          title: "Invalid Price",
+          description: "Minimum price should be $5",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Validation: Minimum subscribers 100
+      const subscribers = parseInt(formData.subscribers);
+      if (subscribers < 100) {
+        toast({
+          variant: "destructive",
+          title: "Invalid Subscribers",
+          description: "Minimum subscribers should be 100",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       // Auto-detect platform from URL
       let platform = 'youtube'; // default
       if (formData.channelUrl.includes('facebook.com') || formData.channelUrl.includes('fb.com')) {
@@ -234,7 +257,6 @@ const SellChannel: React.FC<SellChannelProps> = () => {
         platform,
         category: formData.category,
         contentType: formData.contentType && formData.contentType.trim() !== '' ? formData.contentType : null,
-        contentCategory: formData.contentCategory && formData.contentCategory.trim() !== '' ? formData.contentCategory : null,
         description: formData.description || '',
         price: parseFloat(formData.price) || 0,
         subscribers: formData.subscribers ? parseInt(formData.subscribers) : 0,
@@ -270,7 +292,6 @@ const SellChannel: React.FC<SellChannelProps> = () => {
         incomeDetails: '',
         promotionDetails: '',
         isMonetized: false,
-        contentCategory: '',
         subscribers: '',
         profilePicture: '',
       });
@@ -552,21 +573,9 @@ const SellChannel: React.FC<SellChannelProps> = () => {
                   </div>
                 )}
               </div>
-              
-              {/* Content Category Input */}
-              <div className="mb-6">
-                <input
-                  type="text"
-                  name="contentCategory"
-                  value={formData.contentCategory}
-                  onChange={handleInputChange}
-                  className="xsm-input w-full"
-                  placeholder="Content category (e.g., Tech Tutorials, Gaming Reviews)"
-                />
-              </div>
 
               {/* Ways of Earning & Promotion */}
-              <div className="mb-6">
+              <div className="mb-6">`
                 <textarea
                   name="incomeDetails"
                   value={formData.incomeDetails}
