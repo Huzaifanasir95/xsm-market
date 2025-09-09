@@ -577,7 +577,7 @@ const SellChannel: React.FC<SellChannelProps> = () => {
               </div>
 
               {/* Ways of Earning & Promotion */}
-              <div className="mb-6">`
+              <div className="mb-6">
                 <textarea
                   name="incomeDetails"
                   value={formData.incomeDetails}
