@@ -131,12 +131,21 @@ const handleFetchError = async (response: Response) => {
     data = await response.json();
   } catch (e) {
     console.error('Error parsing response:', e);
-    throw new Error(`HTTP error! status: ${response.status}`);
+    throw new Error(`Server error. Please try again later.`);
   }
 
   if (!response.ok) {
     console.error('Server error response:', data);
-    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    
+    // Use the server's error message if it's user-friendly, otherwise provide a generic one
+    let errorMessage = data.message || `Server error. Please try again later.`;
+    
+    // Ensure the error message is user-friendly
+    if (errorMessage.includes('SQLSTATE') || errorMessage.includes('PDO') || errorMessage.includes('mysql')) {
+      errorMessage = 'Service temporarily unavailable. Please try again in a few moments.';
+    }
+    
+    throw new Error(errorMessage);
   }
   
   return data;
@@ -359,10 +368,25 @@ export const register = async (username: string, email: string, password: string
     return data;
   } catch (error) {
     console.error('Registration error:', error); // Debug log
+    
     if (error instanceof Error) {
-      throw error;
+      // Clean up the error message for better user experience
+      let cleanMessage = error.message;
+      
+      // Remove technical prefixes and make more user-friendly
+      if (cleanMessage.startsWith('HTTP error!')) {
+        cleanMessage = 'Server error. Please try again later.';
+      }
+      
+      // Handle network-specific errors
+      if (cleanMessage.includes('NetworkError') || cleanMessage.includes('fetch')) {
+        cleanMessage = 'Unable to connect to the server. Please check your internet connection.';
+      }
+      
+      // Pass through the cleaned message
+      throw new Error(cleanMessage);
     } else {
-      throw new Error('An unexpected error occurred during registration');
+      throw new Error('An unexpected error occurred during registration. Please try again.');
     }
   }
 };

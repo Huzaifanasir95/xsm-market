@@ -40,6 +40,13 @@ class EmailService {
         try {
             error_log("Attempting to send OTP email to: $email with OTP: $otp");
             
+            // Check if we're in development mode and should skip email sending
+            $phpEnv = getenv('PHP_ENV') ?: $_ENV['PHP_ENV'] ?? $_SERVER['PHP_ENV'] ?? 'production';
+            if ($phpEnv === 'development') {
+                error_log("DEVELOPMENT MODE: Skipping actual email sending. OTP: $otp for $email");
+                return true; // Return success for development
+            }
+            
             $subject = 'XSM Market - Email Verification';
             $htmlBody = $this->getOTPEmailTemplate($otp, $username);
             $textBody = "Hello $username,\n\nYour verification code is: $otp\n\nThis code expires in 10 minutes.\n\nBest regards,\nXSM Market Team";

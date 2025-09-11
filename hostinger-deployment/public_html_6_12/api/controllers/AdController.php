@@ -79,8 +79,13 @@ class AdController {
             return;
         }
         
-        if (floatval($price) <= 0) {
-            Response::error('Price must be greater than 0', 400);
+        if (floatval($price) < 5) {
+            Response::error('Minimum price should be $5', 400);
+            return;
+        }
+        
+        if (intval($subscribers) < 100) {
+            Response::error('Minimum subscribers should be 100', 400);
             return;
         }
         
@@ -218,8 +223,12 @@ class AdController {
                 Response::error('Invalid platform', 400);
             }
             
-            if (isset($updateData['price']) && floatval($updateData['price']) < 0) {
-                Response::error('Price must be a positive number', 400);
+            if (isset($updateData['price']) && floatval($updateData['price']) < 5) {
+                Response::error('Minimum price should be $5', 400);
+            }
+            
+            if (isset($updateData['subscribers']) && intval($updateData['subscribers']) < 100) {
+                Response::error('Minimum subscribers should be 100', 400);
             }
             
             if (empty($updateData)) {

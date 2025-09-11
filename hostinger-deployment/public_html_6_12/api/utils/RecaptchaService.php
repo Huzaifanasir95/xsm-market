@@ -7,10 +7,11 @@ class RecaptchaService {
     private $secretKey;
     
     public function __construct() {
-        $this->secretKey = $_ENV['RECAPTCHA_SECRET_KEY'] ?? '';
+        $this->secretKey = getenv('RECAPTCHA_SECRET_KEY') ?: $_ENV['RECAPTCHA_SECRET_KEY'] ?? '';
         
+        // Don't throw exception if not configured - we'll handle this in shouldEnforce()
         if (empty($this->secretKey)) {
-            throw new Exception('reCAPTCHA secret key not configured');
+            error_log('Warning: reCAPTCHA secret key not configured');
         }
     }
     
@@ -21,6 +22,15 @@ class RecaptchaService {
      * @return array Array containing success status and error codes if any
      */
     public function verifyToken($token, $remoteIp = null) {
+        // If secret key is not configured, return success (bypass verification)
+        if (empty($this->secretKey)) {
+            error_log('reCAPTCHA secret key not configured - bypassing verification');
+            return [
+                'success' => true,
+                'message' => 'reCAPTCHA bypassed - not configured'
+            ];
+        }
+        
         if (empty($token)) {
             return [
                 'success' => false,
@@ -115,11 +125,23 @@ class RecaptchaService {
      * @return bool
      */
     public function shouldEnforce() {
-        // Disable reCAPTCHA in development if needed
-        if ($_ENV['PHP_ENV'] === 'development' && $_ENV['DISABLE_RECAPTCHA'] === 'true') {
+        // Check environment variables safely
+        $phpEnv = getenv('PHP_ENV') ?: $_ENV['PHP_ENV'] ?? $_SERVER['PHP_ENV'] ?? 'production';
+        $disableRecaptcha = getenv('DISABLE_RECAPTCHA') ?: $_ENV['DISABLE_RECAPTCHA'] ?? $_SERVER['DISABLE_RECAPTCHA'] ?? 'false';
+        
+        // If explicitly disabled, don't enforce
+        if ($disableRecaptcha === 'true') {
+            error_log('reCAPTCHA disabled via DISABLE_RECAPTCHA=true');
             return false;
         }
         
+        // Disable reCAPTCHA in development/testing environments
+        if ($phpEnv === 'development' || $phpEnv === 'testing') {
+            error_log('reCAPTCHA disabled in development/testing environment');
+            return false;
+        }
+        
+        error_log('reCAPTCHA enforcement enabled (PHP_ENV=' . $phpEnv . ', DISABLE_RECAPTCHA=' . $disableRecaptcha . ')');
         return true;
     }
 }

@@ -171,13 +171,28 @@ const Signup: React.FC<SignupProps> = () => {
       console.error("Registration failed:", err);
       let errorMessage = err instanceof Error ? err.message : 'Failed to register';
       
-      // Check for common registration errors
-      if (errorMessage.includes('Email already registered')) {
-        errorMessage = 'This email is already registered. Please use a different email or try logging in.';
-      } else if (errorMessage.includes('Username already taken')) {
+      // Normalize error messages to user-friendly format
+      const lowerError = errorMessage.toLowerCase();
+      
+      if (lowerError.includes('email') && (lowerError.includes('already') || lowerError.includes('registered') || lowerError.includes('taken'))) {
+        errorMessage = 'This email address is already registered. Please use a different email or try logging in.';
+      } else if (lowerError.includes('username') && (lowerError.includes('already') || lowerError.includes('taken'))) {
         errorMessage = 'This username is already taken. Please choose a different username.';
-      } else if (errorMessage.includes('Network error')) {
-        errorMessage = 'Cannot connect to the server. Please ensure the backend server is running.';
+      } else if (lowerError.includes('network') || lowerError.includes('connect') || lowerError.includes('server')) {
+        errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+      } else if (lowerError.includes('recaptcha') || lowerError.includes('verification')) {
+        errorMessage = 'Security verification failed. Please complete the reCAPTCHA and try again.';
+      } else if (lowerError.includes('password')) {
+        errorMessage = 'Password does not meet requirements. Please use at least 6 characters.';
+      } else if (lowerError.includes('email') && lowerError.includes('invalid')) {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (lowerError.includes('database') || lowerError.includes('sql')) {
+        errorMessage = 'Service temporarily unavailable. Please try again in a few moments.';
+      } else if (lowerError.includes('duplicate') || lowerError.includes('constraint')) {
+        errorMessage = 'This username or email is already taken. Please try different values.';
+      } else if (errorMessage.length > 100) {
+        // If error message is too long/technical, use a generic friendly message
+        errorMessage = 'Registration failed. Please check your information and try again.';
       }
       
       setError(errorMessage);

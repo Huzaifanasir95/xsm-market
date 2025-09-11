@@ -11,40 +11,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
-// Load environment variables
-require_once __DIR__ . '/config/env.php';
+// Load environment variables and configurations
 require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/config/cors.php';
 
-// Load utilities
-require_once __DIR__ . '/utils/Response.php';
+// Load utilities and middleware
 require_once __DIR__ . '/utils/jwt.php';
-require_once __DIR__ . '/utils/Validation.php';
-
-// Load middleware
 require_once __DIR__ . '/middleware/auth.php';
-
-// Load models
-require_once __DIR__ . '/models/User.php';
-require_once __DIR__ . '/models/Ad.php';
-require_once __DIR__ . '/models/Chat.php';
-require_once __DIR__ . '/models/Message.php';
-require_once __DIR__ . '/models/ChatParticipant.php';
 
 // Load controllers
 require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/UserController.php';
 require_once __DIR__ . '/controllers/AdController.php';
-require_once __DIR__ . '/controllers/ChatController.php';
-require_once __DIR__ . '/controllers/ChatUploadController.php';
 require_once __DIR__ . '/controllers/AdUploadController.php';
-require_once __DIR__ . '/controllers/AdminController.php';
+require_once __DIR__ . '/controllers/ChatController-complete.php';
+require_once __DIR__ . '/controllers/AdminController-complete.php';
 
-// Error reporting for debugging (disable in production)
-if (getenv('PHP_ENV') !== 'production') {
-    error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-}
+// Error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
 
 // Parse the request
 $request_uri = $_SERVER['REQUEST_URI'];
@@ -54,10 +39,18 @@ $method = $_SERVER['REQUEST_METHOD'];
 // Remove base path if needed (adjust for your hosting setup)
 $path = str_replace('/api', '', $path);
 
+// Ensure path starts with /
+if (substr($path, 0, 1) !== '/') {
+    $path = '/' . $path;
+}
+
+// Debug logging
+error_log("Server.php - Original URI: $request_uri, Parsed path: $path, Method: $method");
+
 // Route handling
 try {
-    // Authentication routes
-    if (strpos($path, '/auth/') === 0) {
+    // Authentication routes - check for both /auth/ and /auth
+    if (strpos($path, '/auth') === 0) {
         $authController = new AuthController();
         handleAuthRoutes($authController, $path, $method);
     }
@@ -85,22 +78,6 @@ try {
         $adminController = new AdminController();
         handleAdminRoutes($adminController, $path, $method);
     }
-    // Contact routes
-    elseif (strpos($path, '/contact') === 0) {
-        handleContactRoutes($path, $method);
-    }
-    // Social media routes
-    elseif (strpos($path, '/social-media') === 0) {
-        handleSocialMediaRoutes($path, $method);
-    }
-    // Debug routes
-    elseif (strpos($path, '/debug') === 0) {
-        handleDebugRoutes($path, $method);
-    }
-    // Test NOWPayments integration
-    elseif ($path === '/test-nowpayments') {
-        handleTestNOWPayments();
-    }
     // Webhook routes
     elseif (strpos($path, '/webhooks/nowpayments') === 0) {
         include 'webhooks/nowpayments.php';
@@ -121,12 +98,14 @@ try {
             readfile($filePath);
             exit;
         } else {
-            Response::error('File not found', 404);
+            http_response_code(404);
+            echo json_encode(['message' => 'File not found']);
         }
     }
     // Health check
     elseif ($path === '/health' || $path === '/' || $path === '') {
-        Response::success([
+        http_response_code(200);
+        echo json_encode([
             'status' => 'ok', 
             'message' => 'PHP Backend API is running on port 5000',
             'timestamp' => date('Y-m-d H:i:s'),
@@ -146,7 +125,8 @@ try {
     }
 } catch (Exception $e) {
     error_log('API Error: ' . $e->getMessage());
-    Response::error('Internal server error: ' . $e->getMessage(), 500);
+    http_response_code(500);
+    echo json_encode(['message' => 'Server error', 'error' => $e->getMessage()]);
 }
 
 // Authentication route handler
@@ -459,43 +439,19 @@ function handleAdminRoutes($controller, $path, $method) {
 
 // Helper functions
 function methodNotAllowed() {
-    Response::error('Method not allowed', 405);
+    http_response_code(405);
+    echo json_encode(['message' => 'Method not allowed']);
 }
 
 function routeNotFound() {
-    Response::error('Route not found', 404);
+    http_response_code(404);
+    echo json_encode(['message' => 'Route not found']);
 }
 
-function handleContactRoutes($path, $method) {
-    require_once __DIR__ . '/controllers/ContactController.php';
-    $controller = new ContactController();
-    
-    if ($path === '/contact/submit' && $method === 'POST') {
-        $controller->submit();
-    } elseif ($path === '/contact/status' && $method === 'GET') {
-        $controller->status();
-    } elseif ($path === '/contact' && $method === 'POST') {
-        // Legacy support - redirect to /contact/submit
-        $controller->submit();
-    } else {
-        http_response_code(404);
-        echo json_encode(['message' => 'Contact route not found']);
-    }
-}
-
-function handleSocialMediaRoutes($path, $method) {
-    require_once __DIR__ . '/routes/social-media.php';
-}
-
-function handleDebugRoutes($path, $method) {
-    require_once __DIR__ . '/routes/debug.php';
-}
-
-function handleCryptoPaymentsRoutes($path, $method) {
-    require_once __DIR__ . '/api/crypto-payments.php';
-}
-
-function handleTestNOWPayments() {
-    require_once __DIR__ . '/test_nowpayments_integration.php';
+function handleDealsRoutes($path, $method) {
+    // Make path and method available globally for the deals route
+    $GLOBALS['path'] = $path;
+    $GLOBALS['method'] = $method;
+    require_once __DIR__ . '/routes/deals.php';
 }
 ?>

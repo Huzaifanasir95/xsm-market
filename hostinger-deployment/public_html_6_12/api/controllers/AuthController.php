@@ -62,7 +62,13 @@ class AuthController {
     
     // Register new user (send OTP for verification)
     public function register() {
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = InputHelper::getJsonInput();
+        
+        if ($input === false) {
+            Response::error('Failed to read request data', 400);
+            return;
+        }
+        
         $username = trim($input['username'] ?? '');
         $email = trim($input['email'] ?? '');
         $password = $input['password'] ?? '';
@@ -113,6 +119,9 @@ class AuthController {
         }
         
         try {
+            // Begin transaction to ensure data consistency
+            $this->db->beginTransaction();
+            
             // Check if user already exists and is verified
             $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ?");
             $stmt->execute([$email]);
@@ -123,12 +132,22 @@ class AuthController {
             $existingUserByUsername = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($existingUserByEmail && $existingUserByEmail['isEmailVerified']) {
-                Response::error('Email already registered and verified', 400);
+                $this->db->rollback();
+                Response::error('Email address is already registered and verified. Please use a different email or try logging in.', 400);
                 return;
             }
             
             if ($existingUserByUsername && $existingUserByUsername['isEmailVerified']) {
-                Response::error('Username already taken', 400);
+                $this->db->rollback();
+                Response::error('Username is already taken. Please choose a different username.', 400);
+                return;
+            }
+            
+            // Check if there's a different user with the same username (edge case)
+            if ($existingUserByUsername && $existingUserByEmail && 
+                $existingUserByUsername['id'] !== $existingUserByEmail['id']) {
+                $this->db->rollback();
+                Response::error('Username is already taken. Please choose a different username.', 400);
                 return;
             }
             
@@ -142,9 +161,14 @@ class AuthController {
                 $stmt = $this->db->prepare("
                     UPDATE users SET 
                     username = ?, password = ?, emailOTP = ?, otpExpires = ?, updatedAt = NOW()
-                    WHERE email = ?
+                    WHERE email = ? AND isEmailVerified = 0
                 ");
-                $stmt->execute([$username, $hashedPassword, $otp, $otpExpires, $email]);
+                $result = $stmt->execute([$username, $hashedPassword, $otp, $otpExpires, $email]);
+                if (!$result) {
+                    $this->db->rollback();
+                    Response::error('Failed to update user information. Please try again.', 500);
+                    return;
+                }
                 $userId = $existingUserByEmail['id'];
             } else {
                 // Create new user
@@ -152,16 +176,24 @@ class AuthController {
                     INSERT INTO users (username, email, password, emailOTP, otpExpires, isEmailVerified, authProvider, createdAt, updatedAt) 
                     VALUES (?, ?, ?, ?, ?, 0, 'email', NOW(), NOW())
                 ");
-                $stmt->execute([$username, $email, $hashedPassword, $otp, $otpExpires]);
+                $result = $stmt->execute([$username, $email, $hashedPassword, $otp, $otpExpires]);
+                if (!$result) {
+                    $this->db->rollback();
+                    Response::error('Failed to create user account. Please try again.', 500);
+                    return;
+                }
                 $userId = $this->db->lastInsertId();
             }
+            
+            // Commit the transaction
+            $this->db->commit();
             
             // Send OTP email
             $emailService = new EmailService();
             $emailResult = $emailService->sendOTPEmail($email, $otp, $username);
             
             if (!$emailResult) {
-                Response::error('Failed to send verification email', 500);
+                Response::error('Account created but failed to send verification email. Please contact support.', 500);
                 return;
             }
             
@@ -174,15 +206,58 @@ class AuthController {
             ]);
             return;
             
+        } catch (PDOException $e) {
+            error_log('Database error during registration: ' . $e->getMessage());
+            
+            // Handle specific database constraint violations
+            if ($e->getCode() == 23000) {
+                $errorMessage = $e->getMessage();
+                
+                if (strpos($errorMessage, 'unique_username') !== false) {
+                    Response::error('Username is already taken. Please choose a different username.', 400);
+                    return;
+                } elseif (strpos($errorMessage, 'unique_email') !== false || strpos($errorMessage, 'email') !== false) {
+                    Response::error('Email address is already registered. Please use a different email or try logging in.', 400);
+                    return;
+                } else {
+                    Response::error('This username or email is already taken. Please try different values.', 400);
+                    return;
+                }
+            }
+            
+            Response::error('Database error during registration. Please try again.', 500);
+            return;
         } catch (Exception $e) {
             error_log('Registration error: ' . $e->getMessage());
-            Response::error('Server error during registration: ' . $e->getMessage(), 500);
+            
+            // Check if the error message contains duplicate entry information
+            $errorMessage = $e->getMessage();
+            if (strpos($errorMessage, 'Duplicate entry') !== false) {
+                if (strpos($errorMessage, 'unique_username') !== false) {
+                    Response::error('Username is already taken. Please choose a different username.', 400);
+                    return;
+                } elseif (strpos($errorMessage, 'unique_email') !== false || strpos($errorMessage, 'email') !== false) {
+                    Response::error('Email address is already registered. Please use a different email or try logging in.', 400);
+                    return;
+                } else {
+                    Response::error('This username or email is already taken. Please try different values.', 400);
+                    return;
+                }
+            }
+            
+            Response::error('Server error during registration. Please try again later.', 500);
         }
     }
     
     // Login user - exact match to Node.js response format
     public function login() {
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = InputHelper::getJsonInput();
+        
+        if ($input === false) {
+            Response::error('Failed to read request data', 400);
+            return;
+        }
+        
         $email = trim($input['email'] ?? '');
         $password = $input['password'] ?? '';
         $recaptchaToken = $input['recaptchaToken'] ?? '';
@@ -290,7 +365,13 @@ class AuthController {
     
     // Verify OTP and complete registration - exact match to Node.js
     public function verifyOTP() {
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = InputHelper::getJsonInput();
+        
+        if ($input === false) {
+            Response::error('Failed to read request data', 400);
+            return;
+        }
+        
         $email = trim($input['email'] ?? '');
         $otp = trim($input['otp'] ?? '');
         

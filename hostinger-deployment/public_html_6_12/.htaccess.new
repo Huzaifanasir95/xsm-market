@@ -12,21 +12,16 @@ RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Allow direct access to existing PHP files in api directory
-RewriteCond %{REQUEST_URI} ^/api/.*\.php$
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^(.*)$ - [L]
-
-# Route API requests to index.php (for non-existing files)
+# Route API requests to the api directory
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} ^/api/
-RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+RewriteRule ^api/(.*)$ api/server.php [QSA,L]
 
 # Handle direct API endpoint requests (for backward compatibility)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(auth|user|ads|chat|admin|contact|social-media|debug|health)/(.*)$ api/index.php [QSA,L]
+RewriteRule ^(auth|user|ads|chat|admin|contact|social-media|debug|health)/(.*)$ api/server.php [QSA,L]
 
 # Handle webhook requests
 RewriteRule ^api/webhooks/nowpayments/?$ api/webhooks/nowpayments.php [QSA,L]
