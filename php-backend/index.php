@@ -11,6 +11,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
+// Auto-detect and configure environment
+require_once __DIR__ . '/config/auto-env.php';
+
 // Load environment variables
 require_once __DIR__ . '/config/env.php';
 require_once __DIR__ . '/config/database.php';

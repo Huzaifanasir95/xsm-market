@@ -11,6 +11,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
+// Auto-detect and configure environment
+require_once __DIR__ . '/config/auto-env.php';
+
 // Load environment variables
 require_once __DIR__ . '/config/env.php';
 require_once __DIR__ . '/config/database.php';
@@ -20,7 +23,6 @@ require_once __DIR__ . '/config/cors.php';
 require_once __DIR__ . '/utils/Response.php';
 require_once __DIR__ . '/utils/jwt.php';
 require_once __DIR__ . '/utils/Validation.php';
-require_once __DIR__ . '/utils/InputHelper.php';
 
 // Load middleware
 require_once __DIR__ . '/middleware/auth.php';
@@ -251,6 +253,9 @@ function handleUserRoutes($controller, $path, $method) {
             break;
         case preg_match('/^\/user\/(\d+)$/', $path, $matches) && $method === 'GET':
             $controller->getUserById($matches[1]);
+            break;
+        case preg_match('/^\/user\/(@.+)$/', $path, $matches) && $method === 'GET':
+            $controller->getUserByUsername($matches[1]);
             break;
         default:
             Response::error('User route not found', 404);

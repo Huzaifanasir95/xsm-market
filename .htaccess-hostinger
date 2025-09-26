@@ -1,4 +1,4 @@
-# XSM Market - Production .htaccess
+# XSM Market - Hostinger Compatible .htaccess
 RewriteEngine On
 
 # Basic Security - Prevent access to sensitive files
@@ -12,36 +12,29 @@ RewriteEngine On
     Deny from all
 </FilesMatch>
 
-# Handle CORS preflight requests globally
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ $1 [R=200,L]
-
-# Remove www from domain
-RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
-RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
-
-# Enable CORS headers
+# Enable CORS for API requests only
 <IfModule mod_headers.c>
-    Header always set Access-Control-Allow-Origin "*"
+    SetEnvIf Origin "^(https?://.*(localhost|xsmmarket\.com|hostinger)).*$" CORS_ORIGIN=$0
+    Header always set Access-Control-Allow-Origin %{CORS_ORIGIN}e env=CORS_ORIGIN
     Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
     Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
     Header always set Access-Control-Allow-Credentials "true"
-    Header always set Access-Control-Max-Age "3600"
+    
+    # Handle preflight requests
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ $1 [R=200,L]
 </IfModule>
 
-# API Routes - Handle API requests first (route to server.php)
+# API Routes - Handle API requests first
 RewriteCond %{REQUEST_URI} ^/api/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/api/uploads/
-RewriteCond %{REQUEST_URI} !^/api/webhooks/
-RewriteRule ^api/(.*)$ api/server.php [QSA,L]
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-# Direct API endpoints (backward compatibility) - route to server.php
+# Direct API endpoints (backward compatibility)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/api/uploads/
-RewriteRule ^(auth|user|ads|chat|admin|contact|social-media|debug|health)/(.*)$ api/server.php [QSA,L]
+RewriteRule ^(auth|user|ads|chat|admin|contact|social-media|debug|health)/(.*)$ api/index.php [QSA,L]
 
 # Webhook handling
 RewriteRule ^api/webhooks/nowpayments/?$ api/webhooks/nowpayments.php [QSA,L]

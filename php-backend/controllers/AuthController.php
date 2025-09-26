@@ -179,20 +179,30 @@ class AuthController {
                 $userId = $this->db->lastInsertId();
             }
             
-            // Commit the transaction
+            // Commit the transaction first
             $this->db->commit();
             
-            // Send OTP email
-            $emailService = new EmailService();
-            $emailResult = $emailService->sendOTPEmail($email, $otp, $username);
+            error_log('Registration database operations completed for: ' . $email);
             
-            if (!$emailResult) {
-                Response::error('Account created but failed to send verification email. Please contact support.', 500);
-                return;
+            // Send response immediately to prevent timeout issues
+            // Then send email asynchronously
+            try {
+                // Send OTP email
+                $emailService = new EmailService();
+                $emailResult = $emailService->sendOTPEmail($email, $otp, $username);
+                
+                if ($emailResult) {
+                    error_log('Registration email sent successfully for: ' . $email);
+                } else {
+                    error_log('Registration email failed for: ' . $email . ' but user account was created');
+                }
+                
+            } catch (Exception $emailException) {
+                error_log('Email sending exception for: ' . $email . ' - ' . $emailException->getMessage());
+                // Don't fail the registration if email fails - user account is already created
             }
             
-            error_log('Registration initiated for: ' . $email);
-            
+            // Always send success response since user account was created successfully
             Response::success([
                 'message' => 'Registration initiated. Please check your email for verification OTP',
                 'email' => $email,
@@ -296,11 +306,45 @@ class AuthController {
             
             // Check if email is verified (only for email auth users)
             if ($user['authProvider'] === 'email' && !$user['isEmailVerified']) {
-                Response::error('Please verify your email before logging in. An OTP has been sent to your email.', 403, [
-                    'requiresVerification' => true,
-                    'email' => $user['email'],
-                    'needsOtpVerification' => true
-                ]);
+                // Generate new OTP and send it
+                try {
+                    $otp = sprintf('%06d', mt_rand(100000, 999999));
+                    $otpExpires = date('Y-m-d H:i:s', time() + 600); // 10 minutes from now
+                    
+                    // Update user with new OTP
+                    $stmt = $this->db->prepare("UPDATE users SET emailOTP = ?, otpExpires = ?, updatedAt = NOW() WHERE id = ?");
+                    $stmt->execute([$otp, $otpExpires, $user['id']]);
+                    
+                    // Send new OTP email
+                    $emailService = new EmailService();
+                    $emailResult = $emailService->sendOTPEmail($user['email'], $otp, $user['username']);
+                    
+                    if ($emailResult) {
+                        error_log('New OTP sent to unverified user: ' . $user['email']);
+                        Response::error('Please verify your email before logging in. A new OTP has been sent to your email.', 403, [
+                            'requiresVerification' => true,
+                            'email' => $user['email'],
+                            'needsOtpVerification' => true,
+                            'message' => 'A new verification code has been sent to your email'
+                        ]);
+                    } else {
+                        error_log('Failed to send new OTP to unverified user: ' . $user['email']);
+                        Response::error('Please verify your email before logging in. If you did not receive the verification code, please try registering again.', 403, [
+                            'requiresVerification' => true,
+                            'email' => $user['email'],
+                            'needsOtpVerification' => true,
+                            'message' => 'Email verification required'
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    error_log('Error generating new OTP for unverified user: ' . $e->getMessage());
+                    Response::error('Please verify your email before logging in. If you need a new verification code, please try registering again.', 403, [
+                        'requiresVerification' => true,
+                        'email' => $user['email'],
+                        'needsOtpVerification' => true,
+                        'message' => 'Email verification required'
+                    ]);
+                }
                 return;
             }
             

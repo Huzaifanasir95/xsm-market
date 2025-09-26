@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>XSM Market Backend Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: white; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #2d5a2d; border: 1px solid #4caf50; }
+        .error { background: #5a2d2d; border: 1px solid #f44336; }
+        .info { background: #2d4a5a; border: 1px solid #2196f3; }
+        pre { background: #333; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        button { background: #4caf50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <h1>XSM Market Backend Connection Test</h1>
+    
+    <div class="test-result info">
+        <h3>Frontend Configuration</h3>
+        <p>Testing from domain: <strong id="current-domain"></strong></p>
+        <p>API URL: <strong>https://xsmmarket.com/api</strong></p>
+    </div>
+
+    <button onclick="testBackend()">Test Backend Connection</button>
+    <button onclick="testRegistration()">Test Registration API</button>
+    <button onclick="testAds()">Test Ads API</button>
+    
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('current-domain').textContent = window.location.origin;
+        
+        async function testBackend() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="test-result info">Testing backend connection...</div>';
+            
+            try {
+                const response = await fetch('https://xsmmarket.com/api/test-backend.php');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    results.innerHTML = `
+                        <div class="test-result success">
+                            <h3>✅ Backend Connection Successful!</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    results.innerHTML = `
+                        <div class="test-result error">
+                            <h3>❌ Backend Error</h3>
+                            <p>Status: ${response.status}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="test-result error">
+                        <h3>❌ Connection Failed</h3>
+                        <p>Error: ${error.message}</p>
+                        <p>This usually means:</p>
+                        <ul>
+                            <li>Backend server is not running</li>
+                            <li>CORS configuration issue</li>
+                            <li>Domain/SSL certificate issue</li>
+                            <li>PHP configuration problem</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testRegistration() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="test-result info">Testing registration API...</div>';
+            
+            try {
+                const response = await fetch('https://xsmmarket.com/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'testuser',
+                        email: 'test@example.com',
+                        password: 'testpass123'
+                    })
+                });
+                
+                const data = await response.json();
+                results.innerHTML = `
+                    <div class="test-result ${response.ok ? 'success' : 'error'}">
+                        <h3>${response.ok ? '✅' : '❌'} Registration API Test</h3>
+                        <p>Status: ${response.status}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="test-result error">
+                        <h3>❌ Registration API Failed</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testAds() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="test-result info">Testing ads API...</div>';
+            
+            try {
+                const response = await fetch('https://xsmmarket.com/api/ads');
+                const data = await response.json();
+                
+                results.innerHTML = `
+                    <div class="test-result ${response.ok ? 'success' : 'error'}">
+                        <h3>${response.ok ? '✅' : '❌'} Ads API Test</h3>
+                        <p>Status: ${response.status}</p>
+                        <p>Found ${data.ads ? data.ads.length : 0} ads</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="test-result error">
+                        <h3>❌ Ads API Failed</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

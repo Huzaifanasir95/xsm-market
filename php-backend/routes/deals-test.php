@@ -1,7 +1,9 @@
 <?php
 // Simple test endpoint
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: http://localhost:5173');
+// Use environment variable for CORS or allow all for production
+$frontendUrl = $_ENV['FRONTEND_URL'] ?? 'https://xsmmarket.com';
+header('Access-Control-Allow-Origin: ' . $frontendUrl);
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 

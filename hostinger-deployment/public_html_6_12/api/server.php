@@ -39,18 +39,10 @@ $method = $_SERVER['REQUEST_METHOD'];
 // Remove base path if needed (adjust for your hosting setup)
 $path = str_replace('/api', '', $path);
 
-// Ensure path starts with /
-if (substr($path, 0, 1) !== '/') {
-    $path = '/' . $path;
-}
-
-// Debug logging
-error_log("Server.php - Original URI: $request_uri, Parsed path: $path, Method: $method");
-
 // Route handling
 try {
-    // Authentication routes - check for both /auth/ and /auth
-    if (strpos($path, '/auth') === 0) {
+    // Authentication routes
+    if (strpos($path, '/auth/') === 0) {
         $authController = new AuthController();
         handleAuthRoutes($authController, $path, $method);
     }
@@ -240,7 +232,12 @@ function handleUserRoutes($controller, $path, $method) {
             else methodNotAllowed();
             break;
         default:
-            routeNotFound();
+            // Check for /u/username pattern
+            if (preg_match('/^\/user\/u\/(.+)$/', $path, $matches) && $method === 'GET') {
+                $controller->getUserByUsername($matches[1]);
+            } else {
+                routeNotFound();
+            }
     }
 }
 
@@ -265,6 +262,11 @@ function handleAdRoutes($controller, $path, $method) {
     }
     elseif ($path === '/ads/user') {
         if ($method === 'GET') $controller->getUserAds();
+        else methodNotAllowed();
+    }
+    elseif (preg_match('/^\/ads\/user\/(\d+)$/', $path, $matches)) {
+        $userId = $matches[1];
+        if ($method === 'GET') $controller->getPublicUserAds($userId);
         else methodNotAllowed();
     }
     elseif (preg_match('/^\/ads\/(\d+)$/', $path, $matches)) {
