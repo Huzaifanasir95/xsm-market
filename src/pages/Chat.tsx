@@ -158,9 +158,17 @@ const Chat: React.FC = () => {
       if (response.ok) {
         const newMessages = await response.json();
         if (newMessages.length > 0) {
+          let shouldAutoScroll = false;
+          
           setMessages(prev => {
             const existingIds = new Set(prev.map(m => m.id));
             const uniqueNewMessages = newMessages.filter((m: Message) => !existingIds.has(m.id));
+            
+            // Only auto-scroll if there are actually new messages
+            if (uniqueNewMessages.length > 0) {
+              shouldAutoScroll = true;
+            }
+            
             return [...prev, ...uniqueNewMessages];
           });
           
@@ -170,6 +178,11 @@ const Chat: React.FC = () => {
           
           // Update chat list with latest message
           updateChatLastMessage(latestMessage);
+          
+          // Only scroll if there were actually new messages
+          if (shouldAutoScroll) {
+            setTimeout(scrollToBottom, 100);
+          }
         }
       }
     } catch (error) {
@@ -184,11 +197,13 @@ const Chat: React.FC = () => {
     }
   }, [isLoggedIn, user]);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom only when chat is first selected or manually sending messages
   useEffect(() => {
-    // Use setTimeout to ensure DOM is updated before scrolling
-    setTimeout(scrollToBottom, 100);
-  }, [messages]);
+    if (selectedChat) {
+      // Scroll to bottom when a chat is first selected
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [selectedChat]);
 
   // Filter chats based on search query
   useEffect(() => {
@@ -316,6 +331,9 @@ const Chat: React.FC = () => {
         
         setNewMessage('');
         
+        // Scroll to bottom after sending a message
+        setTimeout(scrollToBottom, 100);
+        
         // Force check for any other new messages
         setTimeout(() => checkForNewMessages(), 500);
       }
@@ -357,6 +375,8 @@ const Chat: React.FC = () => {
         setMessages(prev => [...prev, message]);
         setLastMessageId(message.id);
         updateChatLastMessage(message);
+        // Scroll to bottom after sending an image
+        setTimeout(scrollToBottom, 100);
         setTimeout(() => checkForNewMessages(), 500);
       } else {
         const errorData = await response.json();
@@ -404,6 +424,8 @@ const Chat: React.FC = () => {
         setMessages(prev => [...prev, message]);
         setLastMessageId(message.id);
         updateChatLastMessage(message);
+        // Scroll to bottom after sending a video
+        setTimeout(scrollToBottom, 100);
         setTimeout(() => checkForNewMessages(), 500);
       } else {
         const errorData = await response.json();
@@ -451,21 +473,30 @@ const Chat: React.FC = () => {
   // };
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parse the date string. If it doesn't have timezone info, treat as UTC
+    let date: Date;
+    if (dateString.includes('T') || dateString.includes('Z')) {
+      // Already has timezone info
+      date = new Date(dateString);
+    } else {
+      // No timezone info, assume it's UTC from server
+      date = new Date(dateString.replace(' ', 'T') + 'Z');
+    }
+    
     const now = new Date();
     
-    // Check if it's today
+    // Check if it's today in user's local timezone
     const isToday = date.toDateString() === now.toDateString();
     
     if (isToday) {
-      // Show time for today's messages
+      // Show time for today's messages in user's local timezone
       return date.toLocaleTimeString([], { 
         hour: '2-digit', 
         minute: '2-digit',
         hour12: true 
       });
     } else {
-      // Show date and time for older messages
+      // Show date and time for older messages in user's local timezone
       const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
       
@@ -488,15 +519,35 @@ const Chat: React.FC = () => {
   };
 
   const formatLastSeen = (dateString: string) => {
-    const date = new Date(dateString);
+    if (!dateString) return '';
+    
+    // Parse the date string properly with timezone handling
+    let date: Date;
+    if (dateString.includes('T') || dateString.includes('Z')) {
+      // Already has timezone info
+      date = new Date(dateString);
+    } else {
+      // No timezone info, assume it's UTC from server
+      date = new Date(dateString.replace(' ', 'T') + 'Z');
+    }
+    
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     
+    // For very recent messages (less than 1 minute), show "now"
+    if (minutes < 1) return 'now';
     if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
-    return date.toLocaleDateString();
+    if (days < 7) return `${days}d ago`;
+    
+    // For older messages, show the date
+    return date.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   const getChatDisplayName = (chat: ChatData) => {
@@ -650,19 +701,23 @@ const Chat: React.FC = () => {
                         <p>No messages yet. Start the conversation!</p>
                       </div>
                     ) : (
-                      messages.map(message => (
+                      messages.map(message => {
+                        const isMyMessage = message.senderId === user?.id || String(message.senderId) === String(user?.id);
+                        console.log('Message:', message.id, 'SenderId:', message.senderId, 'UserId:', user?.id, 'IsMyMessage:', isMyMessage);
+                        
+                        return (
                         <div
                           key={message.id}
-                          className={`flex ${message.senderId === user?.id ? 'justify-end' : 'justify-start'}`}
+                          className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
                             className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                              message.senderId === user?.id
+                              isMyMessage
                                 ? 'bg-xsm-yellow text-xsm-black'
                                 : 'bg-xsm-medium-gray text-white'
                             }`}
                           >
-                            {message.senderId !== user?.id && (
+                            {!isMyMessage && (
                               <p className="text-xs font-medium mb-1 opacity-75">
                                 {message.sender?.username}
                               </p>
@@ -711,7 +766,6 @@ const Chat: React.FC = () => {
                             ) : message.messageType === 'video' && (message.mediaUrl || message.content) ? (
                               <div className="relative rounded-lg overflow-hidden max-w-[250px] max-h-[200px] mb-2 border border-xsm-yellow bg-black">
                                 <video
-                                  src={getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content}
                                   className="w-full h-full object-cover"
                                   controls
                                   preload="metadata"
@@ -730,9 +784,29 @@ const Chat: React.FC = () => {
                                     if (fallback) fallback.style.display = 'flex';
                                   }}
                                   onLoadStart={() => {
-                                    console.log('Video load started:', getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content);
+                                    const videoUrl = getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content;
+                                    console.log('Video load started:', videoUrl);
+                                    console.log('Video message data:', message);
+                                  }}
+                                  onCanPlay={() => {
+                                    console.log('Video can play');
+                                  }}
+                                  onLoadedData={() => {
+                                    console.log('Video data loaded');
                                   }}
                                 >
+                                  <source 
+                                    src={getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content} 
+                                    type="video/mp4" 
+                                  />
+                                  <source 
+                                    src={getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content} 
+                                    type="video/quicktime" 
+                                  />
+                                  <source 
+                                    src={getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content} 
+                                    type="video/webm" 
+                                  />
                                   Your browser does not support the video tag.
                                 </video>
                                 {/* Fallback display for broken videos */}
@@ -764,14 +838,15 @@ const Chat: React.FC = () => {
                             )}
                             <p
                               className={`text-xs mt-1 ${
-                                message.senderId === user?.id ? 'text-xsm-dark-gray' : 'text-gray-400'
+                                isMyMessage ? 'text-xsm-dark-gray' : 'text-gray-400'
                               }`}
                             >
                               {formatTime(message.createdAt)}
                             </p>
                           </div>
                         </div>
-                      ))
+                        );
+                      })
                     )}
                     <div ref={messagesEndRef} />
                   </div>
