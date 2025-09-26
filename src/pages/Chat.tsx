@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Send, Shield, MessageCircle, Search, Image as ImageIcon, Video } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { API_URL } from '@/services/auth';
@@ -82,6 +83,7 @@ interface Message {
   messageType: string;
   isRead: boolean;
   createdAt: string;
+  mediaUrl?: string;
   sender: {
     id: string;
     username: string;
@@ -108,6 +110,7 @@ interface ChatData {
 
 const Chat: React.FC = () => {
   const { user, isLoggedIn } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedChat, setSelectedChat] = useState<ChatData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -240,6 +243,20 @@ const Chat: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Handle URL parameters to auto-select chat
+  useEffect(() => {
+    const chatId = searchParams.get('chatId');
+    if (chatId && chats.length > 0) {
+      const targetChat = chats.find(chat => chat.id.toString() === chatId);
+      if (targetChat) {
+        setSelectedChat(targetChat);
+        fetchMessages(targetChat.id);
+        // Clear the URL parameter after selecting the chat
+        setSearchParams(new URLSearchParams());
+      }
+    }
+  }, [chats, searchParams, setSearchParams]);
 
   const fetchMessages = async (chatId: number) => {
     try {
@@ -434,7 +451,40 @@ const Chat: React.FC = () => {
   // };
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const date = new Date(dateString);
+    const now = new Date();
+    
+    // Check if it's today
+    const isToday = date.toDateString() === now.toDateString();
+    
+    if (isToday) {
+      // Show time for today's messages
+      return date.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    } else {
+      // Show date and time for older messages
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      if (date.toDateString() === yesterday.toDateString()) {
+        return `Yesterday ${date.toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true 
+        })}`;
+      } else {
+        return date.toLocaleDateString([], {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+    }
   };
 
   const formatLastSeen = (dateString: string) => {
@@ -661,11 +711,10 @@ const Chat: React.FC = () => {
                             ) : message.messageType === 'video' && (message.mediaUrl || message.content) ? (
                               <div className="relative rounded-lg overflow-hidden max-w-[250px] max-h-[200px] mb-2 border border-xsm-yellow bg-black">
                                 <video
-                                  src={getImageUrl(message.content) || message.content}
+                                  src={getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content}
                                   className="w-full h-full object-cover"
                                   controls
                                   preload="metadata"
-                                  crossOrigin="anonymous"
                                   style={{ maxHeight: '200px' }}
                                   onError={(e) => {
                                     console.error('Video failed to load:', {
@@ -684,7 +733,6 @@ const Chat: React.FC = () => {
                                     console.log('Video load started:', getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content);
                                   }}
                                 >
-                                  <source src={getImageUrl(message.mediaUrl || message.content) || message.mediaUrl || message.content} type="video/mp4" />
                                   Your browser does not support the video tag.
                                 </video>
                                 {/* Fallback display for broken videos */}

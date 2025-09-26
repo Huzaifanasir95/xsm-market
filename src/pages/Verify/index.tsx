@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/context/useAuth';
 import VerificationSection from '@/components/VerificationSection';
 
 interface VerifyProps {
@@ -9,13 +10,18 @@ interface VerifyProps {
 
 const Verify: React.FC<VerifyProps> = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleVerificationSubmit = async (documentType: string, file: File) => {
     // TODO: Implement actual verification submission logic
     console.log('Submitting verification:', { documentType, file });
     // Mock API call - In real implementation, this would be an API call to your backend
     setTimeout(() => {
-      navigate('/profile');
+      if (user?.username) {
+        navigate(`/u/${user.username}`);
+      } else {
+        navigate('/profile'); // Fallback to redirect component
+      }
     }, 1500);
   };
 
@@ -23,7 +29,13 @@ const Verify: React.FC<VerifyProps> = () => {
     <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <button
-          onClick={() => navigate('/profile')}
+          onClick={() => {
+            if (user?.username) {
+              navigate(`/u/${user.username}`);
+            } else {
+              navigate('/profile'); // Fallback to redirect component
+            }
+          }}
           className="flex items-center space-x-2 text-white hover:text-xsm-yellow mb-8"
         >
           <ArrowLeft className="w-5 h-5" />

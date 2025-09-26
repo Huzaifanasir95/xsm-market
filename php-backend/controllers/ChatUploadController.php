@@ -58,13 +58,19 @@ class ChatUploadController {
             // Validate file types
             $allowedTypes = [
                 'image' => ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-                'video' => ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm'],
+                'video' => [
+                    'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm',
+                    'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 
+                    'video/3gpp', 'video/x-flv', 'video/x-ms-asf'
+                ],
                 'file' => [] // Allow all file types for general files
             ];
             
             if ($messageType !== 'file' && isset($allowedTypes[$messageType])) {
+                error_log("ChatUploadController: File type: " . $file['type'] . ", Message type: " . $messageType);
                 if (!in_array($file['type'], $allowedTypes[$messageType])) {
-                    Response::error("Invalid file type for $messageType", 400);
+                    error_log("ChatUploadController: Rejected file type: " . $file['type'] . " for message type: " . $messageType);
+                    Response::error("Invalid file type for $messageType. Received: " . $file['type'], 400);
                     return;
                 }
             }

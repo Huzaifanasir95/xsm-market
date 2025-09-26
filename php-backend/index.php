@@ -251,6 +251,9 @@ function handleUserRoutes($controller, $path, $method) {
         case preg_match('/^\/user\/(\d+)$/', $path, $matches) && $method === 'GET':
             $controller->getUserById($matches[1]);
             break;
+        case preg_match('/^\/user\/(@.+)$/', $path, $matches) && $method === 'GET':
+            $controller->getUserByUsername($matches[1]);
+            break;
         default:
             Response::error('User route not found', 404);
     }

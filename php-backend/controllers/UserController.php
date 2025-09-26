@@ -940,5 +940,58 @@ class UserController {
             Response::error('Server error: ' . $e->getMessage(), 500);
         }
     }
+
+    // Get public user profile by username
+    public function getUserByUsername($username) {
+        try {
+            if (!$username) {
+                Response::error('Username required', 400);
+                return;
+            }
+
+            $stmt = Database::getConnection()->prepare("
+                SELECT id, username, fullName, profilePicture, description, isEmailVerified, createdAt 
+                FROM users WHERE username = ? AND isEmailVerified = 1
+            ");
+            $stmt->execute([$username]);
+            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$userData) {
+                Response::error('User not found', 404);
+                return;
+            }
+
+            // Get ad count for this user
+            $adCount = 0;
+            try {
+                $stmt = Database::getConnection()->prepare("SELECT COUNT(*) as count FROM ads WHERE userId = ? AND status = 1");
+                $stmt->execute([$userData['id']]);
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                $adCount = (int)$result['count'];
+            } catch (Exception $e) {
+                error_log('Error counting user ads: ' . $e->getMessage());
+            }
+
+            // Return public information
+            $publicUser = [
+                'id' => (int)$userData['id'],
+                'username' => $userData['username'],
+                'fullName' => $userData['fullName'] ?? null,
+                'profilePicture' => $userData['profilePicture'] ?? null,
+                'description' => $userData['description'] ?? null,
+                'createdAt' => $userData['createdAt'],
+                'isEmailVerified' => (bool)$userData['isEmailVerified'],
+                'adCount' => $adCount
+            ];
+
+            Response::json([
+                'success' => true,
+                'data' => $publicUser
+            ]);
+        } catch (Exception $e) {
+            error_log('Error getting user by username: ' . $e->getMessage());
+            Response::error('Server error', 500);
+        }
+    }
 }
 ?>

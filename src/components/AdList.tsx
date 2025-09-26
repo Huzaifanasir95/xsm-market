@@ -387,32 +387,7 @@ const AdList: React.FC<AdListProps> = ({
                 )}
               </div>
 
-              {/* Seller Info */}
-              <div className="flex items-center justify-between pt-2 border-t border-xsm-medium-gray/30">
-                <div className="flex items-center space-x-2">
-                  <div className="w-6 h-6 bg-xsm-yellow rounded-full flex items-center justify-center">
-                    {ad.seller.profilePicture ? (
-                      <img 
-                        src={ad.seller.profilePicture} 
-                        alt={ad.seller.username}
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-xsm-black text-xs font-bold">
-                        {ad.seller.username.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xsm-light-gray text-sm">{ad.seller.username}</span>
-                </div>
-                
-                {ad.rating > 0 && (
-                  <div className="flex items-center space-x-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="text-white text-sm">{ad.rating}</span>
-                  </div>
-                )}
-              </div>
+              
 
               {/* Action Buttons */}
               <div className="mt-4 space-y-2">

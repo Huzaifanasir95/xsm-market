@@ -931,3 +931,36 @@ export const getPasswordChangeCooldownStatus = async (): Promise<PasswordChangeC
     }
   }
 };
+
+// Get public user profile by username
+export const getPublicProfile = async (username: string) => {
+  try {
+    const token = getToken();
+    
+    const response = await fetch(`${API_URL}/user/u/${username}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        // Include auth token if available for potential additional data
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('User not found');
+      }
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch profile');
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Failed to get public profile');
+    }
+  }
+};

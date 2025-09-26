@@ -623,7 +623,6 @@ const Profile: React.FC<ProfileProps> = () => {
               <h2 className="text-2xl font-bold text-white mb-2">
                 {profile.username}
               </h2>
-              <p className="text-xsm-light-gray mb-1">@{profile.username}</p>
               <p className="text-xsm-light-gray mb-4">{profile.email}</p>
               <div className="text-xs text-green-400 flex items-center justify-center gap-1 mb-4">
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>

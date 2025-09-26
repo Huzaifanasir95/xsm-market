@@ -485,5 +485,62 @@ class AdController {
             Response::error('Server error: ' . $e->getMessage(), 500);
         }
     }
+
+    // Get public ads for a specific user
+    public function getPublicUserAds($userId) {
+        try {
+            if (!$userId || !is_numeric($userId)) {
+                Response::error('Valid user ID required', 400);
+                return;
+            }
+
+            // Get ads for the specified user that are active and public
+            $stmt = Database::getConnection()->prepare("
+                SELECT a.*, u.username 
+                FROM ads a 
+                JOIN users u ON a.userId = u.id 
+                WHERE a.userId = ? AND a.status = 1 
+                ORDER BY a.createdAt DESC
+            ");
+            $stmt->execute([$userId]);
+            $ads = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Process ads data
+            $processedAds = [];
+            foreach ($ads as $ad) {
+                $processedAd = [
+                    'id' => (int)$ad['id'],
+                    'title' => $ad['title'],
+                    'platform' => $ad['platform'],
+                    'category' => $ad['category'],
+                    'price' => (float)$ad['price'],
+                    'subscribers' => (int)$ad['subscribers'],
+                    'monthlyIncome' => (float)($ad['monthlyIncome'] ?? 0),
+                    'isMonetized' => (bool)($ad['isMonetized'] ?? 0),
+                    'createdAt' => $ad['createdAt'],
+                    'description' => $ad['description'] ?? null,
+                ];
+
+                // Handle images - parse JSON if it's a string
+                if (!empty($ad['images'])) {
+                    $images = is_string($ad['images']) ? json_decode($ad['images'], true) : $ad['images'];
+                    $processedAd['images'] = is_array($images) ? $images : [];
+                } else {
+                    $processedAd['images'] = [];
+                }
+
+                $processedAds[] = $processedAd;
+            }
+
+            Response::json([
+                'success' => true,
+                'data' => $processedAds
+            ]);
+
+        } catch (Exception $e) {
+            error_log('Get public user ads error: ' . $e->getMessage());
+            Response::error('Server error', 500);
+        }
+    }
 }
 ?>

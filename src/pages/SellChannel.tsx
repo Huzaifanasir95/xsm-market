@@ -4,6 +4,7 @@ import { Upload, ChevronDown, Search, RefreshCw, X } from 'lucide-react';
 import { createAd } from '../services/ads';
 import { extractProfileData, detectPlatform, formatFollowerCount } from '../services/socialMedia';
 import { uploadScreenshots } from '../services/uploadService';
+import { useAuth } from '@/context/useAuth';
 import { useToast } from "@/components/ui/use-toast";
 
 interface SellChannelProps {
@@ -53,6 +54,7 @@ const SellChannel: React.FC<SellChannelProps> = () => {
   const [showContentTypeDropdown, setShowContentTypeDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
   const [files, setFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -304,7 +306,11 @@ const SellChannel: React.FC<SellChannelProps> = () => {
       // Small delay before redirect to let user see the success message
       setTimeout(() => {
         // Redirect to profile page to see the new listing
-        navigate('/profile');
+        if (user?.username) {
+          navigate(`/u/${user.username}`);
+        } else {
+          navigate('/profile'); // Fallback to redirect component
+        }
         // Ensure we scroll to top of the profile page
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 1500);

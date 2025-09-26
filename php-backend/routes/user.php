@@ -122,18 +122,38 @@ class UserController {
             errorResponse('Username required');
         }
 
+        // Remove @ prefix if present (for /@username format)
+        if (strpos($username, '@') === 0) {
+            $username = substr($username, 1);
+        }
+
         $user = $this->user->findByUsername($username);
         
         if (!$user) {
             errorResponse('User not found', 404);
         }
 
-        // Return only public information
+        // Get ad count for this user
+        $adCount = 0;
+        try {
+            $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM ads WHERE userId = ? AND status = 1");
+            $stmt->execute([$user['id']]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            $adCount = (int)$result['count'];
+        } catch (Exception $e) {
+            error_log('Error counting user ads: ' . $e->getMessage());
+        }
+
+        // Return public information with additional fields
         $publicUser = [
             'id' => $user['id'],
             'username' => $user['username'],
-            'fullName' => $user['fullName'],
-            'createdAt' => $user['createdAt']
+            'fullName' => $user['fullName'] ?? null,
+            'profilePicture' => $user['profilePicture'] ?? null,
+            'description' => $user['description'] ?? null,
+            'createdAt' => $user['createdAt'],
+            'isEmailVerified' => (bool)$user['isEmailVerified'],
+            'adCount' => $adCount
         ];
 
         successResponse($publicUser);
@@ -203,6 +223,9 @@ switch ($method) {
             $controller->getProfile();
         } elseif (strpos($path, '/check-username') !== false) {
             $controller->checkUsernameAvailability();
+        } elseif (preg_match('/\/(@[^\/]+)$/', $path, $matches)) {
+            // Handle /@username format
+            $controller->getUserByUsername();
         } elseif (preg_match('/\/[^\/]+$/', $path)) {
             $controller->getUserByUsername();
         } else {

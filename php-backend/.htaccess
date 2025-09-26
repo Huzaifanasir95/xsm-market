@@ -12,21 +12,21 @@ RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
 # RewriteCond %{HTTPS} off
 # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Route all API requests to index.php
+# Route all API requests to server.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/uploads/
-RewriteCond %{REQUEST_URI} !^/webhooks/
-RewriteRule ^api/(.*)$ index.php [QSA,L]
+RewriteCond %{REQUEST_URI} !^/api/uploads/
+RewriteCond %{REQUEST_URI} !^/api/webhooks/
+RewriteRule ^(.*)$ server.php [QSA,L]
 
 # Handle webhook requests directly
 RewriteRule ^webhooks/nowpayments/?$ webhooks/nowpayments.php [QSA,L]
 
-# Route root API requests to index.php
+# Route root API requests to server.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/uploads/
-RewriteRule ^(auth|user|ads|chat|admin|contact|social-media|debug|health)/(.*)$ index.php [QSA,L]
+RewriteCond %{REQUEST_URI} !^/api/uploads/
+RewriteRule ^(auth|user|ads|chat|admin|contact|social-media|debug|health)/(.*)$ server.php [QSA,L]
 
 # Security headers
 <IfModule mod_headers.c>

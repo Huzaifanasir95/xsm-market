@@ -15,6 +15,10 @@ import Home from './pages/Home';
 import SellChannel from './pages/SellChannel';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
+import PublicProfile from './pages/PublicProfile';
+import ProfileRedirect from './components/ProfileRedirect';
+import UsernameRedirect from './components/UsernameRedirect';
+import NotFound from './pages/NotFound';
 import About from './pages/About';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
@@ -58,7 +62,12 @@ const AppContent: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/sell" element={<SellChannel />} />
             <Route path="/chat" element={<Chat />} />
-            <Route path="/profile" element={<Profile />} />
+            {/* Profile redirect - redirects /profile to /@username */}
+            <Route path="/profile" element={<ProfileRedirect />} />
+            {/* Public profile route - shows public view or edit view if own profile */}
+            <Route path="/u/:username" element={<PublicProfile />} />
+            {/* Legacy profile editing - keep the old Profile component for specific editing */}
+            <Route path="/profile/edit" element={<Profile />} />
             <Route path="/my-deals" element={<BuyerDeals />} />
             <Route path="/seller-deals" element={<SellerDeals />} />
             <Route path="/about" element={<About />} />
@@ -80,7 +89,11 @@ const AppContent: React.FC = () => {
                 )
               } 
             />
-            <Route path="*" element={<div className="text-white p-8 text-center">404 - Page Not Found</div>} />
+            {/* 404 page */}
+            <Route path="/404" element={<NotFound />} />
+            {/* Catch-all route for potential usernames - this must be last before the final 404 */}
+            <Route path="/:possibleUsername" element={<UsernameRedirect />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
           
