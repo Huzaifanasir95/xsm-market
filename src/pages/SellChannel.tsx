@@ -89,11 +89,24 @@ const SellChannel: React.FC<SellChannelProps> = () => {
       });
     }
 
-    setFiles(imageFiles);
+    // Check if adding these files would exceed the limit
+    const totalFiles = files.length + imageFiles.length;
+    if (totalFiles > 5) {
+      toast({
+        variant: "destructive",
+        title: "Too many files",
+        description: `You can only upload up to 5 images. You currently have ${files.length} images.`,
+      });
+      return;
+    }
+
+    // Add to existing files instead of replacing
+    const newFiles = [...files, ...imageFiles];
+    setFiles(newFiles);
     
-    // Create preview URLs for the images
-    const previews = imageFiles.map(file => URL.createObjectURL(file));
-    setImagePreviews(previews);
+    // Create preview URLs for the new images and add to existing previews
+    const newPreviews = imageFiles.map(file => URL.createObjectURL(file));
+    setImagePreviews(prev => [...prev, ...newPreviews]);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -227,6 +240,7 @@ const SellChannel: React.FC<SellChannelProps> = () => {
       // Upload screenshots if any files are selected
       let screenshotData: any[] = [];
       let primaryImageData: string = '';
+      let thumbnailData: string = '';
       
       if (files.length > 0) {
         try {
@@ -234,11 +248,15 @@ const SellChannel: React.FC<SellChannelProps> = () => {
           const uploadResult = await uploadScreenshots(files);
           if (uploadResult.screenshots) {
             screenshotData = uploadResult.screenshots;
-            // Set the first image as primary image
+            
+            // Always use the first screenshot as both primary image and thumbnail
             if (screenshotData.length > 0) {
               primaryImageData = screenshotData[0].data;
+              thumbnailData = screenshotData[0].data; // First image becomes the thumbnail
             }
+            
             console.log('✅ Screenshots uploaded successfully:', screenshotData);
+            console.log('📸 Thumbnail set to first screenshot:', !!thumbnailData);
           }
         } catch (uploadError) {
           console.error('❌ Error uploading screenshots:', uploadError);
@@ -262,10 +280,11 @@ const SellChannel: React.FC<SellChannelProps> = () => {
         description: formData.description || '',
         price: parseFloat(formData.price) || 0,
         subscribers: formData.subscribers ? parseInt(formData.subscribers) : 0,
-        isMonetized: Boolean(formData.isMonetized),
+        isMonetized: formData.isMonetized ? 1 : 0, // Convert boolean to integer for MySQL
         incomeDetails: formData.incomeDetails || '',
         promotionDetails: formData.promotionDetails || '',
-        thumbnail: formData.profilePicture || '', // Add the extracted profile picture as thumbnail
+        // Use first screenshot as thumbnail, fallback to profile picture if no screenshots
+        thumbnail: thumbnailData || formData.profilePicture || '',
         primary_image: primaryImageData, // Store the first uploaded image as primary
         additional_images: screenshotData.slice(1), // Store remaining images as additional
         screenshots: screenshotData, // Keep for backward compatibility
@@ -605,21 +624,131 @@ const SellChannel: React.FC<SellChannelProps> = () => {
 
               {/* Screenshot Upload */}
               <div className="mt-6">
-                <h3 className="text-base font-medium mb-2">Attach screenshots (proof of income, etc.):</h3>
+                <h3 className="text-base font-medium mb-3 text-white">Screenshots (Optional)</h3>
+                <p className="text-sm text-xsm-light-gray mb-4">
+                  Add screenshots to showcase your channel (proof of income, analytics, etc.)
+                </p>
+                
                 <div 
-                  className={`border border-dashed rounded p-6 text-center transition-colors ${
+                  className={`border-2 border-dashed rounded-lg text-center transition-all duration-300 cursor-pointer ${
                     isDragOver 
-                      ? 'border-xsm-yellow bg-yellow-50' 
-                      : 'border-xsm-medium-gray hover:border-xsm-yellow'
+                      ? 'border-xsm-yellow bg-xsm-yellow/10 scale-105' 
+                      : files.length > 0 
+                        ? 'border-xsm-yellow/50 bg-xsm-dark-gray' 
+                        : 'border-xsm-medium-gray hover:border-xsm-yellow hover:bg-xsm-dark-gray/50'
                   }`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
+                  onClick={() => document.getElementById('file-upload')?.click()}
                 >
-                  <Upload className={`mx-auto mb-2 ${isDragOver ? 'text-xsm-yellow' : 'text-xsm-medium-gray'}`} size={24} />
-                  <p className={`mb-2 ${isDragOver ? 'text-xsm-yellow' : 'text-xsm-medium-gray'}`}>
-                    {isDragOver ? 'Drop files here' : 'Drop files here or click to upload'}
-                  </p>
+                  {files.length === 0 ? (
+                    // Show upload prompt when no files
+                    <div className="p-8">
+                      <Upload className={`mx-auto mb-3 transition-colors ${
+                        isDragOver ? 'text-xsm-yellow animate-bounce' : 'text-xsm-medium-gray'
+                      }`} size={32} />
+                      
+                      <p className={`mb-3 font-medium transition-colors ${
+                        isDragOver ? 'text-xsm-yellow' : 'text-xsm-medium-gray'
+                      }`}>
+                        {isDragOver ? 'Drop your images here!' : 'Drag and drop images here, or click to select'}
+                      </p>
+                      
+                      <div className="bg-xsm-yellow text-black px-6 py-3 rounded-lg font-medium hover:bg-yellow-400 transition-colors inline-block">
+                        Choose Files
+                      </div>
+                      
+                      <p className="text-xs text-xsm-light-gray mt-3">
+                        PNG, JPG, JPEG • Max 5 images • 10MB each
+                      </p>
+                    </div>
+                  ) : (
+                    // Show thumbnails inside the box when files are uploaded
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-xsm-yellow rounded-full"></div>
+                          <p className="text-sm font-medium text-white">
+                            {files.length} image{files.length !== 1 ? 's' : ''} ready to upload
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent triggering the file chooser
+                            imagePreviews.forEach(url => URL.revokeObjectURL(url));
+                            setFiles([]);
+                            setImagePreviews([]);
+                          }}
+                          className="text-sm text-red-400 hover:text-red-300 underline transition-colors"
+                          type="button"
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-4">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative group">
+                            {/* Square Thumbnail Container */}
+                            <div className="aspect-square rounded-lg overflow-hidden bg-xsm-dark-gray border border-xsm-medium-gray group-hover:border-xsm-yellow transition-all duration-300 group-hover:shadow-lg group-hover:shadow-xsm-yellow/20">
+                              <img
+                                src={preview}
+                                alt={`Screenshot ${index + 1}`}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              
+                              {/* Hover Overlay */}
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                <div className="text-center text-white">
+                                  <div className="text-xs font-medium mb-1">
+                                    {(files[index].size / 1024 / 1024).toFixed(1)} MB
+                                  </div>
+                                  <div className="text-xs text-gray-300 truncate max-w-20">
+                                    {files[index].name}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Remove Button - Always visible on mobile, hover on desktop */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent triggering the file chooser
+                                removeImage(index);
+                              }}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 transition-all duration-200 opacity-100 sm:opacity-0 group-hover:opacity-100 hover:scale-110"
+                              type="button"
+                              title="Remove image"
+                            >
+                              <X size={12} />
+                            </button>
+                            
+                            {/* Image Index Badge */}
+                            <div className="absolute top-2 left-2 bg-xsm-yellow text-black text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                              {index + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Add more button */}
+                      <div className="border-2 border-dashed border-xsm-medium-gray rounded-lg p-4 hover:border-xsm-yellow transition-colors">
+                        <Upload className="mx-auto mb-2 text-xsm-medium-gray hover:text-xsm-yellow transition-colors" size={24} />
+                        <p className="text-sm text-xsm-medium-gray hover:text-white transition-colors">
+                          Click to add more images
+                        </p>
+                      </div>
+                      
+                      {/* Upload Tips */}
+                      <div className="mt-4 p-3 bg-xsm-black/30 rounded-lg border border-xsm-medium-gray">
+                        <p className="text-xs text-xsm-light-gray">
+                          💡 <strong>Tips:</strong> Include analytics screenshots, income proof, or channel highlights to attract more buyers
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
                   <input
                     type="file"
                     multiple
@@ -628,63 +757,7 @@ const SellChannel: React.FC<SellChannelProps> = () => {
                     className="hidden"
                     id="file-upload"
                   />
-                  <label
-                    htmlFor="file-upload"
-                    className="cursor-pointer"
-                  >
-                    <span className="text-xsm-yellow underline hover:text-yellow-600">Browse files</span>
-                  </label>
-                  <p className="text-xs text-gray-500 mt-2">Max 5 images, 10MB each</p>
                 </div>
-                {files.length > 0 && (
-                  <div className="mt-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <p className="text-sm font-medium text-gray-700">
-                        {files.length} image{files.length !== 1 ? 's' : ''} selected
-                      </p>
-                      <button
-                        onClick={() => {
-                          imagePreviews.forEach(url => URL.revokeObjectURL(url));
-                          setFiles([]);
-                          setImagePreviews([]);
-                        }}
-                        className="text-sm text-red-600 hover:text-red-800 underline"
-                        type="button"
-                      >
-                        Clear all
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {imagePreviews.map((preview, index) => (
-                        <div key={index} className="relative group">
-                          <div className="aspect-square">
-                            <img
-                              src={preview}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-full object-cover rounded-lg border border-gray-200 shadow-sm"
-                            />
-                          </div>
-                          <button
-                            onClick={() => removeImage(index)}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 shadow-lg"
-                            type="button"
-                            title="Remove image"
-                          >
-                            <X size={14} />
-                          </button>
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent text-white text-xs p-2 rounded-b-lg">
-                            <div className="truncate">
-                              {files[index].name}
-                            </div>
-                            <div className="text-gray-300">
-                              {(files[index].size / 1024 / 1024).toFixed(1)} MB
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 

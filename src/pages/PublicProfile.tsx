@@ -78,11 +78,26 @@ const PublicProfile: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Recently joined';
+    
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long'
-      });
+      const joinDate = new Date(dateString);
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - joinDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffWeeks = Math.floor(diffDays / 7);
+      const diffMonths = Math.floor(diffDays / 30);
+      const diffYears = Math.floor(diffDays / 365);
+
+      if (diffDays < 1) return 'Today';
+      if (diffDays === 1) return '1 day ago';
+      if (diffDays < 7) return `${diffDays} days ago`;
+      if (diffWeeks === 1) return '1 week ago';
+      if (diffWeeks < 4) return `${diffWeeks} weeks ago`;
+      if (diffMonths === 1) return '1 month ago';
+      if (diffMonths < 12) return `${diffMonths} months ago`;
+      if (diffYears === 1) return '1 year ago';
+      return `${diffYears} years ago`;
     } catch {
       return 'Unknown';
     }

@@ -364,7 +364,7 @@ const AdList: React.FC<AdListProps> = ({
                 <h3 className="text-white font-semibold text-lg line-clamp-2 group-hover:text-xsm-yellow transition-colors flex-1">
                   {ad.title}
                 </h3>
-                <div className="text-xsm-yellow font-bold whitespace-nowrap text-lg">
+                <div className="text-green-400 font-bold whitespace-nowrap text-lg">
                   {formatPrice(ad.price)}
                 </div>
               </div>
@@ -378,6 +378,13 @@ const AdList: React.FC<AdListProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="text-white font-medium">Subscribers:</span>
                   <span className="text-white">{formatNumber(ad.subscribers)}</span>
+                </div>
+                {/* Monetization Status */}
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-medium">Monetization:</span>
+                  <span className={`font-medium ${ad.isMonetized ? 'text-green-400' : 'text-red-400'}`}>
+                    {ad.isMonetized ? 'YES' : 'NO'}
+                  </span>
                 </div>
                 {ad.monthlyIncome > 0 && (
                   <div className="flex items-center gap-2">

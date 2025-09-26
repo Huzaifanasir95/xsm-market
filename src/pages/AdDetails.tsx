@@ -28,9 +28,13 @@ interface ChannelData {
   rating: number;
   views: number;
   thumbnail: string;
+  screenshots?: string[];
   monetized: boolean;
   earningMethods?: string[];
   promotionStrategies?: string[];
+  contentType?: string;
+  incomeDetails?: string;
+  promotionDetails?: string;
   seller: {
     id: number;
     name: string;
@@ -161,6 +165,20 @@ const AdDetails: React.FC = () => {
       
       const data = await response.json();
       
+      // Parse screenshots from JSON string if available
+      let screenshots: string[] = [];
+      if (data.screenshots) {
+        try {
+          screenshots = JSON.parse(data.screenshots);
+          if (!Array.isArray(screenshots)) {
+            screenshots = [];
+          }
+        } catch (e) {
+          console.warn('Failed to parse screenshots JSON:', e);
+          screenshots = [];
+        }
+      }
+      
       // Transform the API response to match our ChannelData interface
       const channelData: ChannelData = {
         id: data.id.toString(),
@@ -176,8 +194,13 @@ const AdDetails: React.FC = () => {
         premium: data.premium || false,
         rating: data.rating || 4.5,
         views: data.views || data.totalViews || data.subscribers * 10,
-        thumbnail: data.thumbnail || data.primary_image || '/default-thumbnail.jpg',
+        // Use first screenshot as thumbnail if available, otherwise fallback to thumbnail/primary_image
+        thumbnail: screenshots.length > 0 ? screenshots[0] : (data.thumbnail || data.primary_image || '/default-thumbnail.jpg'),
+        screenshots: screenshots,
         monetized: data.isMonetized || data.monthlyIncome > 0 || false,
+        contentType: data.contentType,
+        incomeDetails: data.incomeDetails,
+        promotionDetails: data.promotionDetails,
         earningMethods: data.earningMethods || ['Ad Revenue', 'Sponsorships'],
         promotionStrategies: data.promotionStrategies || ['SEO Optimization', 'Social Media'],
         seller: {
@@ -400,11 +423,34 @@ const AdDetails: React.FC = () => {
           <div className="space-y-6">
             {/* Channel Header */}
             <div className="text-center">
-              <div className="w-32 h-32 bg-white rounded-full mx-auto mb-4 flex items-center justify-center p-6">
-                <div className="w-full h-full">
-                  <PlatformIcon platform={channel.platform} />
+              {/* Display channel thumbnail if available */}
+              {channel.thumbnail && channel.thumbnail !== '/default-thumbnail.jpg' ? (
+                <div className="relative w-32 h-32 mx-auto mb-4">
+                  <img
+                    src={channel.thumbnail}
+                    alt={`${channel.name} thumbnail`}
+                    className="w-full h-full object-cover rounded-full border-4 border-xsm-yellow"
+                    onError={(e) => {
+                      console.error('Thumbnail failed to load:', channel.thumbnail);
+                      // Fallback to platform icon
+                      e.currentTarget.style.display = 'none';
+                      const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                  <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center p-6 hidden">
+                    <div className="w-full h-full">
+                      <PlatformIcon platform={channel.platform} />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="w-32 h-32 bg-white rounded-full mx-auto mb-4 flex items-center justify-center p-6">
+                  <div className="w-full h-full">
+                    <PlatformIcon platform={channel.platform} />
+                  </div>
+                </div>
+              )}
               <h3 className="text-2xl font-bold text-white mb-2">{channel.name}</h3>
               <a 
                 href={channel.channelUrl}
@@ -453,13 +499,71 @@ const AdDetails: React.FC = () => {
               </div>
             </div>
 
+            {/* Screenshots/Images Gallery */}
+            {channel.screenshots && channel.screenshots.length > 0 && (
+              <div className="xsm-card">
+                <h4 className="text-lg font-semibold text-xsm-yellow mb-3">Channel Screenshots</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {channel.screenshots.map((screenshot, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={screenshot}
+                        alt={`${channel.name} screenshot ${index + 1}`}
+                        className="w-full h-48 object-cover rounded-lg border border-xsm-medium-gray/30 hover:border-xsm-yellow transition-all duration-200 cursor-pointer"
+                        onClick={() => {
+                          // Open image in new tab for full view
+                          window.open(screenshot, '_blank');
+                        }}
+                        onError={(e) => {
+                          console.error('Image failed to load:', screenshot);
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                        <div className="text-white text-sm font-medium">Click to enlarge</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xsm-medium-gray text-sm mt-2">
+                  {channel.screenshots.length} screenshot{channel.screenshots.length > 1 ? 's' : ''} uploaded by seller
+                </p>
+              </div>
+            )}
 
 
-            {/* Description */}
-            <div className="xsm-card">
-              <h4 className="text-lg font-semibold text-xsm-yellow mb-3">Description</h4>
-              <p className="text-white leading-relaxed">{channel.description}</p>
-            </div>
+
+            {/* Description - only show if not empty */}
+            {channel.description && channel.description.trim() && (
+              <div className="xsm-card">
+                <h4 className="text-lg font-semibold text-xsm-yellow mb-3">Description</h4>
+                <p className="text-white leading-relaxed">{channel.description}</p>
+              </div>
+            )}
+
+            {/* Content Type - only show if not empty */}
+            {channel.contentType && channel.contentType.trim() && (
+              <div className="xsm-card">
+                <h4 className="text-lg font-semibold text-xsm-yellow mb-3">Content Type</h4>
+                <p className="text-white leading-relaxed">{channel.contentType}</p>
+              </div>
+            )}
+
+            {/* Income Details - only show if not empty */}
+            {channel.incomeDetails && channel.incomeDetails.trim() && (
+              <div className="xsm-card">
+                <h4 className="text-lg font-semibold text-xsm-yellow mb-3">Income Details</h4>
+                <p className="text-white leading-relaxed">{channel.incomeDetails}</p>
+              </div>
+            )}
+
+            {/* Promotion Details - only show if not empty */}
+            {channel.promotionDetails && channel.promotionDetails.trim() && (
+              <div className="xsm-card">
+                <h4 className="text-lg font-semibold text-xsm-yellow mb-3">Promotion Details</h4>
+                <p className="text-white leading-relaxed">{channel.promotionDetails}</p>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Purchase Info */}

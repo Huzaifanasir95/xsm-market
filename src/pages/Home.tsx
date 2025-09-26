@@ -47,6 +47,7 @@ const Home: React.FC<HomeProps> = () => {
   const [showAuthWidget, setShowAuthWidget] = useState(false);
   const [channels, setChannels] = useState<ChannelData[]>([]);
   const [filteredChannels, setFilteredChannels] = useState<ChannelData[]>([]);
+  const [loading, setLoading] = useState(true);
   const { isLoggedIn } = useAuth();
   const { toast } = useToast();
   const [sortBy, setSortBy] = useState('newest');
@@ -105,35 +106,52 @@ const Home: React.FC<HomeProps> = () => {
   useEffect(() => {
     const fetchAds = async () => {
       try {
+        setLoading(true);
         console.log('🔄 Fetching ads...');
         const response = await getAllAds();
         console.log('📡 Ads response:', response);
         
         if (response && response.ads) {
           // Transform API data to match ChannelData interface
-          const transformedAds = response.ads.map((ad: any) => ({
-            id: ad.id.toString(),
-            name: ad.title,
-            category: ad.category || 'General',
-            subscribers: ad.subscribers || 0,
-            price: ad.price || 0,
-            monthlyIncome: ad.monthlyIncome || 0,
-            description: ad.description || '',
-            verified: ad.seller?.isVerified || false,
-            premium: ad.isMonetized || false,
-            rating: 4.5, // Default rating
-            views: ad.views || Math.floor(Math.random() * 1000000) + 100000,
-            thumbnail: ad.primary_image || (ad.screenshots && ad.screenshots.length > 0 ? ad.screenshots[0].url || ad.screenshots[0] : null) || ad.thumbnail || `https://placehold.co/600x400/333/yellow?text=${ad.platform || 'Channel'}`,
-            primary_image: ad.primary_image || null,
-            additional_images: ad.additional_images || [],
-            screenshots: ad.screenshots || [],
-            seller: {
-              id: ad.seller?.id || 0,
-              name: ad.seller?.username || 'Anonymous',
-              rating: 4.5,
-              sales: Math.floor(Math.random() * 20) + 1
+          const transformedAds = response.ads.map((ad: any) => {
+            // Parse screenshots if it's a JSON string
+            let screenshots = [];
+            if (ad.screenshots) {
+              try {
+                screenshots = JSON.parse(ad.screenshots);
+                if (!Array.isArray(screenshots)) {
+                  screenshots = [];
+                }
+              } catch (e) {
+                screenshots = [];
+              }
             }
-          }));
+
+            return {
+              id: ad.id.toString(),
+              name: ad.title,
+              category: ad.category || 'General',
+              subscribers: ad.subscribers || 0,
+              price: ad.price || 0,
+              monthlyIncome: ad.monthlyIncome || 0,
+              description: ad.description || '',
+              verified: ad.seller?.isVerified || false,
+              premium: ad.isMonetized || false,
+              rating: 4.5, // Default rating
+              views: ad.views || Math.floor(Math.random() * 1000000) + 100000,
+              // Use first screenshot as thumbnail if available
+              thumbnail: screenshots.length > 0 ? screenshots[0] : (ad.primary_image || ad.thumbnail || `https://placehold.co/600x400/333/yellow?text=${ad.platform || 'Channel'}`),
+              primary_image: ad.primary_image || null,
+              additional_images: ad.additional_images || [],
+              screenshots: screenshots,
+              seller: {
+                id: ad.seller?.id || 0,
+                name: ad.seller?.username || 'Anonymous',
+                rating: 4.5,
+                sales: Math.floor(Math.random() * 20) + 1
+              }
+            };
+          });
           console.log('✅ Transformed ads:', transformedAds.length);
           setChannels(transformedAds);
           setFilteredChannels(transformedAds);
@@ -154,6 +172,8 @@ const Home: React.FC<HomeProps> = () => {
         // Set empty arrays instead of crashing
         setChannels([]);
         setFilteredChannels([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -399,6 +419,18 @@ const Home: React.FC<HomeProps> = () => {
       )
     }
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-xsm-black to-xsm-dark-gray flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-xsm-yellow mx-auto mb-4"></div>
+          <p className="text-xsm-light-gray text-lg">Loading channels...</p>
+          <p className="text-xsm-medium-gray text-sm mt-2">Finding the best social media channels for you</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

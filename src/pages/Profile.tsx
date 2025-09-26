@@ -45,6 +45,29 @@ const Profile: React.FC<ProfileProps> = () => {
   const { showSuccess, showError, showInfo, showWarning } = useNotifications();
   const typedUser = user as ExtendedUser;
 
+  // Function to format joining date
+  const formatJoinDate = (dateString: string) => {
+    if (!dateString) return 'Recently joined';
+    
+    const joinDate = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - joinDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
+
+    if (diffDays < 1) return 'Joined today';
+    if (diffDays === 1) return 'Joined 1 day ago';
+    if (diffDays < 7) return `Joined ${diffDays} days ago`;
+    if (diffWeeks === 1) return 'Joined 1 week ago';
+    if (diffWeeks < 4) return `Joined ${diffWeeks} weeks ago`;
+    if (diffMonths === 1) return 'Joined 1 month ago';
+    if (diffMonths < 12) return `Joined ${diffMonths} months ago`;
+    if (diffYears === 1) return 'Joined 1 year ago';
+    return `Joined ${diffYears} years ago`;
+  };
+
   // Debug logging
   console.log('🔍 Profile component state:', { 
     user: typedUser, 
@@ -120,7 +143,7 @@ const Profile: React.FC<ProfileProps> = () => {
   const [profile, setProfile] = useState({
     username: user?.username || 'ChannelTrader2024',
     email: user?.email || 'user@example.com',
-    joinDate: (user as ExtendedUser)?.joinDate || '2025-01-15', // Keep the date format as is
+    joinDate: (user as any)?.createdAt || (user as ExtendedUser)?.joinDate || new Date().toISOString(),
     profilePicture: user?.profilePicture || '',
     description: user?.description || ''
   });
@@ -146,7 +169,7 @@ const Profile: React.FC<ProfileProps> = () => {
         email: user.email,
         profilePicture: user.profilePicture || '',
         description: user.description || '',
-        joinDate: (user as any)?.joinDate || prev.joinDate
+        joinDate: (user as any)?.createdAt || (user as any)?.joinDate || prev.joinDate
       }));
       
       console.log('🔄 Updated profile state with description:', user.description);
@@ -316,6 +339,56 @@ const Profile: React.FC<ProfileProps> = () => {
   }
 
   // Handle profile picture upload - immediately save to backend
+  // Image compression utility function
+  const compressImage = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions while maintaining aspect ratio
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file); // Fallback to original file
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleProfilePictureChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -331,7 +404,10 @@ const Profile: React.FC<ProfileProps> = () => {
         return;
       }
       
-      // Convert to base64 for preview and storage
+      // Compress and resize image before uploading
+      const compressedFile = await compressImage(file, 512, 512, 0.8); // Max 512x512, 80% quality
+      
+      // Convert compressed image to base64
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64String = e.target?.result as string;
@@ -623,7 +699,13 @@ const Profile: React.FC<ProfileProps> = () => {
               <h2 className="text-2xl font-bold text-white mb-2">
                 {profile.username}
               </h2>
-              <p className="text-xsm-light-gray mb-4">{profile.email}</p>
+              <p className="text-xsm-light-gray mb-2">{profile.email}</p>
+              
+              {/* Joining Date */}
+              <p className="text-sm text-xsm-medium-gray mb-4">
+                {formatJoinDate(profile.joinDate)}
+              </p>
+              
               <div className="text-xs text-green-400 flex items-center justify-center gap-1 mb-4">
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                 <span>Active now</span>

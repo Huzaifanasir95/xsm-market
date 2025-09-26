@@ -18,7 +18,6 @@ import Profile from './pages/Profile';
 import PublicProfile from './pages/PublicProfile';
 import ProfileRedirect from './components/ProfileRedirect';
 import UsernameRedirect from './components/UsernameRedirect';
-import AdDetails from './pages/AdDetails';
 import NotFound from './pages/NotFound';
 import About from './pages/About';
 import Terms from './pages/Terms';
@@ -32,6 +31,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import Contact from './pages/Contact';
 import SellerDeals from './components/SellerDeals';
 import BuyerDeals from './components/BuyerDeals';
+import AdDetails from './pages/AdDetails';
 
 // Inner component that has access to AuthContext
 const AppContent: React.FC = () => {

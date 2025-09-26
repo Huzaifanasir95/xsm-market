@@ -160,7 +160,17 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
       });
     }
 
-    setFiles(imageFiles);
+    // Check if adding new files would exceed the limit
+    if (files.length + imageFiles.length > 10) {
+      toast({
+        variant: "destructive",
+        title: "Too many files",
+        description: `You can only upload up to 10 images total. Currently have ${files.length}, trying to add ${imageFiles.length}.`,
+      });
+      return;
+    }
+
+    setFiles(prev => [...prev, ...imageFiles]);
     const previews = imageFiles.map(file => URL.createObjectURL(file));
     setImagePreviews(prev => [...prev, ...previews]);
   };
@@ -276,16 +286,22 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
       // Upload new screenshots if any
       let screenshotData: any[] = [];
       let primaryImageData = null;
+      let thumbnailData = null;
       
       if (files.length > 0) {
         try {
           console.log('📤 Uploading new screenshots...');
           const uploadResult = await uploadScreenshots(files);
           screenshotData = uploadResult.screenshots || [];
+          
+          // Always use the first screenshot as primary image and thumbnail
           if (screenshotData.length > 0) {
             primaryImageData = screenshotData[0].data;
+            thumbnailData = screenshotData[0].data; // First image becomes the thumbnail
           }
+          
           console.log('✅ Screenshots uploaded successfully:', screenshotData);
+          console.log('📸 Thumbnail set to first screenshot:', !!thumbnailData);
         } catch (uploadError: any) {
           console.error('❌ Error uploading screenshots:', uploadError);
           toast({
@@ -308,10 +324,11 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
         price: parseFloat(formData.price),
         subscribers: formData.subscribers ? parseInt(formData.subscribers) : 0,
         monthlyIncome: formData.monthlyIncome ? parseFloat(formData.monthlyIncome) : 0,
-        isMonetized: Boolean(formData.isMonetized),
+        isMonetized: formData.isMonetized ? 1 : 0, // Convert boolean to integer for MySQL
         incomeDetails: formData.incomeDetails.trim(),
         promotionDetails: formData.promotionDetails.trim(),
-        thumbnail: formData.thumbnail || '',
+        // Use new thumbnail if available, otherwise keep existing
+        thumbnail: thumbnailData || formData.thumbnail || '',
         ...(screenshotData.length > 0 && {
           screenshots: screenshotData,
           primary_image: primaryImageData,
@@ -630,7 +647,7 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
           <div>
             <label className="block text-white font-medium mb-2">Screenshots (Optional)</label>
             <div
-              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
                 isDragOver 
                   ? 'border-xsm-yellow bg-xsm-yellow/10' 
                   : 'border-xsm-medium-gray/50 hover:border-xsm-medium-gray'
@@ -638,11 +655,8 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
+              onClick={() => document.getElementById('screenshot-upload')?.click()}
             >
-              <Upload className="w-8 h-8 text-xsm-medium-gray mx-auto mb-3" />
-              <p className="text-xsm-medium-gray mb-2">
-                Drag and drop images here, or click to select
-              </p>
               <input
                 type="file"
                 multiple
@@ -651,38 +665,49 @@ const EditListingModal: React.FC<EditListingModalProps> = ({ ad, isOpen, onClose
                 className="hidden"
                 id="screenshot-upload"
               />
-              <label
-                htmlFor="screenshot-upload"
-                className="bg-xsm-yellow text-black px-4 py-2 rounded-lg font-medium cursor-pointer hover:bg-yellow-400 transition-colors inline-block"
-              >
-                Choose Files
-              </label>
-            </div>
-
-            {/* Image Previews */}
-            {imagePreviews.length > 0 && (
-              <div className="mt-4">
-                <p className="text-white mb-3">Preview:</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              
+              {imagePreviews.length === 0 ? (
+                <>
+                  <Upload className="w-8 h-8 text-xsm-medium-gray mx-auto mb-3" />
+                  <p className="text-xsm-medium-gray mb-2">
+                    Drag and drop images here, or click to select
+                  </p>
+                  <div className="bg-xsm-yellow text-black px-4 py-2 rounded-lg font-medium hover:bg-yellow-400 transition-colors inline-block">
+                    Choose Files
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative group">
+                    <div key={index} className="relative group aspect-square">
                       <img
                         src={preview}
                         alt={`Preview ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg border border-xsm-medium-gray/30"
+                        className="w-full h-full object-cover rounded-lg border border-xsm-medium-gray/30"
                       />
                       <button
                         type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeImage(index);
+                        }}
+                        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 hover:bg-red-500 transition-all duration-200"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
+                  {imagePreviews.length < 10 && (
+                    <div className="aspect-square border-2 border-dashed border-xsm-medium-gray/50 rounded-lg flex items-center justify-center hover:border-xsm-yellow hover:bg-xsm-yellow/10 transition-colors">
+                      <div className="text-center">
+                        <Upload className="w-6 h-6 text-xsm-medium-gray mx-auto mb-2" />
+                        <p className="text-xs text-xsm-medium-gray">Add More</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Action Buttons */}
