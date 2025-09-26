@@ -1,13 +1,13 @@
 import React, { useState, useEffect, cloneElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChannelCard from '../components/ChannelCard';
-import ChannelModal from '../components/ChannelModal';
 import AdList from '../components/AdList';
 import AuthWidget from '../components/AuthWidget';
 import { TrendingUp, Zap, Shield, Search, Check, Sliders } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useToast } from "@/components/ui/use-toast";
 import { getAllAds } from '../services/ads';
+import { generateAdSlug } from '@/utils/idEncoder';
 
 interface ChannelData {
   id: string;
@@ -47,8 +47,6 @@ const Home: React.FC<HomeProps> = () => {
   const [showAuthWidget, setShowAuthWidget] = useState(false);
   const [channels, setChannels] = useState<ChannelData[]>([]);
   const [filteredChannels, setFilteredChannels] = useState<ChannelData[]>([]);
-  const [selectedChannel, setSelectedChannel] = useState<ChannelData | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const { isLoggedIn } = useAuth();
   const { toast } = useToast();
   const [sortBy, setSortBy] = useState('newest');
@@ -241,33 +239,16 @@ const Home: React.FC<HomeProps> = () => {
       return;
     }
     
-    // Convert Ad to ChannelData format if needed
-    const channelData: ChannelData = {
-      id: item.id?.toString() || item.id,
-      name: item.title || item.name,
-      category: item.category,
-      platform: item.platform || 'youtube', // Default to youtube if not specified
-      channelUrl: item.channelUrl || item.url || '', // Use url as fallback
-      subscribers: item.subscribers || 0,
-      price: item.price,
-      monthlyIncome: item.monthlyIncome,
-      description: item.description || '',
-      verified: item.verified || false,
-      premium: item.premium || false,
-      rating: item.rating || 0,
-      views: item.views || item.totalViews || 0,
-      thumbnail: item.thumbnail || '',
-      monetized: item.monetized || item.monthlyIncome > 0 || false, // Default based on monthly income
-      seller: {
-        id: item.seller?.id || 0,
-        name: item.seller?.username || item.seller?.name || 'Unknown',
-        rating: item.seller?.rating || 0,
-        sales: item.seller?.sales || 0
-      }
-    };
+    // Navigate to the individual ad page with encoded ID
+    const adId = parseInt(item.id?.toString() || item.id);
+    const adTitle = item.title || item.name || 'channel';
     
-    setSelectedChannel(channelData);
-    setIsModalOpen(true);
+    console.log('Navigating to ad:', { adId, adTitle, item });
+    
+    const slug = generateAdSlug(adId, adTitle);
+    console.log('Generated slug:', slug);
+    
+    navigate(`/ad/${slug}`);
   };
 
   // Apply filters when any filter criteria changes
@@ -675,13 +656,7 @@ const Home: React.FC<HomeProps> = () => {
           </div>
         </div>
         
-        {/* Channel Detail Modal */}
-        <ChannelModal
-          channel={selectedChannel}
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onNavigateToChat={() => navigate('/chat')}
-        />
+        {/* Modal removed - now using individual ad pages */}
         
         {/* Fixed back to top button */}
         {showBackToTop && (

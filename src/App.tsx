@@ -18,6 +18,7 @@ import Profile from './pages/Profile';
 import PublicProfile from './pages/PublicProfile';
 import ProfileRedirect from './components/ProfileRedirect';
 import UsernameRedirect from './components/UsernameRedirect';
+import AdDetails from './pages/AdDetails';
 import NotFound from './pages/NotFound';
 import About from './pages/About';
 import Terms from './pages/Terms';
@@ -62,6 +63,7 @@ const AppContent: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/sell" element={<SellChannel />} />
             <Route path="/chat" element={<Chat />} />
+            <Route path="/ad/:adId" element={<AdDetails />} />
             {/* Profile redirect - redirects /profile to /@username */}
             <Route path="/profile" element={<ProfileRedirect />} />
             {/* Public profile route - shows public view or edit view if own profile */}
